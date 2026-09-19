@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Edit format description')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <p class="breadcrumb"><a th:href="@{/format-tools}">&larr; Format description tools</a></p>
+    <h1 th:text="${def.name}">Format description</h1>
+
+    <section class="editor-section">
+        <h2>Details</h2>
+        <form th:action="@{/format-tools/details}" method="post" class="form">
+            <label>
+                Name
+                <input type="text" name="name" th:value="${def.name}" required/>
+            </label>
+            <label>
+                Notes (padding rules, variable-length conventions, anything a reader needs before the field list)
+                <textarea name="notes" rows="4" th:text="${def.notes}"></textarea>
+            </label>
+            <label th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
+                Default byte order
+                <select name="defaultByteOrder">
+                    <option th:each="o : ${byteOrders}" th:value="${o}" th:text="${o}"
+                            th:selected="${o == def.defaultByteOrder}">BIG_ENDIAN</option>
+                </select>
+            </label>
+            <input type="hidden" name="defaultByteOrder" th:if="${def.kind.name() != 'BYTE_LAYOUT'}"
+                   th:value="${def.defaultByteOrder}"/>
+            <button type="submit">Save details</button>
+        </form>
+    </section>
+
+    <!-- Byte-layout fields -->
+    <section class="editor-section" th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
+        <h2>Fields (file order)</h2>
+        <table class="attrs" th:if="${!def.fields.isEmpty()}">
+            <tr>
+                <th>Name</th><th>Type</th><th>Length</th><th>Byte order</th><th>Meaning</th><th>Units</th><th></th>
+            </tr>
+            <tr th:each="f, it : ${def.fields}">
+                <td th:text="${f.name}">name</td>
+                <td th:text="${f.type}">type</td>
+                <td th:text="${f.lengthBytes}">len</td>
+                <td th:text="${f.byteOrder} ?: 'default'">order</td>
+                <td th:text="${f.description}">meaning</td>
+                <td th:text="${f.units}">units</td>
+                <td>
+                    <form th:action="@{/format-tools/fields/{i}/move(i=${it.index})}" method="post" class="inline-form">
+                        <input type="hidden" name="delta" value="-1"/>
+                        <button type="submit" th:disabled="${it.index == 0}" title="Move up">&uarr;</button>
+                    </form>
+                    <form th:action="@{/format-tools/fields/{i}/move(i=${it.index})}" method="post" class="inline-form">
+                        <input type="hidden" name="delta" value="1"/>
+                        <button type="submit" th:disabled="${it.index == def.fields.size() - 1}" title="Move down">&darr;</button>
+                    </form>
+                    <form th:action="@{/format-tools/fields/{i}/delete(i=${it.index})}" method="post" class="inline-form">
+                        <button type="submit" class="delete-btn" title="Remove">&times;</button>
+                    </form>
+                </td>
+            </tr>
+        </table>
+        <p th:if="${def.fields.isEmpty()}" class="muted">No fields yet.</p>
+
+        <form th:action="@{/format-tools/fields}" method="post" class="inline-add-form">
+            <input type="text" name="name" placeholder="field name" required/>
+            <select name="type">
+                <option th:each="t : ${fieldTypes}" th:value="${t}" th:text="${t}">INT32</option>
+            </select>
+            <input type="number" name="lengthBytes" placeholder="length (bytes, string/bytes only)"/>
+            <select name="byteOrder">
+                <option value="">(use default)</option>
+                <option th:each="o : ${byteOrders}" th:value="${o}" th:text="${o}">BIG_ENDIAN</option>
+            </select>
+            <input type="text" name="description" placeholder="what this field means" style="min-width:22rem;"/>
+            <input type="text" name="units" placeholder="units (optional)"/>
+            <button type="submit">Add field</button>
+        </form>
+    </section>
+
+    <!-- HDF5-style logical tree -->
+    <section class="editor-section" th:if="${def.kind.name() == 'LOGICAL_TREE'}">
+        <h2>Group / dataset / attribute tree</h2>
+        <table class="attrs" th:if="${!def.nodes.isEmpty()}">
+            <tr>
+                <th>Kind</th><th>Path</th><th>Type</th><th>Shape</th><th>Meaning</th><th></th>
+            </tr>
+            <tr th:each="n, it : ${def.nodes}">
+                <td th:text="${n.kind}">kind</td>
+                <td th:style="|padding-left: ${n.depth() * 1.25}rem|" th:text="${n.path}">path</td>
+                <td th:text="${n.dtype}">dtype</td>
+                <td th:text="${n.shape}">shape</td>
+                <td th:text="${n.description}">meaning</td>
+                <td>
+                    <form th:action="@{/format-tools/nodes/{i}/move(i=${it.index})}" method="post" class="inline-form">
+                        <input type="hidden" name="delta" value="-1"/>
+                        <button type="submit" th:disabled="${it.index == 0}" title="Move up">&uarr;</button>
+                    </form>
+                    <form th:action="@{/format-tools/nodes/{i}/move(i=${it.index})}" method="post" class="inline-form">
+                        <input type="hidden" name="delta" value="1"/>
+                        <button type="submit" th:disabled="${it.index == def.nodes.size() - 1}" title="Move down">&darr;</button>
+                    </form>
+                    <form th:action="@{/format-tools/nodes/{i}/delete(i=${it.index})}" method="post" class="inline-form">
+                        <button type="submit" class="delete-btn" title="Remove">&times;</button>
+                    </form>
+                </td>
+            </tr>
+        </table>
+        <p th:if="${def.nodes.isEmpty()}" class="muted">No rows yet.</p>
+
+        <form th:action="@{/format-tools/nodes}" method="post" class="inline-add-form">
+            <select name="kind">
+                <option th:each="k : ${nodeKinds}" th:value="${k}" th:text="${k}">GROUP</option>
+            </select>
+            <input type="text" name="path" placeholder="/group/dataset or /group/dataset@attr" required style="min-width:16rem;"/>
+            <input type="text" name="dtype" placeholder="dtype (dataset/attribute only)"/>
+            <input type="text" name="shape" placeholder="shape, e.g. 100,200 (dataset only)"/>
+            <input type="text" name="description" placeholder="what this means" style="min-width:20rem;"/>
+            <button type="submit">Add row</button>
+        </form>
+    </section>
+
+    <p>
+        <a class="button" th:href="@{/format-tools/preview}">Preview &amp; generate &rarr;</a>
+    </p>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

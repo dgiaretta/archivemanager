@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Statistics')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <h1>Statistics</h1>
+    <p class="muted">
+        How classes and properties are actually used across the whole data graph right now, not a
+        static list of what the ontologies define. Anything with zero individuals or zero uses is
+        left out entirely, rather than padding these tables with mostly-empty rows. For a visual,
+        per-record view of relationships instead of aggregate counts, see the
+        <a th:href="@{/graph}">graph</a>, whose entity-type and relationship-type highlight controls
+        complement these tables well.
+    </p>
+
+    <div class="cards">
+        <div class="report-panel">
+            <h3>Entity types in use</h3>
+            <table class="attrs">
+                <tr th:each="f : ${classCounts}">
+                    <td><a th:href="@{/entities(type=${f.iri})}" th:text="${f.label}">Type</a></td>
+                    <td th:text="${f.count}">0</td>
+                </tr>
+            </table>
+            <p th:if="${classCounts.isEmpty()}" class="muted">No data yet.</p>
+        </div>
+        <div class="report-panel">
+            <h3>Properties in use</h3>
+            <p class="muted" style="font-size:0.75rem;">
+                Triple count per property; where it differs from the number of distinct records
+                using it, that's noted &mdash; a sign the field is repeatable and several records
+                have more than one value.
+            </p>
+            <table class="attrs">
+                <tr th:each="f : ${propertyCounts}">
+                    <td th:text="${f.label}">Property</td>
+                    <td th:text="${f.count}">0</td>
+                </tr>
+            </table>
+            <p th:if="${propertyCounts.isEmpty()}" class="muted">No data yet.</p>
+        </div>
+    </div>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

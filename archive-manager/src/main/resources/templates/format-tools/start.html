@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Format description tools')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <h1>Format description tools</h1>
+    <p class="muted">
+        Build a Kaitai Struct (.ksy), DFDL (.dfdl.xsd), and/or DRB (drb-python) description for a
+        scientific data format, with field-by-field semantics, and save it into the archive as
+        real OAIS Representation Information.
+    </p>
+
+    <div class="callout" th:if="${hasDraft}">
+        <strong>You have a description in progress.</strong>
+        <p>
+            <a class="button" th:href="@{/format-tools/edit}">Resume editing &rarr;</a>
+            <form th:action="@{/format-tools/discard}" method="post" style="display:inline;"
+                  onsubmit="return confirm('Discard the in-progress description? This cannot be undone.');">
+                <button type="submit" class="button-secondary">Discard it</button>
+            </form>
+        </p>
+    </div>
+
+    <h2>Start from a template</h2>
+    <div class="format-template-grid">
+        <form th:action="@{/format-tools/start}" method="post" class="format-template-card">
+            <input type="hidden" name="template" value="fits"/>
+            <h3>FITS</h3>
+            <p class="muted">
+                Primary header + data unit, pre-populated with the FITS Standard's required
+                keyword cards (SIMPLE, BITPIX, NAXIS...) and their real meanings.
+            </p>
+            <button type="submit">Start from FITS &rarr;</button>
+        </form>
+        <form th:action="@{/format-tools/start}" method="post" class="format-template-card">
+            <input type="hidden" name="template" value="hdf5"/>
+            <h3>HDF5</h3>
+            <p class="muted">
+                A worked-example logical schema (group/dataset/attribute) to replace with your
+                own tree -- HDF5 has no fixed universal layout to template byte-for-byte.
+            </p>
+            <button type="submit">Start from HDF5 example &rarr;</button>
+        </form>
+    </div>
+
+    <h2>Or start blank</h2>
+    <div class="format-template-grid">
+        <form th:action="@{/format-tools/start}" method="post" class="format-template-card">
+            <input type="hidden" name="template" value="blank-byte"/>
+            <h3>Byte-layout format</h3>
+            <p class="muted">
+                A sequential binary format (like FITS): define fields in file order, each with a
+                type, length, byte order, and meaning. Generates Kaitai, DFDL, and DRB.
+            </p>
+            <button type="submit">Start blank &rarr;</button>
+        </form>
+        <form th:action="@{/format-tools/start}" method="post" class="format-template-card">
+            <input type="hidden" name="template" value="blank-logical"/>
+            <h3>Logical schema (HDF5-style)</h3>
+            <p class="muted">
+                A self-describing container's group/dataset/attribute tree: define the shape and
+                meaning of each part. Generates DRB and semantic documentation, not Kaitai/DFDL.
+            </p>
+            <button type="submit">Start blank &rarr;</button>
+        </form>
+    </div>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

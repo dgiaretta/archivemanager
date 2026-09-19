@@ -1,0 +1,146 @@
+# A third example dataset, tying the app's RiC-O/OAIS theme to a real-world
+# system: NASA's Planetary Data System (PDS) -- historically one of the
+# concrete use cases behind OAIS itself, and still built on it today (PDS4's
+# architecture is explicitly based on the OAIS Reference Model, ISO 14721).
+#
+# IMPORTANT -- what's real here and what isn't:
+#   - NASA Jet Propulsion Laboratory, the Planetary Data System (PDS), and
+#     J. Steven Hughes's professional role are REAL and were verified by web
+#     search before writing this file (JPL/Caltech lab pages, ResearchGate,
+#     LinkedIn, NASA/JPL conference papers -- see the description on
+#     ex:person-hughes for exactly what's asserted and why). Nothing
+#     fictional is attached to his entry.
+#   - The specific mission, dataset, identifiers, and processing activity
+#     below (everything under "2. An illustrative..." and its OAIS
+#     counterpart) are INVENTED, exactly like sample-data-science.ttl's
+#     fictional mission, purely to have something concrete to attach
+#     RiC-O/OAIS structure to. "Mars Subsurface Radar Explorer" is not a
+#     real NASA mission.
+#
+# All classes/properties used are declared in this project's bundled
+# ontology files, so this loads correctly whether or not the real RiC-O
+# ontology has also been added.
+
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
+@prefix im:     <http://ontology.oais.org/im/> .
+@prefix bridge: <https://oais.info/bridge#> .
+@prefix ex:     <http://example.org/archive/> .
+
+# ============================================================
+# 1. Real institutions and person
+# ============================================================
+
+ex:jpl
+  a rico:CorporateBody ;
+  rico:name "NASA Jet Propulsion Laboratory" ;
+  rico:generalDescription "Federally Funded Research and Development Center, managed by Caltech for NASA. Manages the Planetary Data System." .
+
+ex:pds
+  a rico:CorporateBody ;
+  rico:name "NASA Planetary Data System (PDS)" ;
+  rico:generalDescription "NASA's official archive for planetary science data, active since the mid-1980s. Its PDS4 architecture and Information Model are explicitly based on the OAIS Reference Model (ISO 14721)." .
+
+ex:position-cia
+  a rico:Position ;
+  rico:name "Chief Information Architect" .
+
+ex:person-hughes
+  a rico:Person ;
+  rico:name "J. Steven Hughes" ;
+  rico:generalDescription "REAL, verified professional role (not fictional, unlike the mission/dataset entities below): Principal Computer Scientist at NASA's Jet Propulsion Laboratory. Chief Information Architect for the Planetary Data System and chief architect of the PDS4 Information Model -- the information architecture PDS4 is built on, drawing on principles from the OAIS Reference Model (ISO 14721) and the ISO/IEC 11179 Metadata Registry standard. Also a co-author of the OAIS Reference Model itself (ISO 14721:2012) and an editor of the OAIS Interoperability Framework CCSDS Blue Book; a Primary Trustworthy Digital Repository Authorisation Body (PTAB) member and ISO 16363 auditor; recipient of the NASA Exceptional Public Service Medal. Has worked on PDS since its inception in the mid-1980s, in roles from project engineer to chief architect." ;
+  rico:hasOrHadPosition ex:position-cia ;
+  rico:hasOrHadEmployer ex:jpl .
+
+# ============================================================
+# 2. An illustrative (fictional) mission and dataset archived by PDS,
+#    used to show how PDS4's own terminology (Bundle / Collection / the
+#    LIDVID identifier scheme) maps onto RiC-O's generic classes, and to
+#    give this file an OAIS-side counterpart the way the other two example
+#    files have. Nothing in this section is real.
+# ============================================================
+
+ex:mission-msre-bundle
+  a rico:RecordSet ;
+  rico:name "Mars Subsurface Radar Explorer (MSRE) Data Bundle" ;
+  rico:generalDescription "FICTIONAL. What PDS4 itself calls a 'Bundle' -- a top-level PDS4 archive product -- modelled here as a rico:RecordSet, since RiC-O has no class of its own corresponding to PDS4's Bundle/Collection/Product hierarchy." ;
+  rico:hasCreator ex:pds ;
+  rico:hasOrHadConstituent ex:collection-radargrams .
+
+ex:collection-radargrams
+  a rico:Record ;
+  rico:title "Radargram Data Collection, orbits 1180-1250" ;
+  rico:generalDescription "FICTIONAL. What PDS4 calls a 'Collection' within a Bundle; modelled here as a rico:Record." ;
+  rico:hasCreator ex:pds ;
+  rico:hasOrHadInstantiation ex:instantiation-radargrams ;
+  rico:hasOrHadIdentifier ex:identifier-lidvid ;
+  rico:hasOrganicOrFunctionalProvenance ex:activity-radarprocessing ;
+  bridge:hasOAISCounterpart ex:contentinfo-radargrams .
+
+ex:identifier-lidvid
+  a rico:Identifier ;
+  rico:textualValue "urn:nasa:pds:msre_radar_bundle:data_collection:radargrams_orbit1180_1250::1.0" ;
+  rico:generalDescription "FICTIONAL, but illustrating a real PDS4 concept: the LIDVID (Logical Identifier + Version ID), a URN-based scheme PDS4 actually uses to identify every bundle/collection/product it archives." .
+
+ex:instantiation-radargrams
+  a rico:Instantiation ;
+  rico:type "PDS4 XML label plus binary radar data table" ;
+  rico:conditionsOfAccess "Public domain / open access, per PDS's standard policy for archived planetary science data." .
+
+ex:activity-radarprocessing
+  a rico:Activity ;
+  rico:generalDescription "FICTIONAL. Illustrative radar-signal processing and calibration activity producing this collection from raw fictional instrument telemetry (not modelled in detail here)." .
+
+# ============================================================
+# 3. OAIS counterpart of the fictional collection
+# ============================================================
+
+ex:aip-radargrams
+  a im:ArchivalInformationPackage ;
+  rdfs:comment "FICTIONAL, illustrative AIP for the archived radargram collection." ;
+  im:hasContentInformation ex:contentinfo-radargrams ;
+  im:hasPreservationDescriptiveInformation ex:pdi-radargrams .
+
+ex:contentinfo-radargrams
+  a im:ContentInformation , im:InformationObject ;
+  rdfs:comment "OAIS Information Object / Content Information counterpart of the RiC-O Record ex:collection-radargrams. Double-typed as both, same reasoning as in the other example files: the schema doesn't assert whether Content Information is formally a subclass of Information Object." ;
+  im:hasDataObject ex:dataobject-radargrams ;
+  bridge:hasRiCDescription ex:collection-radargrams .
+
+ex:dataobject-radargrams
+  a im:DataObject , im:DigitalObject ;
+  rdfs:comment "FICTIONAL. The radargram collection's bits." ;
+  im:hasBit ex:bit-radargrams ;
+  bridge:hasRiCDescription ex:instantiation-radargrams .
+
+ex:bit-radargrams
+  a im:Bit ;
+  rdfs:comment "FICTIONAL bitstream; illustrative checksum only." .
+
+ex:pdi-radargrams
+  a im:PreservationDescriptionInformation ;
+  im:hasProvenanceInformation ex:provinfo-radargrams ;
+  im:hasContextInformation ex:contextinfo-radargrams ;
+  im:hasReferenceInformation ex:refinfo-radargrams ;
+  im:hasAccessRightsInformation ex:accessrights-radargrams .
+
+ex:provinfo-radargrams
+  a im:ProvenanceInformation ;
+  rdfs:comment "FICTIONAL provenance: raw telemetry processed and calibrated to produce this collection." ;
+  bridge:hasRiCDescription ex:activity-radarprocessing .
+
+ex:contextinfo-radargrams
+  a im:ContextInformation ;
+  rdfs:comment "FICTIONAL context: this collection is one part of the mission's overall data bundle." ;
+  bridge:hasRiCDescription ex:mission-msre-bundle .
+
+ex:refinfo-radargrams
+  a im:ReferenceInformation ;
+  rdfs:comment "Reference: cite via the collection's LIDVID." ;
+  bridge:hasRiCDescription ex:identifier-lidvid .
+
+ex:accessrights-radargrams
+  a im:AccessRightsInformation ;
+  rdfs:comment "Open access / public domain, per PDS's standard data policy." .

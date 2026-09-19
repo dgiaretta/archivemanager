@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('New record')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <p class="breadcrumb"><a th:href="@{/records}">&larr; Records</a></p>
+    <h1>New record</h1>
+
+    <form th:action="@{/records}" method="post" class="form">
+        <label>
+            Type
+            <select name="type" required>
+                <option value="Record">Record</option>
+                <option value="RecordPart">Record Part</option>
+                <option value="RecordSet">Record Set</option>
+            </select>
+        </label>
+
+        <label>
+            Title
+            <input type="text" name="title" required placeholder="e.g. Minute book of the Harbour Commissioners"/>
+        </label>
+
+        <label>
+            Description
+            <textarea name="description" rows="4" placeholder="rico:generalDescription"></textarea>
+        </label>
+
+        <label>
+            Creator (rico:hasCreator)
+            <select name="creatorId">
+                <option value="">-- none --</option>
+                <option th:each="ag : ${agents}" th:value="${ag.id}" th:text="${ag.title}">Agent</option>
+            </select>
+        </label>
+
+        <label>
+            Part of (rico:hasOrHadConstituent, from the parent to this record)
+            <select name="parentId">
+                <option value="">-- none --</option>
+                <option th:each="rs : ${recordSets}" th:value="${rs.id}" th:text="${rs.title}">Record Set</option>
+            </select>
+        </label>
+
+        <button type="submit">Create</button>
+    </form>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

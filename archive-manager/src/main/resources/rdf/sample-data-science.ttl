@@ -1,0 +1,213 @@
+# Additional example instance data illustrating RiC-O 1.1 and the OAIS
+# Information Model for a SCIENTIFIC DATA scenario, complementing
+# sample-data.ttl's administrative-archive example (the Bridport Harbour
+# Commissioners) with a different domain and a fuller slice of the OAIS
+# package model (Submission/Archival/Dissemination Information Packages,
+# and the Structure/Semantic split within Representation Information) that
+# the original example didn't exercise.
+#
+# Every named person, institute, instrument, mission, and dataset here is
+# FICTIONAL, invented purely to illustrate the ontologies and the bridge --
+# none of it describes a real satellite mission, real data, or a real person.
+#
+# All classes and properties used are ones actually declared in this
+# project's bundled ontology files (oais_im_schema-sh-v5.ttl and
+# rico-vocabulary.ttl), so this loads correctly whether or not the real
+# RiC-O ontology has also been added -- nothing here depends on it.
+
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
+@prefix im:     <http://ontology.oais.org/im/> .
+@prefix bridge: <https://oais.info/bridge#> .
+@prefix ex:     <http://example.org/archive/> .
+
+# ============================================================
+# 1. RiC-O description
+# ============================================================
+
+ex:institute-imar
+  a rico:CorporateBody ;
+  rico:name "Institute of Marine and Atmospheric Research" ;
+  rico:generalDescription "Fictional research institute operating ocean-observing satellite instruments." .
+
+ex:archive-gcdc
+  a rico:CorporateBody ;
+  rico:name "Global Climate Data Centre" ;
+  rico:generalDescription "Fictional data repository holding the processed mission datasets." .
+
+ex:position-pi
+  a rico:Position ;
+  rico:name "Principal Investigator" .
+
+ex:agent-pi-chen
+  a rico:Person ;
+  rico:name "Dr. Amara Chen" ;
+  rico:generalDescription "Fictional Principal Investigator for the Ocean Colour and Temperature Mission." ;
+  rico:hasOrHadPosition ex:position-pi ;
+  rico:hasOrHadEmployer ex:institute-imar .
+
+ex:instrument-ocr3
+  a rico:Mechanism ;
+  rico:name "Ocean Colour Radiometer OCR-3" ;
+  rico:generalDescription "Fictional satellite-borne radiometer instrument, modelled as an automated rico:Mechanism agent that 'creates' raw telemetry by sensing." .
+
+ex:fonds-mission
+  a rico:RecordSet ;
+  rico:name "Ocean Colour and Temperature Mission Data Collection" ;
+  rico:generalDescription "Fictional top-level collection of all data products from the mission." ;
+  rico:hasCreator ex:institute-imar ;
+  rico:hasOrHadConstituent ex:record-l0 , ex:record-l2 .
+
+ex:record-l0
+  a rico:Record ;
+  rico:title "Level 0 raw instrument telemetry, orbit 4821" ;
+  rico:generalDescription "Fictional unprocessed raw telemetry downlinked directly from the instrument." ;
+  rico:hasCreator ex:instrument-ocr3 ;
+  rico:hasOrHadInstantiation ex:instantiation-l0 .
+
+ex:record-l2
+  a rico:Record ;
+  rico:title "Level 2 sea surface temperature swath product, 14 March 2024" ;
+  rico:generalDescription "Fictional calibrated, geolocated sea-surface-temperature data product derived from the Level 0 telemetry." ;
+  rico:hasCreator ex:institute-imar ;
+  rico:hasOrHadInstantiation ex:instantiation-l2 ;
+  rico:hasOrHadIdentifier ex:identifier-doi ;
+  rico:isOrWasRegulatedBy ex:mandate-opendata ;
+  rico:hasOrganicOrFunctionalProvenance ex:activity-l2processing ;
+  rico:hasOrHadConstituent ex:recordpart-qcflags ;
+  bridge:hasOAISCounterpart ex:contentinfo-l2 .
+
+ex:recordpart-qcflags
+  a rico:RecordPart ;
+  rico:title "Quality-control flag layer" ;
+  rico:generalDescription "Fictional per-pixel quality flags accompanying the temperature measurements." .
+
+ex:instantiation-l0
+  a rico:Instantiation ;
+  rico:type "raw telemetry packet stream" ;
+  rico:hasOrHadHolder ex:archive-gcdc .
+
+ex:instantiation-l2
+  a rico:Instantiation ;
+  rico:type "NetCDF-4 file, CF-1.10 conventions" ;
+  rico:conditionsOfAccess "Open access under the mission's open-data policy." ;
+  rico:hasOrHadHolder ex:archive-gcdc .
+
+ex:identifier-doi
+  a rico:Identifier ;
+  rico:textualValue "10.5072/fictional.ocr3.l2.2024-03-14" ;
+  rico:generalDescription "Fictional DOI minted for citing this data product." .
+
+ex:date-processing
+  a rico:Date ;
+  rico:textualValue "2024-03-15" .
+
+ex:activity-l2processing
+  a rico:Activity ;
+  rico:generalDescription "Fictional Level 2 calibration and geolocation processing run." ;
+  rico:hasOrHadParticipant ex:agent-pi-chen ;
+  rico:occurredAtDate ex:date-processing .
+
+ex:mandate-opendata
+  a rico:Mandate ;
+  rico:name "Mission Open Data Policy" ;
+  rico:generalDescription "Fictional mandate requiring open release of Level 2+ data products within 48 hours of processing." .
+
+# An explicit n-ary Relation individual, showing derivation between two
+# Records at the content level (as distinct from rico:hasOrHadDerivedInstantiation,
+# which is specifically about derived *instantiations*/embodiments).
+ex:derivationrelation-l2froml0
+  a rico:DerivationRelation ;
+  rico:relationHasSource ex:record-l0 ;
+  rico:relationHasTarget ex:record-l2 .
+
+# ============================================================
+# 2. OAIS description of the same holdings -- this time exercising the
+#    Submission/Archival/Dissemination package lifecycle, and splitting
+#    Representation Information into its Structure and Semantic facets,
+#    neither of which the original sample-data.ttl example demonstrates.
+# ============================================================
+
+ex:sip-l2
+  a im:SubmissionInformationPackage ;
+  rdfs:comment "Illustrative SIP as submitted by the instrument processing pipeline, before ingest." .
+
+ex:aip-l2
+  a im:ArchivalInformationPackage ;
+  rdfs:comment "Illustrative AIP for the archived Level 2 sea-surface-temperature product." ;
+  im:derivedFrom ex:sip-l2 ;
+  im:hasContentInformation ex:contentinfo-l2 ;
+  im:hasPreservationDescriptiveInformation ex:pdi-l2 .
+
+ex:dip-l2-request42
+  a im:DisseminationInformationPackage ;
+  rdfs:comment "Illustrative DIP generated in response to a fictional data request from a downstream climate-modelling consumer." ;
+  im:derivedFrom ex:aip-l2 ;
+  im:hasContentInformation ex:contentinfo-l2 .
+
+ex:contentinfo-l2
+  a im:ContentInformation , im:InformationObject ;
+  rdfs:comment "OAIS Information Object / Content Information counterpart of the RiC-O Record ex:record-l2. Double-typed as both because the schema doesn't assert whether Content Information is formally a subclass of Information Object; see the equivalent note in the original sample-data.ttl." ;
+  im:hasDataObject ex:dataobject-l2 ;
+  im:hasRepresentationInformation ex:repinfo-l2 ;
+  bridge:hasRiCDescription ex:record-l2 .
+
+ex:dataobject-l2
+  a im:DataObject , im:DigitalObject ;
+  rdfs:comment "Illustrative digital data object: the NetCDF-4 granule's bits." ;
+  im:hasBit ex:bit-l2 ;
+  im:interpretedUsing ex:repinfo-l2 ;
+  bridge:hasRiCDescription ex:instantiation-l2 .
+
+ex:bit-l2
+  a im:Bit ;
+  rdfs:comment "Illustrative bitstream; fictional SHA-256 checksum b7e2a91f...c910." .
+
+ex:repinfo-l2
+  a im:RepresentationInformation ;
+  rdfs:comment "Illustrative umbrella Representation Information, split below into its Structure and Semantic facets -- a natural fit for scientific data, where the file's byte layout and the meaning of each variable need separate documentation." ;
+  im:hasStructureRepresentationInformation ex:structrepinfo-l2 ;
+  im:hasSemanticRepresentationInformation ex:semrepinfo-l2 .
+
+ex:structrepinfo-l2
+  a im:StructureRepresentationInformation ;
+  rdfs:comment "Illustrative structural documentation: the NetCDF-4/HDF5 container format and CF-1.10 metadata convention needed to parse the file's byte layout. No RiC-O counterpart, same documented gap as im:RepresentationInformation generally." .
+
+ex:semrepinfo-l2
+  a im:SemanticRepresentationInformation ;
+  rdfs:comment "Illustrative semantic documentation: the sea_surface_temperature variable is defined in Kelvin, WGS84 geolocation, fill value -999, per the mission's (fictional) Product User Guide. Also no RiC-O counterpart." .
+
+ex:pdi-l2
+  a im:PreservationDescriptionInformation ;
+  im:hasProvenanceInformation ex:provinfo-l2 ;
+  im:hasContextInformation ex:contextinfo-l2 ;
+  im:hasFixityInformation ex:fixityinfo-l2 ;
+  im:hasReferenceInformation ex:refinfo-l2 ;
+  im:hasAccessRightsInformation ex:accessrights-l2 .
+
+ex:provinfo-l2
+  a im:ProvenanceInformation ;
+  rdfs:comment "Illustrative provenance: raw telemetry acquired by the OCR-3 instrument; Level 2 processing performed under Dr. Chen's supervision on 15 March 2024, derived from the Level 0 record." ;
+  bridge:hasRiCDescription ex:activity-l2processing , ex:instrument-ocr3 , ex:derivationrelation-l2froml0 .
+
+ex:contextinfo-l2
+  a im:ContextInformation ;
+  rdfs:comment "Illustrative context: this product is one swath within the mission's ocean colour and temperature data collection." ;
+  bridge:hasRiCDescription ex:fonds-mission .
+
+ex:fixityinfo-l2
+  a im:FixityInformation ;
+  rdfs:comment "Illustrative fixity: SHA-256 checksum recorded at processing time (see ex:bit-l2). No RiC-O counterpart is asserted; RiC-O has no class corresponding to Fixity Information either." .
+
+ex:refinfo-l2
+  a im:ReferenceInformation ;
+  rdfs:comment "Illustrative reference: cite this product via its DOI." ;
+  im:identifies ex:contentinfo-l2 ;
+  bridge:hasRiCDescription ex:identifier-doi .
+
+ex:accessrights-l2
+  a im:AccessRightsInformation ;
+  rdfs:comment "Illustrative access rights: open access under the mission's open-data policy, effective 48 hours after processing." ;
+  bridge:hasRiCDescription ex:mandate-opendata .

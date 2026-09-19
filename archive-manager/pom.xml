@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.3.4</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>info.oais</groupId>
+  <artifactId>archive-manager</artifactId>
+  <version>0.1.0</version>
+  <name>archive-manager</name>
+  <description>Archive management application over RiC-O and OAIS, bridged by a custom bridging ontology</description>
+
+  <properties>
+    <java.version>17</java.version>
+    <jena.version>4.10.0</jena.version>
+    <!--
+      Explicit source encoding for javac. Separate concern from the runtime
+      JVM default-charset issue documented in README's internationalisation
+      section (Java 17 predates JEP 400's "UTF-8 by default", so on Windows
+      specifically, an unconfigured JVM's default charset follows the
+      Windows ANSI code page, not UTF-8), this only affects how javac
+      reads .java source files, not how the running app encodes data. Set
+      anyway since it costs nothing and is good hygiene regardless.
+    -->
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-thymeleaf</artifactId>
+    </dependency>
+
+    <!-- RDF store, SPARQL engine and Turtle I/O -->
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>apache-jena-libs</artifactId>
+      <type>pom</type>
+      <version>${jena.version}</version>
+    </dependency>
+
+    <!-- TDB2: the actual persistent, transactional triple store. Included
+         transitively by apache-jena-libs above; declared explicitly here so
+         it's clear from the POM alone that this app is TDB2-backed. -->
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-tdb2</artifactId>
+      <version>${jena.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springdoc</groupId>
+      <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+      <version>2.6.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <!-- CSV parsing for the NAM "Bulk Upload Spreadsheet" (Eternal SIP metadata) import.
+         1.13.0 specifically: CSVFormat.Builder.get() (used below) was only added in this
+         release, deprecating the older .build() method; confirmed against the project's own
+         published release history (1.11.0: 2024-04-28, 1.12.0: 2024-09-21, 1.13.0:
+         2025-01-08, ".get()" added exactly at 1.13.0), not assumed. -->
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-csv</artifactId>
+      <version>1.13.0</version>
+    </dependency>
+
+    <!--
+      Direct XLSX reading, bypassing a CSV export step entirely. This matters for more than
+      convenience: Excel's plain "CSV (Comma delimited)" export writes the file using the
+      system's ANSI code page, not UTF-8, unless you specifically choose "CSV UTF-8 (Comma
+      delimited)", and the Windows ANSI code page has no representation for Thaana script
+      at all, so that export step silently replaces every Dhivehi character with a literal
+      "?" *in the file itself*, before this app ever sees it. Reading the XLSX directly avoids
+      that lossy step altogether: XLSX stores text as UTF-8 XML internally, no ANSI code page
+      involved anywhere in the path. poi-ooxml alone (not poi-scratchpad) is enough for .xlsx
+      specifically; the legacy binary .xls format isn't supported by this app.
+    -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <!--
+        Generates a browsable HTML API doc site from the /** ... */ source
+        comments, and bundles it into the jar so the running app's own Help
+        page (/help) can link to a real /apidocs/index.html rather than a
+        path that only exists on a dev machine's target/ directory. Runs at
+        prepare-package, after src/main/resources has already been copied
+        to target/classes by the normal process-resources phase, and before
+        spring-boot-maven-plugin's repackage (bound to package) zips
+        target/classes into the jar, so this addition rides along without
+        needing its own copy of the resource-filtering machinery. Doubles as
+        a validation step: a malformed javadoc comment fails the build here,
+        the same way README says a malformed ontology Turtle file does at
+        RdfStore.init().
+
+        `mvn javadoc:javadoc` still works standalone too (writes to its
+        default target/reports/apidocs/index.html) for a quicker doc-only
+        check while writing comments, without a full package build.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-javadoc-plugin</artifactId>
+        <version>3.12.0</version>
+        <configuration>
+          <failOnError>false</failOnError>
+          <doclint>none</doclint>
+        </configuration>
+        <executions>
+          <execution>
+            <id>generate-javadoc-for-help-page</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>javadoc</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-resources-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>bundle-javadoc-into-jar</id>
+            <!-- Same phase as the javadoc generation above; same-phase executions
+                 run in POM declaration order, so this copy always happens after
+                 that plugin has actually written the files being copied here. -->
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>copy-resources</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.outputDirectory}/static/apidocs</outputDirectory>
+              <resources>
+                <resource>
+                  <directory>${project.build.directory}/reports/apidocs</directory>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

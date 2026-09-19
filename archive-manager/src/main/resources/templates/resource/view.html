@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(${title})}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <h1 th:text="${title}">Resource</h1>
+    <p class="types">
+        <span class="pill" th:each="t : ${types}" th:text="${t}">Type</span>
+        &middot; <code th:text="${iri}">iri</code>
+    </p>
+
+    <p>
+        <a class="button" th:href="@{/graph/{id}(id=${id})}">View in graph &rarr;</a>
+        <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}">Edit &rarr;</a>
+    </p>
+
+    <div class="grid">
+        <section th:if="${!attributes.isEmpty()}">
+            <h3>Properties</h3>
+            <table class="attrs">
+                <tr th:each="a : ${attributes}">
+                    <td class="prop" th:text="${a.propertyLocalName}">prop</td>
+                    <td>
+                        <a th:if="${a.value != null and (a.value.startsWith('http://') or a.value.startsWith('https://'))}"
+                           th:href="${a.value}" th:text="${a.value}"
+                           target="_blank" rel="noopener noreferrer" title="Opens in a new tab">value &#8599;</a>
+                        <span th:unless="${a.value != null and (a.value.startsWith('http://') or a.value.startsWith('https://'))}" th:text="${a.value}">value</span>
+                    </td>
+                </tr>
+            </table>
+        </section>
+
+        <section th:if="${!outgoing.isEmpty()}">
+            <h3>Links to</h3>
+            <ul>
+                <li th:each="l : ${outgoing}">
+                    <span class="prop" th:text="${l.propertyLocalName}">prop</span>
+                    &rarr;
+                    <a th:unless="${l.isExternal()}" th:href="@{/resource/{id}(id=${l.resource.id})}" th:text="${l.resource.title}">target</a>
+                    <a th:if="${l.isExternal()}" th:href="${l.resource.iri}" th:text="${l.resource.title}"
+                       target="_blank" rel="noopener noreferrer" title="Opens in a new tab">target &#8599;</a>
+                </li>
+            </ul>
+        </section>
+
+        <section th:if="${!incoming.isEmpty()}">
+            <h3>Linked from</h3>
+            <ul>
+                <li th:each="l : ${incoming}">
+                    <a th:unless="${l.isExternal()}" th:href="@{/resource/{id}(id=${l.resource.id})}" th:text="${l.resource.title}">source</a>
+                    <a th:if="${l.isExternal()}" th:href="${l.resource.iri}" th:text="${l.resource.title}"
+                       target="_blank" rel="noopener noreferrer" title="Opens in a new tab">source &#8599;</a>
+                    &rarr;
+                    <span class="prop" th:text="${l.propertyLocalName}">prop</span>
+                </li>
+            </ul>
+        </section>
+    </div>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Mandates')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <h1>Mandates</h1>
+    <p>rico:Mandate individuals &mdash; the bridge maps these to OAIS Access Rights Information.</p>
+    <table class="listing">
+        <thead><tr><th>Name</th></tr></thead>
+        <tbody>
+        <tr th:each="m : ${resultPage.items}">
+            <td><a th:href="@{/mandates/{id}(id=${m.id})}" th:text="${m.title}">Mandate</a></td>
+        </tr>
+        </tbody>
+    </table>
+    <div th:replace="~{pagination :: pagination(${resultPage}, '/mandates')}"></div>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

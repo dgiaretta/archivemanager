@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(${pageTitle})}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <p class="breadcrumb"><a th:href="@{/records/{id}(id=${id})}">&larr; <span th:text="${title}">Record</span></a></p>
+    <h1>OAIS mapping for <span th:text="${title}">Record</span></h1>
+    <code th:text="${iri}">iri</code>
+    <p><a class="button button-secondary" th:href="@{/graph/{id}(id=${id})}">View in graph &rarr;</a></p>
+
+    <h2>Class-level correspondences (from the bridging ontology)</h2>
+    <div th:each="entry : ${mappingsByType}">
+        <h3>rico:<span th:text="${entry.key}">Record</span></h3>
+        <table th:if="${!entry.value.isEmpty()}" class="attrs">
+            <tr th:each="m : ${entry.value}">
+                <td class="prop" th:text="'skos:' + ${m.relationLocalName}">skos:relatedMatch</td>
+                <td>im:<span th:text="${m.targetLocalName}">InformationObject</span></td>
+                <td class="rationale" th:text="${m.rationale}">rationale</td>
+            </tr>
+        </table>
+        <p th:if="${entry.value.isEmpty()}" class="muted">No bridge mapping declared for this class.</p>
+    </div>
+
+    <div class="callout" th:if="${representationInfoGap}">
+        <strong>Note &mdash; a deliberate gap:</strong>
+        <span th:text="${representationInfoGap}">gap note</span>
+    </div>
+
+    <h2>Linked OAIS structural description</h2>
+    <div th:if="${oaisRows != null}">
+        <div th:each="row : ${oaisRows}" class="oais-node" th:style="${row.indentStyle}">
+            <div class="oais-node-head">
+                <span class="pill pill-oais" th:text="${row.typeLabel}">Type</span>
+                <code th:text="${row.iri}">iri</code>
+            </div>
+            <p class="oais-comment" th:if="${row.comment}" th:text="${row.comment}">comment</p>
+            <div class="oais-ric-links" th:if="${!row.ricDescriptionIris.isEmpty()}">
+                <em>RiC-O description(s):</em>
+                <ul>
+                    <li th:each="r : ${row.ricDescriptionIris}"><code th:text="${r}">iri</code></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <p th:if="${oaisRows == null}" class="muted">
+        This resource has no <code>bridge:hasOAISCounterpart</code> individual linked in the data graph, so
+        there is no OAIS-side structure to walk &mdash; only the class-level mapping above applies.
+    </p>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(${title})}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <p class="breadcrumb"><a th:href="@{/activities}">&larr; Provenance events</a></p>
+    <h1 th:text="${title}">Activity</h1>
+    <p class="types">
+        <span class="pill" th:each="t : ${types}" th:text="${t}">Type</span>
+        &middot; <code th:text="${iri}">iri</code>
+    </p>
+    <p th:if="${description}" th:text="${description}">Description</p>
+
+    <p>
+        <a class="button button-secondary" th:href="@{/graph/{id}(id=${id})}">View in graph &rarr;</a>
+        <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}">Edit &rarr;</a>
+    </p>
+
+    <div class="grid">
+        <section th:if="${!attributes.isEmpty()}">
+            <h3>Properties</h3>
+            <table class="attrs">
+                <tr th:each="a : ${attributes}">
+                    <td class="prop" th:text="${a.propertyLocalName}">prop</td>
+                    <td>
+                        <a th:if="${a.value != null and (a.value.startsWith('http://') or a.value.startsWith('https://'))}"
+                           th:href="${a.value}" th:text="${a.value}"
+                           target="_blank" rel="noopener noreferrer" title="Opens in a new tab">value &#8599;</a>
+                        <span th:unless="${a.value != null and (a.value.startsWith('http://') or a.value.startsWith('https://'))}" th:text="${a.value}">value</span>
+                    </td>
+                </tr>
+            </table>
+        </section>
+
+        <section th:if="${!participants.isEmpty()}">
+            <h3>Participant(s)</h3>
+            <ul><li th:each="p : ${participants}"><a th:href="@{/agents/{id}(id=${p.id})}" th:text="${p.title}">Agent</a></li></ul>
+        </section>
+
+        <section th:if="${!records.isEmpty()}">
+            <h3>Provenance of</h3>
+            <ul><li th:each="r : ${records}"><a th:href="@{/records/{id}(id=${r.id})}" th:text="${r.title}">Record</a></li></ul>
+        </section>
+    </div>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

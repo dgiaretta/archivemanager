@@ -1,0 +1,41 @@
+# Dublin Core Elements 1.1 -- the real, standard vocabulary
+# (http://purl.org/dc/elements/1.1/), not a project invention. Declared here
+# (class + rdfs:label only, same minimal-stub approach as rico-vocabulary.ttl)
+# because the National Archives of Maldives' "Bulk Upload Spreadsheet" --
+# the CSV format used to submit material to their Eternal digital archive --
+# uses exactly these 15 elements as column headers (Title, Subject,
+# Description, Creator, Publisher, Contributor, Date, Type, Format,
+# Identifier, Source, Language, Relation, Coverage, Rights). Using the real
+# DC terms for these columns, rather than inventing RiC-O-shaped
+# equivalents, keeps the imported catalogue data standards-compliant and
+# means it means the same thing to any other tool that also speaks DC.
+#
+# RiC-O has its own closer-fitting properties for some of these concepts
+# (e.g. rico:title, rico:hasCreator linking to a real Agent individual
+# rather than a bare literal) -- CatalogueImportService uses those instead
+# of the DC equivalent wherever RiC-O has one, and falls back to the DC
+# property only for the columns RiC-O has no direct equivalent for
+# (Subject, Publisher, Contributor, Source, Relation, Coverage, and a plain
+# literal Format/Type/Date/Rights alongside their richer RiC-O/OAIS
+# counterparts). See CatalogueImportService for the exact column-by-column
+# mapping.
+
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix dc:   <http://purl.org/dc/elements/1.1/> .
+
+dc:title       a owl:DatatypeProperty ; rdfs:label "Title" .
+dc:subject     a owl:DatatypeProperty ; rdfs:label "Subject" .
+dc:description a owl:DatatypeProperty ; rdfs:label "Description" .
+dc:creator     a owl:DatatypeProperty ; rdfs:label "Creator" .
+dc:publisher   a owl:DatatypeProperty ; rdfs:label "Publisher" .
+dc:contributor a owl:DatatypeProperty ; rdfs:label "Contributor" .
+dc:date        a owl:DatatypeProperty ; rdfs:label "Date" .
+dc:type        a owl:DatatypeProperty ; rdfs:label "Type" .
+dc:format      a owl:DatatypeProperty ; rdfs:label "Format" .
+dc:identifier  a owl:DatatypeProperty ; rdfs:label "Identifier" .
+dc:source      a owl:DatatypeProperty ; rdfs:label "Source" .
+dc:language    a owl:DatatypeProperty ; rdfs:label "Language" .
+dc:relation    a owl:DatatypeProperty ; rdfs:label "Relation" .
+dc:coverage    a owl:DatatypeProperty ; rdfs:label "Coverage" .
+dc:rights      a owl:DatatypeProperty ; rdfs:label "Rights" .

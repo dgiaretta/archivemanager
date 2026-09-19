@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Accession Register')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <h1>Accession Register</h1>
+    <p class="muted">
+        Every accession (a body of records transferred to NAM at one time from the same source) is
+        listed here, open to everyone with no login needed. Each entry links through to its full
+        detail -- attributes, who was involved, and every record it covers.
+    </p>
+    <p><a class="button button-secondary" th:href="@{/catalogue/upload}">Bulk upload (creates a new accession) &rarr;</a></p>
+
+    <table class="listing">
+        <thead>
+        <tr><th>Type</th><th>Description</th><th th:if="${loggedIn}"></th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="a : ${resultPage.items}">
+            <td><span class="pill" th:text="${a.typeLocalName}">Accession</span></td>
+            <td><a th:href="@{/activities/{id}(id=${a.id})}" th:text="${a.title}">Description</a></td>
+            <td th:if="${loggedIn}">
+                <form th:action="@{/accession-register/{id}/delete(id=${a.id})}" method="post" class="inline-form"
+                      onsubmit="return confirm('Delete this accession AND every record it created? This cannot be undone.');">
+                    <button type="submit" class="delete-btn" title="Delete accession and its records">&times;</button>
+                </form>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <p th:if="${resultPage.items.isEmpty()}" class="muted">No accessions yet.</p>
+    <div th:replace="~{pagination :: pagination(${resultPage}, '/accession-register')}"></div>
+
+    <details th:if="${loggedIn}" class="danger-zone">
+        <summary>Advanced</summary>
+        <form th:action="@{/accession-register/delete-all}" method="post"
+              onsubmit="return confirm('Delete every record, accession, and OAIS-counterpart resource any import has ever created -- including orphaned records left behind by an accession already deleted the old way. This cannot be undone.');">
+            <button type="submit" class="danger-link">Delete ALL catalogue import data</button>
+        </form>
+    </details>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

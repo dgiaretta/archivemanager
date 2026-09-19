@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Records')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <h1>Records, Record Parts &amp; Record Sets</h1>
+    <p><a class="button" th:href="@{/records/new}">+ New record</a></p>
+    <table class="listing">
+        <thead>
+        <tr><th>Type</th><th>Title</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="r : ${resultPage.items}">
+            <td><span class="pill" th:text="${r.typeLocalName}">Record</span></td>
+            <td><a th:href="@{/records/{id}(id=${r.id})}" th:text="${r.title}">Title</a></td>
+        </tr>
+        </tbody>
+    </table>
+    <div th:replace="~{pagination :: pagination(${resultPage}, '/records')}"></div>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

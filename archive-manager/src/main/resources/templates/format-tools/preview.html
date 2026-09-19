@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Preview format description')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <p class="breadcrumb"><a th:href="@{/format-tools/edit}">&larr; Back to editor</a></p>
+    <h1 th:text="${def.name}">Format description</h1>
+
+    <section class="editor-section" th:if="${kaitai != null}">
+        <h2>Kaitai Struct (.ksy)</h2>
+        <a class="button-link" th:href="@{/format-tools/download/kaitai}">Download .ksy &rarr;</a>
+        <pre class="sparql" th:text="${kaitai}">...</pre>
+    </section>
+
+    <section class="editor-section" th:if="${dfdl != null}">
+        <h2>DFDL (.dfdl.xsd)</h2>
+        <a class="button-link" th:href="@{/format-tools/download/dfdl}">Download .dfdl.xsd &rarr;</a>
+        <pre class="sparql" th:text="${dfdl}">...</pre>
+    </section>
+
+    <section class="editor-section" th:if="${kaitai == null and dfdl == null}">
+        <p class="muted">
+            Kaitai and DFDL describe a sequential byte layout, which this HDF5-style logical
+            schema isn't -- see the DRB output below, or add a separate byte-layout description
+            for one dataset's own raw array if you need one.
+        </p>
+    </section>
+
+    <section class="editor-section" th:if="${drbPython != null}">
+        <h2>DRB &mdash; Python (drb-python)</h2>
+        <p class="muted">
+            A starting scaffold, not a verified driver &mdash; see the module docstring in the
+            generated file for what to check against your installed drb-python version. This
+            targets <a href="https://gitlab.com/drb-python" target="_blank" rel="noopener noreferrer">drb-python</a>,
+            not the Java DRB library below &mdash; they're different implementations.
+        </p>
+        <a class="button-link" th:href="@{/format-tools/download/drb-python}">Download .py &rarr;</a>
+        <pre class="sparql" th:text="${drbPython}">...</pre>
+    </section>
+
+    <section class="editor-section" th:if="${drbJava != null}">
+        <h2>DRB &mdash; Java (fr.gael.drb)</h2>
+        <p class="muted">
+            A field-semantics reference and usage snippet in the same reflection-based shape as
+            oais-structure-drb's own DrbStructureNode/DrbFormatSpecification classes, for
+            projects that already depend on the original Java DRB library rather than drb-python.
+        </p>
+        <a class="button-link" th:href="@{/format-tools/download/drb-java}">Download .java &rarr;</a>
+        <pre class="sparql" th:text="${drbJava}">...</pre>
+    </section>
+
+    <section class="editor-section">
+        <h2>Save to archive</h2>
+        <p class="muted">
+            Creates Structure/Semantic Representation Information linked to a Data Object, the
+            same way the rest of the archive models any format's Representation Information.
+            Pick which of the generated descriptions above to keep as Structure Representation
+            Information &mdash; the field semantics are saved either way.
+        </p>
+        <form th:action="@{/format-tools/save}" method="post" class="form">
+            <label>
+                Data Object this describes
+                <input type="text" class="select-filter" data-target="dataObject-select" placeholder="Type to filter entities..."/>
+                <select name="dataObjectId" id="dataObject-select">
+                    <option value="">-- create a new Data Object --</option>
+                    <option th:each="e : ${allEntities}" th:value="${e.id}" th:text="${e.title} + ' (' + ${e.typeLocalName} + ')'">target</option>
+                </select>
+            </label>
+            <label th:if="${kaitai != null}">
+                <input type="checkbox" name="formats" value="kaitai"/> Save Kaitai Struct description
+            </label>
+            <label th:if="${dfdl != null}">
+                <input type="checkbox" name="formats" value="dfdl"/> Save DFDL description
+            </label>
+            <label th:if="${drbPython != null}">
+                <input type="checkbox" name="formats" value="drb-python"/> Save DRB (Python) description
+            </label>
+            <label th:if="${drbJava != null}">
+                <input type="checkbox" name="formats" value="drb-java"/> Save DRB (Java) description
+            </label>
+            <button type="submit">Save to archive</button>
+        </form>
+    </section>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+
+<script src="/js/select-filter.js"></script>
+</body>
+</html>

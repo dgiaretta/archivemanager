@@ -1,0 +1,999 @@
+# Archive Manager
+
+A small Spring Boot application for browsing and managing archival holdings
+described in **RiC-O 1.1** (Records in Contexts Ontology), with a live view of
+how each record maps onto the **OAIS Information Model**, via the custom
+bridging ontology (`oais-ric-bridge.ttl`) developed alongside this app.
+
+There is no relational database here: the archive *is* an RDF graph, stored
+in [Apache Jena TDB2](https://jena.apache.org/documentation/tdb2/), a real
+disk-backed, transactional triple store (see [Storage](#storage) below) --
+not an in-memory model with hand-rolled file persistence. Spring Boot +
+Thymeleaf handle the web UI.
+
+## What's in the box
+
+```
+run.bat                     Windows launch script with -Dfile.encoding=UTF-8
+                              -Dsun.jnu.encoding=UTF-8 already set -- use this
+                              instead of a bare "java -jar" if any of your data
+                              is in Dhivehi or another non-Latin script; see the
+                              internationalisation section for why that matters
+                              specifically on Windows with Java 17.
+run.sh                      The same, for Linux/macOS (chmod +x first). This
+                              matters on Linux too, not only Windows -- it
+                              depends on the actual locale environment
+                              (LANG/LC_ALL/LC_CTYPE) wherever the jar gets
+                              launched from, which a systemd unit, cron job, or
+                              container doesn't always inherit the same way an
+                              interactive shell does.
+src/main/resources/rdf/
+  oais_im_schema-sh-v5.ttl   OAIS Information Model schema (classes/properties).
+                              Class/property IRIs were renamed from the original
+                              opaque OQ-2 identifiers (c-0011, s-0014, ...) to
+                              readable names (AccessRightsInformation,
+                              hasDataObject, ...) derived from their rdfs:label.
+                              The original identifiers are preserved as an
+                              oais:identifier annotation on every class/property
+                              for traceability back to the OAIS spec.
+  oais-ric-bridge.ttl        The bridging ontology: RiC-O <-> OAIS class
+                              correspondences (SKOS mapping relations) plus
+                              bridge:hasOAISCounterpart / bridge:hasRiCDescription,
+                              two object properties for linking individuals
+  rico-vocabulary.ttl        Companion RiC-O stub: all 107 RiC-O 1.1 classes, a
+                              curated set of common object/datatype properties, and
+                              rdfs:subClassOf hierarchy for the branches this app's
+                              own queries walk generically (Agent, RecordResource,
+                              Event, Rule) -- not the full RiC-O OWL file; see the
+                              note at the top of the file for exactly what's and
+                              isn't covered. Powers the entity editor's pickers and
+                              the ontology-driven class-membership queries in
+                              ArchiveService/GraphService (see Design notes below).
+  dc-vocabulary.ttl          The real, standard Dublin Core Elements 1.1 namespace
+                              (not a project invention) -- declares the 15 elements
+                              NAM's Bulk Upload Spreadsheet uses as column headers,
+                              so they appear in the entity editor's pickers.
+  nam-vocabulary.ttl         A small extension vocabulary for the handful of NAM/
+                              Eternal-specific fields (Record No, storage Location,
+                              Received/Accessioned Date, TransferredRecord, and the
+                              nam:Accession class) with no home in RiC-O, OAIS, or
+                              Dublin Core. See "National Archives of Maldives"
+                              below.
+  RiC-O_1-1.rdf               NOT included -- optional. Drop a downloaded copy of
+                              the real RiC-O 1.1 OWL file here (exact filename) to
+                              use it instead of the stub above; see "Is the real
+                              RiC-O ontology loaded?" below for where to get it and
+                              what changes when you do.
+  sample-data.ttl            Example instance data: a small fictional fonds
+                              (Bridport Harbour Commissioners) described BOTH
+                              natively in RiC-O and as an OAIS preservation
+                              description, cross-linked individual-by-individual
+  sample-data-science.ttl    A second, independent example in a different domain
+                              (a fictional Earth-observation mission's data
+                              products) exercising OAIS structure the first
+                              example doesn't: the full Submission/Archival/
+                              Dissemination Information Package lifecycle, and
+                              Representation Information split into its Structure
+                              and Semantic facets. Loaded automatically alongside
+                              sample-data.ttl on a fresh install (only when the
+                              data graph is empty -- see "Updating the ontologies"
+                              for what "fresh" means here); harmless to delete if
+                              you don't want the extra example data.
+  sample-data-pds.ttl        A third example tying the app's theme to a real
+                              system: NASA's Planetary Data System (PDS), whose
+                              PDS4 architecture is explicitly OAIS-based. Includes
+                              one REAL, web-search-verified fact (J. Steven Hughes,
+                              PDS's real Chief Information Architect and chief
+                              architect of the PDS4 Information Model, also a
+                              co-author of the OAIS Reference Model itself) kept
+                              strictly separate from an illustrative fictional
+                              mission/dataset used for the RiC-O/OAIS structure --
+                              see the file's own header for exactly what's real
+                              and what's invented. Also loaded automatically on a
+                              fresh install, alongside the other two.
+```
+
+On first run, `sample-data.ttl` (and `sample-data-science.ttl` and
+`sample-data-pds.ttl`, since they're present) are loaded into TDB2's data
+graph (a real, disk-backed, transactional store -- see [Storage](#storage)
+below), which is then left alone on every subsequent startup: your data
+persists across restarts, and
+neither bundled file is ever modified after that first load. Delete the
+`archive.tdb-location` directory (default `data/tdb2/`) to reset back to the
+sample data.
+
+## Running it
+
+Requires JDK 17+ and Maven (or use the wrapper if you generate one with
+`mvn -N wrapper:wrapper`).
+
+```
+mvn spring-boot:run
+```
+
+Then open http://localhost:9090 (port is set in `application.yml`).
+
+**On Windows, if any of your data is in Dhivehi (or any non-Latin script),
+run the packaged jar via `run.bat`** from the project root, not a bare
+`java -jar`. It explicitly sets `-Dfile.encoding=UTF-8
+-Dsun.jnu.encoding=UTF-8` -- Java 17 predates Java 18's "UTF-8 by default"
+change (JEP 400), so on Windows specifically, an unconfigured JVM's default
+charset follows the Windows ANSI code page rather than UTF-8, and anything
+that doesn't explicitly specify UTF-8 for a given operation silently
+substitutes `?` for characters it can't represent (Thaana script has no
+representation in that code page at all). `mvn spring-boot:run` during
+development isn't affected the same way, since Maven typically launches
+the forked JVM with its own encoding already set correctly -- this
+specifically matters for the *packaged, standalone jar* on Windows.
+Visit `/diagnostics/encoding` on a running instance to check definitively
+whether this is (or isn't) affecting your particular setup, rather than
+guessing.
+
+Browsing is always open. Creating, editing, or deleting anything requires
+logging in with the shared password configured for `archive.edit-password`.
+For deployment, keep the password set in the runtime environment or the
+server's config, since the app must have the actual value available when it
+starts.
+
+## National Archives of Maldives: Catalogue and Accession Register
+
+Built directly from NAM's own policy documents (Preservation Policy and
+Implementation Plan; Preservation Strategic Plan; Records Management Plan),
+specifically the "Upload Spreadsheet and Accession Register" section and
+the Records Management Plan's transfer workflow -- this isn't a generic
+guess at what an archive catalogue needs, it's a real, specified
+NAM system:
+
+- **The Bulk Upload Spreadsheet.** NAM's documents specify an exact
+  26-column format used to configure bulk uploads to their Eternal digital
+  archive (an OAISCloud/Archivematica-based system), accepted here as
+  either `.xlsx` or `.csv` (see the dedicated note on which to prefer,
+  just below). The columns are Dublin Core's 15 elements (Title, Subject,
+  Description, Creator, Publisher, Contributor, Date, Type, Format,
+  Identifier, Source, Language, Relation, Coverage, Rights) plus
+  preservation/administrative extensions (Record No, Location, Received
+  Date, Accessioned Date, Provenance, FixityHashSHA256, FormatInfo,
+  Semantics, OtherRI, TransferredRecord). `CatalogueImportService` parses
+  either format (Apache Commons CSV for `.csv`, Apache POI for `.xlsx`,
+  both feeding the exact same row-processing logic so there's one place
+  the column mapping is decided, not two copies to keep in sync;
+  case/whitespace-insensitive header matching; "repeatable" columns split
+  on `;`, per the spreadsheet's own specification) and maps every column
+  onto real RDF: RiC-O where it has a closer-fitting property than a bare
+  literal (Title, Creator -> a real Agent, Description, Identifier -> real
+  Identifier individuals), the real Dublin Core namespace for the columns
+  that literally are DC elements with no RiC-O equivalent, a small `nam:`
+  extension vocabulary (`nam-vocabulary.ttl`) for the handful of columns
+  with no home anywhere else, and a genuine (if intentionally lightweight)
+  OAIS structure -- an ArchivalInformationPackage wrapping a Content
+  Information/Information Object and a Preservation Description
+  Information populated with whichever of Provenance/Fixity/AccessRights/
+  Reference Information the row actually supplied, plus a Representation
+  Information split into Structure/Semantic/Other facets if those columns
+  were present -- bridged to the record exactly like this project's other
+  sample data, so the existing `/oais/{id}` mapping page works on every
+  imported record unchanged.
+- **Prefer `.xlsx` over `.csv` whenever the source data has non-Latin
+  script in it (Dhivehi, for NAM).** Excel's plain "CSV (Comma delimited)"
+  export writes the file using the system's ANSI code page, not UTF-8,
+  unless "CSV UTF-8 (Comma delimited)" is chosen specifically -- and the
+  Windows ANSI code page has no representation for Thaana script at all,
+  so that export step silently replaces every Dhivehi character with a
+  literal `?` *in the file itself*, before this app ever sees it. That's
+  the "lots of question marks instead of Dhivehi script" symptom exactly,
+  and it's permanent once it's happened: no amount of correct encoding
+  handling on this app's side can recover text a lossy CSV export already
+  destroyed -- re-uploading the same corrupted CSV will not help; the fix
+  has to use the original `.xlsx` (or a CSV re-exported with the UTF-8
+  option specifically chosen), not the already-corrupted file. Reading the
+  `.xlsx` directly (`CatalogueImportService.importXlsx`, via Apache POI)
+  avoids the lossy step altogether, since XLSX stores text as UTF-8 XML
+  internally with no ANSI code page involved anywhere in the path. Only
+  modern `.xlsx` is supported, not the legacy binary `.xls` format.
+- **The Catalogue** (`/catalogue`) -- public, anonymous, keyword search
+  (title/description/subject/type) over every Record/RecordPart/RecordSet,
+  paginated. The search term is escaped via `Ns.escapeSparqlLiteral` before
+  being embedded in the query -- this is the first genuinely
+  anonymous-input search surface in the app, so getting that escaping right
+  actually matters, unlike the admin-only forms elsewhere that already sit
+  behind a login.
+- **Explore** (`/catalogue/explore`) -- for asking more specific questions
+  than a keyword search can answer, without needing to know SPARQL or use
+  the SPARQL console. Two parts, both public and anonymous:
+  - A **filter form** (creator, type, language, subject, coverage, rights,
+    date range, transferred-record status, any combination, all optional
+    and AND-combined) that builds a SPARQL query behind the scenes
+    (`ArchiveService.advancedSearch`) -- the same escaping discipline as
+    the plain keyword search applies to every field.
+  - **Quick reports** -- records grouped by creator, type, language, and
+    year, each a live `GROUP BY`/`COUNT` SPARQL query
+    (`ArchiveService.recordsByCreator`/`recordsByType`/`recordsByLanguage`/
+    `recordsByYear`), not canned/precomputed examples. "By year" is
+    explicitly approximate: it takes the first 4 characters of `dc:date`,
+    so it's only meaningful if dates are consistently `YYYY-...`
+    formatted, which the spreadsheet's own documentation specifies but
+    this app can't enforce on upload -- stated in the UI itself, not just
+    here.
+- **The Accession Register** (`/accession-register`) -- public, anonymous,
+  paginated list of accessions. Per NAM's own definition (quoting TNA): "a
+  body of records transferred to an archives service at one time from the
+  same source." Modelled as `nam:Accession`, a subclass of `rico:Activity`
+  -- one per CSV upload, linking every record that upload created via
+  `rico:hasOrganicOrFunctionalProvenance` (the same property this app
+  already uses everywhere else for "what activity produced this record").
+  Because it's a real Activity subclass, it needs no separate detail-view
+  code at all: each entry links straight to the existing `/activities/{id}`
+  page, which already shows attributes (depositor, quantity received,
+  recording archivist -- all in the `nam:` vocabulary), participants, and
+  every record it's the provenance of. Admins (logged in) also get a
+  delete button per accession here -- **deliberately a cascading delete**,
+  covering the accession plus every record and OAIS-counterpart resource
+  that import created (`EditService.deleteAccessionCascade`), not the
+  generic single-resource delete used elsewhere in the app. That
+  distinction matters in practice: plain delete only removes the accession
+  itself, leaving its records (with all their original data) fully intact
+  in the catalogue, orphaned but still findable via search or a
+  previously-visited link -- exactly the kind of stale data that makes a
+  "delete and re-import" testing cycle unreliable, since you can end up
+  looking at leftovers from an earlier import without realizing it. There's
+  also a **"Delete ALL catalogue import data"** button for clearing
+  everything at once -- and it deliberately does *not* work by iterating
+  live accessions the way the per-accession button does
+  (`EditService.deleteAllCatalogueImportData`, not
+  `deleteAllAccessionsCascade`, which still exists as a narrower option):
+  once an accession has already been removed by the older, non-cascading
+  delete, there's no accession entity left to iterate from, so an
+  accession-based bulk delete silently can't reach records from batches
+  that were ever cleaned up that way -- a real gap found by testing, not a
+  hypothetical. The bulk delete works from IRI structure instead (every
+  resource an import creates is named `ex:record-<batchSlug>-...` or
+  `ex:<batchSlug>-...`), which survives regardless of whether the
+  accession entity itself still exists.
+- **Uploading** (`/catalogue/upload`, admin-gated -- same login as
+  everything else that writes data) accepts the CSV plus a few
+  accession-level fields (description, depositor, recording archivist,
+  accession date) not present per-row. No column is treated as mandatory --
+  real NAM spreadsheets routinely have several blank cells, and importing a
+  record with fewer properties is far more useful than rejecting the row --
+  so a blank cell just means that property isn't recorded, not an error.
+  "Original Title" is accepted as an alternate header for "Title" (some
+  real spreadsheets use that name for the same column NAM's policy
+  documents call "Title"). Rows are only skipped, individually and with a
+  reported reason (never silently, never failing the whole upload), if
+  something genuinely unexpected happens reading them; the accession and
+  every successfully-read row still commit together as one transaction
+  (see [Storage](#storage)) -- a bad row can leave itself out, but never
+  leaves the graph in a half-written state.
+- **"Administrators should be able to add extra relationships and
+  properties"** -- already true, with no new code needed for it: every
+  Catalogue record and every Accession is a normal entity in this app's
+  data graph, so the existing, general-purpose entity editor
+  (`/entities/{id}/edit`, see above) already works on them exactly as it
+  does on anything else -- add a property, add a relationship, change its
+  type, all through the same admin-gated UI, with the same ontology-driven
+  pickers (now including the `dc:`/`nam:` namespaces alongside RiC-O/OAIS).
+
+**What this deliberately doesn't do**, so it's not a surprise later: it
+doesn't implement the Catalogue's separate Department/Series/Subseries/
+Piece/Item reference-number hierarchy (that's a different table in NAM's
+Records Management Plan, not a column in the Bulk Upload Spreadsheet
+itself -- the `rico:hasOrHadConstituent` nesting this app already supports
+would model it well, but populating it isn't part of *this* CSV import); it
+doesn't call Eternal or Archivematica itself (this app manages the
+Catalogue/Accession Register side, not the preservation-system side NAM's
+documents describe Eternal handling); and Contributor is stored as a plain
+`dc:contributor` literal rather than linked to a real Agent the way Creator
+is, for simplicity -- upgrading that is a small, contained change if
+wanted.
+
+## What to look at
+
+- **Statistics** (`/statistics`) -- live class/property usage counts across
+  the whole data graph (`ArchiveService.typesInUse`/`propertyUsageCounts`),
+  not a static list of what the ontologies define. Only classes/properties
+  actually in use appear; a property's triple count and its
+  distinct-subject count are both shown when they differ, which happens for
+  repeatable fields (e.g. `dc:subject`) where one record can contribute
+  several triples. Each entity type links through to `/entities?type=...`
+  (see below) for the actual individuals. Public, same as the rest of
+  browsing.
+- **Entity type filter** (`/entities?type=...`) -- a dropdown, populated
+  from `ArchiveService.typesInUse()` (the same live usage data driving the
+  Statistics page, not a separate hard-coded list), for narrowing the
+  generic entity listing to one class at a time -- an exact type match, not
+  the `rdfs:subClassOf*` family lookups the rest of this app uses for
+  "list all Agents"/"list all Record Resources"/etc., since this is
+  deliberately a blunt "what IS this thing" filter rather than an
+  ontology-aware one. Reachable directly by picking a type from the
+  dropdown, or by clicking through from the Statistics page.
+- **Graph highlighting** (`/graph`, `/graph/{id}`) -- two checkbox panels,
+  populated from whatever's actually in the currently-loaded graph (not a
+  fixed list), for highlighting by entity type and by relationship type
+  independently. Selecting entity types dims every node whose type isn't
+  selected, and also dims edges where *neither* endpoint matches; selecting
+  relationship types dims edges whose property isn't selected, independent
+  of node type. Both apply at once when both have selections. Pure
+  client-side (`vis-network`'s own `DataSet.update`), no extra requests --
+  the type/property data was already being sent to the browser as JSON for
+  the graph itself, this just uses more of it (`GraphNode` gained a
+  `types` field for exactly this).
+- **Home page downloads** -- direct links to download `oais-ric-bridge.ttl`
+  and `oais_im_schema-sh-v5.ttl` (`/download/bridge-ontology`,
+  `/download/oais-ontology`). These stream the exact classpath resource
+  bytes the app itself loaded at startup -- not a re-serialization -- so
+  what you download is guaranteed to match what's actually running, comments
+  and formatting included. Open, no login needed (schema/documentation, not
+  archive data). There's no equivalent download link for the RiC-O file
+  itself here, since redistributing it isn't this app's place -- get it from
+  the source in [Is the real RiC-O ontology loaded?](#is-the-real-ric-o-ontology-loaded).
+- **`/diagnostics/encoding`** -- renders a Dhivehi phrase hard-coded
+  directly in this app's own Java source (never touched an uploaded file)
+  alongside the JVM's actual charset configuration and locale environment
+  variables (LANG/LC_ALL/LC_CTYPE), specifically to distinguish "the source
+  spreadsheet was already corrupted before upload" from "something in this
+  app's own pipeline is at fault" when Dhivehi text shows as question
+  marks -- see the internationalisation section for the full explanation
+  of both failure modes and why they look identical. Not Windows-specific:
+  the underlying cause (a non-UTF-8 JVM default charset) can come from an
+  unconfigured locale on Linux/WSL just as easily.
+- **`/diagnostics/xlsx-test`** (admin-gated, since it accepts a file
+  upload) -- a more targeted companion: upload the actual `.xlsx` giving
+  you trouble and see exactly what Apache POI extracts from its first few
+  rows, with nothing else involved (no data graph, no storage, no
+  rendering). Isolates whether corruption is present the moment the file
+  is read versus introduced later in the pipeline, which the hard-coded
+  test string on `/diagnostics/encoding` can't tell you, since it never
+  goes through file reading at all.
+- **Records** (`/records`) -- browse/create `rico:Record`, `rico:RecordPart`,
+  `rico:RecordSet` individuals: title, description, creator, constituents,
+  instantiations, regulating mandate, provenance activity.
+- **Agents** (`/agents`), **Provenance events** (`/activities`),
+  **Mandates** (`/mandates`) -- the supporting entities, each with reverse
+  lookups (e.g. an agent's page lists what it created).
+- **OAIS mapping** (link from any record) -- this is the interesting one.
+  It has two parts:
+  1. **Class-level correspondences**, read live out of `oais-ric-bridge.ttl`
+     via SPARQL (`skos:closeMatch` / `broadMatch` / `narrowMatch` /
+     `relatedMatch` plus `bridge:mappingRationale`) for whatever RiC-O
+     class(es) the record has. Nothing about *which* OAIS class a RiC-O class
+     maps to is hard-coded in Java -- the app just asks the ontology.
+  2. **The linked OAIS structural tree**, if the record has a
+     `bridge:hasOAISCounterpart` individual in the data graph. The app walks
+     it by following any outgoing property in the OAIS namespace
+     (`http://ontology.oais.org/im/`) whose object is a resource -- again,
+     no property names like "has Data Object" are hard-coded, it is driven
+     entirely by the `im:` namespace convention. For the sample record you
+     will see: Information Object -> Data Object -> Bit, and Preservation
+     Description Information -> Provenance / Context / Fixity / Reference /
+     Access Rights Information, with each OAIS node showing its
+     `bridge:hasRiCDescription` link(s) back to the RiC-O individual(s) it
+     corresponds to -- except Representation Information, which is shown
+     with no RiC-O link, illustrating the one deliberate gap the bridge
+     documents.
+- **Interactive graph** (`/graph` for everything, or "View in graph" from any
+  record/agent/activity/mandate/OAIS-node page for a focused view) -- a
+  [vis-network](https://visjs.github.io/vis-network/) visualization of the
+  data graph, loaded from `GET /api/graph` or `GET /api/graph/{id}?depth=N`
+  (plain JSON, reusable outside the UI too). RiC-O nodes are blue, OAIS nodes
+  are orange, and edges crossing between the two ontologies (i.e. the
+  `bridge:hasOAISCounterpart` / `bridge:hasRiCDescription` links) are drawn as
+  dashed red lines, so the bridge is visible directly in the graph rather than
+  just in a table. Double-click a node to open its detail page; nodes that
+  aren't a Record/Agent/Activity/Mandate (OAIS individuals, Date and Relation
+  instances, etc.) fall back to a generic `/resource/{id}` page that also
+  exists purely so every graph node is clickable. Depth (1-4 hops) is
+  adjustable from the toolbar on a focused view; the full graph has no depth
+  limit, so keep an eye on `MAX_NODES` in `GraphService` if you load in a much
+  larger archive.
+- **Entities** (`/entities`) -- the generic editor. Unlike the other
+  sections (which only know about a handful of hard-coded RiC-O classes),
+  this works for **any** RiC-O or OAIS class:
+  - `/entities/new` creates a new individual of any class. The class picker
+    is populated live via SPARQL from the ontology graph -- all 107 RiC-O
+    1.1 classes (from the bundled `rico-vocabulary.ttl` stub, see below) and
+    every OAIS class (from the full `oais_im_schema-sh-v5.ttl`) -- plus a
+    free-text field for a custom class IRI/prefixed name if you need
+    something outside either vocabulary.
+  - `/entities/{id}/edit` manages an existing individual's type(s), literal
+    properties, and relationships (both outgoing, which you can add here,
+    and incoming, shown for context and deletable but added from the other
+    end). Property pickers are populated the same ontology-driven way, from
+    a curated set of common RiC-O properties (RiC-O's full 480 object +
+    75 datatype properties aren't bundled -- see the note in
+    `rico-vocabulary.ttl`) and the complete OAIS property set, again with a
+    free-text fallback for anything else -- so in practice every relation
+    from either vocabulary is reachable, just not all pre-populated as a
+    dropdown suggestion.
+  - Every write goes straight through `EditService` onto the Jena data
+    model via `Resource.addProperty` / `Model.removeAll`. There's no
+    explicit save step -- the request is already running inside a TDB2
+    write transaction (opened by `TransactionInterceptor` before the
+    controller method ran) that commits automatically once the response is
+    complete (see [Storage](#storage) below).
+  - "Edit" links are wired in from every other detail page (records,
+    agents, activities, mandates, the generic resource page, and graph
+    double-click via the resource page) so you rarely need to visit
+    `/entities` directly except to create something new or browse
+    everything at once.
+  - **`/entities/import`** -- bulk-add data by pasting complete Turtle
+    (including its own `@prefix` lines) rather than building it up one
+    field at a time. Pasted content is parsed into a throwaway model first;
+    if it doesn't parse, nothing touches the real data graph. The content
+    of any of this project's own `rdf/*.ttl` files pastes in directly,
+    since they're already complete, self-contained documents -- this is
+    the fast way to load `sample-data-science.ttl`, `sample-data-pds.ttl`
+    (or a file of your own) into an already-running instance that
+    auto-seeding won't touch because its data graph isn't empty anymore.
+  - **Property-level bridge correspondences.** Not every bridge mapping is
+    at the class level -- e.g. `rico:technicalCharacteristics` has a
+    `skos:relatedMatch` to `im:OtherRepresentationInformation` (see
+    `oais-ric-bridge.ttl`). These are surfaced two ways in the editor,
+    driven by the same generic `ArchiveService.bridgeMappingsFor(iri)`
+    lookup (no per-property logic hard-coded): as a hover tooltip on the
+    property/relationship picker's `<option>`s (visible before you add
+    anything), and as a small inline note under any property/relationship
+    the entity already has, if that property happens to have a documented
+    correspondence.
+- **Format description tools** (`/format-tools`, admin-gated like every other
+  create/edit flow) -- a guided editor for building Kaitai Struct (`.ksy`),
+  DFDL (`.dfdl.xsd`), and/or DRB descriptions for a binary/self-describing
+  data format, with field-by-field semantics, saved into the archive as real
+  `im:RepresentationInformation`.
+  - Two starting shapes: **byte-layout** (a sequential binary format, like
+    FITS -- fields in file order, each with a type/length/byte order/meaning)
+    or **logical-tree** (a self-describing container's group/dataset/attribute
+    schema, like HDF5 -- Kaitai/DFDL don't apply here, see below). Built-in
+    templates: FITS's primary header required keyword cards with their real
+    FITS Standard meanings (`FormatTemplates.fits()`), and a worked-example
+    HDF5 group/dataset/attribute tree (`FormatTemplates.hdf5()`) -- HDF5 has
+    no fixed universal schema to template byte-for-byte, so this is a
+    starting shape to replace, not a standard.
+  - The definition being built lives in the HTTP session
+    (`FormatToolController`, a session-scoped `FormatDefinition`), not the
+    archive, until you explicitly save it -- add/edit/delete/reorder fields
+    one small POST at a time, the same pattern as `/entities/{id}/edit`.
+  - **Generators** (`KaitaiGenerator`/`DfdlGenerator`/`DrbGenerator`, package
+    `service.format`) hand-build their output text the same way every SPARQL
+    query elsewhere in this app is built, rather than through a generic
+    YAML/XML serializer. Kaitai and DFDL only apply to byte-layout
+    definitions -- a logical tree has no sequential byte order for either
+    language to describe. DRB has two *unrelated* generated targets, since
+    drb-python (https://gitlab.com/drb-python) and the original Java DRB
+    (`fr.gael.drb`, reflection-based, matching the sibling
+    `oais-structure-adapters` project's own `oais-structure-drb` module) are
+    different libraries with different APIs, and neither has a declarative
+    per-format schema language the way Kaitai/DFDL do -- both generated files
+    say so themselves, and are explicitly a starting scaffold rather than a
+    verified driver.
+  - **Saving** (`FormatDescriptionRdfService`) writes real OAIS structure via
+    `EditService`'s existing primitives only: one shared
+    `im:SemanticRepresentationInformation` (field meanings don't change
+    depending on which tool reads the bytes) plus one
+    `im:RepresentationInformation`/`im:StructureRepresentationInformation`
+    pair per format you chose to keep (that class caps Structure/Semantic RI
+    at one each, so two formats means two RepresentationInformation
+    individuals sharing the one Semantic RI) -- linked to an existing or
+    newly-created `im:DigitalObject` via `interpretedUsing`. Mirrors exactly
+    how `oais-structure-adapters-data.ttl`'s bundled demo data models the same
+    DFDL-vs-Kaitai situation by hand.
+- **SPARQL console** (`/sparql`) -- run arbitrary SELECT queries against the
+  union of the data graph and the ontology graph. Try, for instance:
+
+  ```sparql
+  PREFIX rico:   <https://www.ica.org/standards/RiC/ontology#>
+  PREFIX im:     <http://ontology.oais.org/im/>
+  PREFIX bridge: <https://oais.info/bridge#>
+  PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
+
+  SELECT ?ricoClass ?oaisClass ?rationale WHERE {
+    ?ricoClass ?rel ?oaisClass .
+    FILTER(?rel IN (skos:closeMatch, skos:broadMatch, skos:relatedMatch))
+    FILTER(STRSTARTS(STR(?ricoClass), "https://www.ica.org/standards/RiC/"))
+    OPTIONAL { ?ricoClass bridge:mappingRationale ?rationale }
+  }
+  ```
+
+## Login / editing password
+
+**`application.yml` currently has a real password checked into it**
+(`archive.edit-password`), not a placeholder like `changeme` -- worth fixing
+before this repo/JAR goes anywhere it might be shared or committed
+somewhere visible, since anyone with the source or the built JAR can read
+it directly (it's a plain YAML value, not hashed -- there's nothing to
+"crack," just read). The app already supports the fix: set
+`ARCHIVE_EDIT_PASSWORD` as an environment variable at deploy time instead
+of editing the file, and remove the value from `application.yml` (or leave
+it as an intentionally-harmless local-dev fallback) -- then the real
+password lives only in whatever secret-management your deployment already
+has, never in version control or the artifact itself.
+
+A single shared password gates every endpoint that creates, edits, or
+deletes data (`/records/new`, `/entities/new`, `/entities/{id}/edit`, and
+all the POST endpoints those pages submit to). Everything else -- browsing
+records/agents/activities/mandates, the OAIS mapping view, the graph, the
+SPARQL console -- stays open with no login at all, on the theory that
+reading an archive's description shouldn't require an account, but changing
+it should require *something*.
+
+How it works: `EditAuthInterceptor` checks an explicit list of
+(path, HTTP method) pairs against a session flag on every request. If a
+gated GET is reached while logged out, it redirects to `/login?redirect=...`
+and comes back to the original page after a correct password; a gated POST
+reached while logged out (not a flow the UI itself produces, since you'd
+already have had to get past the GET page it's submitted from) is refused
+outright with 403 rather than trying to replay the request after login.
+
+**What this is not**, to be clear about what a "plain password" gate does
+and doesn't buy you:
+
+- **One shared secret, not accounts.** Everyone who edits uses the same
+  password; there's no per-user identity, so there's nothing to show for
+  "who changed what" beyond what's in `rdfs:comment`/notes you add yourself.
+- **No rate limiting or lockout.** Nothing stops repeated password guesses
+  beyond how fast a browser can submit a form.
+- **No CSRF protection.** This app doesn't include Spring Security, so none
+  of the POST forms (this feature's own login form included) carry a CSRF
+  token. Low-stakes for a single-shared-password tool behind a login wall,
+  but worth knowing.
+- **No transport security of its own.** The password is submitted as a plain
+  form field; without HTTPS in front of it (a reverse proxy is the usual
+  answer -- this app doesn't terminate TLS itself), it's readable by anyone
+  who can see the network traffic.
+- **The session cookie is the only credential that matters after login.**
+  Standard Spring Boot session-cookie behavior applies (HttpOnly by default;
+  add `server.servlet.session.cookie.secure: true` once you're serving over
+  HTTPS).
+
+If you need real access control -- per-user accounts, audit trails, CSRF
+protection, rate limiting -- the honest answer is to add Spring Security
+rather than extend this further; what's here is intentionally the smallest
+thing that could be called a "password login," matching what was asked for.
+
+## Storage
+
+The archive is a real triple store, not an in-memory model with hand-rolled
+file persistence: [Apache Jena TDB2](https://jena.apache.org/documentation/tdb2/),
+a disk-backed, ACID-transactional RDF database, opened by `RdfStore` at
+`archive.tdb-location` (default `data/tdb2/`, resolved to an absolute path
+and logged at startup; also shown on the home page).
+
+It holds two named graphs inside that one TDB2 database:
+
+- **The ontology graph** -- the OAIS schema, the bridging ontology, and the
+  RiC-O vocabulary stub. Cleared and reloaded from the bundled classpath
+  files on *every* startup, so it always matches whatever version of those
+  files ships with the running code; there's no risk of a stale copy
+  surviving an app upgrade.
+- **The data graph** -- the archive's actual instance data. Seeded from
+  `sample-data.ttl` only the very first time it's found empty; left alone on
+  every later startup, so your edits persist across restarts.
+
+**Transactions.** TDB2 requires every read or write to happen inside an
+explicit transaction -- there's no auto-commit fallback. Rather than have
+every SPARQL call site across `ArchiveService`, `GraphService`,
+`OntologyService`, and `EditService` manage its own transaction,
+`TransactionInterceptor` opens one for the *whole request* before it reaches
+a controller (READ for GET, WRITE for POST/PUT/DELETE/PATCH) and commits it
+(or aborts it, if the request failed) once the response -- including view
+rendering -- is complete. Everything downstream just calls
+`store.dataModel()` / `store.queryModel()` as it always did, and
+transparently runs inside whatever transaction is already open on that
+thread. The one place a transaction is managed by hand rather than through
+that interceptor is `RdfStore.init()` itself, which runs during application
+startup, outside any HTTP request.
+
+One real consequence of the method-based READ/WRITE rule: it doesn't
+distinguish *which* POST endpoint is being called, so the SPARQL console's
+POST (a read-only SELECT) briefly holds TDB2's single write-transaction slot
+just like an actual edit would. Harmless at this app's single-user scale;
+worth knowing if this ever needs to serve concurrent editors, in which case
+that rule is the first thing to make smarter.
+
+## Scale
+
+TDB2 itself is a production-grade store -- tens to hundreds of millions of
+triples is routine for it, more with adequate hardware. This app's UI/query
+layer is deliberately more conservative than that, on the theory that a web
+page or a force-directed graph rendering thousands of rows is a worse
+experience long before TDB2 itself would notice the load:
+
+- **Records/Agents/Provenance events/Mandates/Entities** are paginated (50
+  per page, capped at 200/page if you override it), with a companion SPARQL
+  `COUNT` query backing the "page X of Y" / Previous / Next controls
+  (`ArchiveService.pagedSummaries`). Dropdowns that just need "some" options
+  rather than the full paginated list (the creator/parent pickers on the
+  record-creation form, the relationship-target picker in the entity editor)
+  use a capped (200-row) unpaginated query instead of true pagination, since
+  a `<select>` doesn't have a natural "next page" affordance; past that cap,
+  use the free-text IRI field next to it.
+- **The graph.** The focused subgraph view (`/graph/{id}`) was already capped
+  at 300 nodes. The full-graph view (`/graph`) now caps at 1,500 triples too
+  -- previously unbounded, which was the first thing to actually break at
+  scale, since it ships the whole result to the browser as JSON and hands it
+  to vis-network's physics simulation. Both views report whether they hit
+  their cap via `GraphData.truncated()`, shown as a banner in the UI; the
+  focused view's depth selector is the way to stay under it on a large graph
+  the full view can no longer show in one go.
+- **The SPARQL console** only bounds what you get if you write `LIMIT`
+  yourself (the default query does; ones you write are your own).
+
+## Updating the ontologies
+
+Both `oais_im_schema-sh-v5.ttl` and `oais-ric-bridge.ttl` are plain Turtle
+files under `src/main/resources/rdf/`. Edit them directly; there's no
+generation step. A few things matter more than they might look like they do:
+
+**The ontology graph reloads from these files on every startup** (cleared
+first, then re-read -- see [Storage](#storage)), so a plain edit + restart is
+enough to pick up a change; there's no separate migration or rebuild step for
+the ontology side specifically. If you're running via `mvn spring-boot:run`
+from source, Maven refreshes `target/classes` on the next run automatically.
+
+**Validate before you deploy.** These files load during `RdfStore.init()`,
+which runs at application startup -- a syntax error in any of them fails the
+whole app to start, not just an isolated feature. Check with
+`riot --validate path/to/file.ttl` (from Jena's command-line tools) or any
+Turtle validator before restarting something that matters.
+
+**Adding a class or property** (new OAIS revision, new correspondence, an
+extension you need): just add the triples, following the existing pattern in
+each file. Nothing else needs to change --
+`OntologyService.listClasses()`/`listObjectProperties()`/`listDatatypeProperties()`
+and the `rdfs:subClassOf*` closure queries in `ArchiveService`/`GraphService`
+all read the ontology graph generically, so a new class or property is
+picked up everywhere it should be (pickers, listings, grouping) with no Java
+changes.
+
+**Renaming or removing a class/property is the case that needs care.**
+IRIs are exact-match; renaming one breaks every existing reference to the old
+IRI. Check, in order:
+1. **Within the same file** -- other triples referencing the old IRI (e.g. a
+   `rdfs:domain`/`rdfs:range`, or another class's `rdfs:subClassOf`).
+2. **`oais-ric-bridge.ttl`**, if you renamed something in the OAIS schema or
+   in `rico-vocabulary.ttl` -- every `skos:*Match` triple, and every
+   `bridge:hasOAISCounterpart`/`hasRiCDescription` link in `sample-data.ttl`,
+   that mentions the old IRI needs updating to the new one.
+3. **The one hard-coded reference left in Java**: `OaisController` calls
+   `archive.classGapNote("RepresentationInformation")` to show the
+   Representation Information gap note specifically. If you ever rename that
+   class, this is the one line in the whole app that won't pick the change
+   up automatically (everything else about the bridge mapping display is
+   ontology-driven). If you add other gaps beyond that one, you don't need to
+   touch this at all -- a class with no `skos:*Match` triple already shows as
+   "No bridge mapping declared for this class" in the UI on its own;
+   `bridge:noCorrespondingClass` is only for attaching an explanation to a
+   gap, not what makes the gap visible.
+4. **Any data that already references the old IRI.** The *data* graph, unlike
+   the ontology graph, is **not** cleared and reloaded on restart (see
+   [Storage](#storage)) -- it's seeded once and then left alone. If you
+   rename a class after your archive already has individuals typed with the
+   old IRI, those individuals keep the old (now-undeclared) type: they won't
+   silently disappear, but anything that depends on `rdfs:subClassOf*`
+   closure (e.g. `listAgents()`) will stop matching them, since there's no
+   longer a subclass chain connecting the old IRI to the anchor class. For a
+   handful of affected individuals, fix them up through the entity editor
+   (remove the old type, add the new one). For many at once: `/entities/import`
+   (see below) bulk-*adds* triples from pasted Turtle, but doesn't help with
+   bulk rename/delete -- for that you're outside what this app's own UI
+   supports -- the SPARQL console is SELECT-only, no UPDATE -- so you'd need
+   an external tool talking to the TDB2 database directly (e.g. Jena's
+   `tdb2.tdbupdate` command-line tool, run while the app isn't running so
+   nothing else is holding a write transaction), or
+   scripted use of `EditService`-equivalent SPARQL UPDATE if you add that
+   capability. Ask if you want that added -- it wasn't built here since it
+   wasn't asked for and a bulk-rename tool is a meaningfully different (and
+   riskier) thing than the single-entity edits the rest of the app does.
+
+**`rico-vocabulary.ttl` specifically** needs the same care as the OAIS
+schema, plus one more thing: it's already a partial, best-effort stub (see
+its own header comment and [Is the real RiC-O ontology
+loaded?](#is-the-real-ric-o-ontology-loaded) below) -- extending its
+`rdfs:subClassOf` hierarchy is the main reason you'd edit it, and doing so
+directly improves what `listAgents()`/`listRecordResources()`/etc. and the
+graph's node-grouping can see, with no other code changes.
+
+## Is the real RiC-O ontology loaded?
+
+**Yes, as of this version -- `RiC-O_1-1.rdf` is bundled directly in
+`src/main/resources/rdf/`.**
+
+The official OWL 2 file (also mirrored at `ICA-EGAD/RiC-O` on GitHub,
+raw file at
+https://raw.githubusercontent.com/ICA-EGAD/RiC-O/master/ontology/current-version/RiC-O_1-1.rdf,
+CC BY 4.0) was provided directly rather than fetched -- worth recording,
+since an earlier attempt to fetch it via URL truncated at a fixed size
+regardless of how large a token limit was requested, so a chat-mediated
+fetch genuinely can't retrieve a file this size; having the actual file
+available sidestepped that entirely. Its own metadata confirms 105-107
+classes (counting conventions vary slightly) and on the order of 480 object
+properties and 75-76 datatype properties, each with English/French/Spanish
+labels (classes also German), most with `rdfs:comment` definitions, many
+with `skos:scopeNote` / `skos:example` / `skos:changeNote`. It's RDF/XML,
+not Turtle, and it's 1.7MB.
+
+**How it's loaded**: `RdfStore.loadRicoVocabulary()` checks for a file at
+exactly `src/main/resources/rdf/RiC-O_1-1.rdf` on every startup: since it's
+now present, it loads the real ontology (`Lang.RDFXML`) instead of the
+bundled `rico-vocabulary.ttl` stub. If you ever remove that file, the app
+falls back to the stub automatically -- nothing else needs to change either
+way. Its namespace
+(`https://www.ica.org/standards/RiC/ontology#`) is exactly the `rico:`
+namespace this app already uses everywhere, so there's no mismatch to
+reconcile.
+
+What changed once it was loaded:
+- **Classes**: counted precisely against the actual file this time: 105
+  `owl:Class` declarations (the "107" figure earlier in this section came
+  from web search rather than the file itself; take 105 as the accurate
+  count). The stub already had all of them as bare class+label
+  declarations, so the practical difference is everything below, not the
+  class list itself.
+- **Properties**: complete instead of the ~110-property curated subset --
+  all 480 object properties and 75 datatype properties become dropdown
+  suggestions in the entity editor, not just the common ones. One wrinkle:
+  the real file also declares 48 `*_role` "rolification" object properties
+  (OWL2 modeling plumbing that lets the n-ary Relation classes be queried
+  more easily -- not something an archivist would normally set by hand)
+  under the same `rico:` namespace, so they'll appear as dropdown options
+  too. Filtering those out specifically wasn't built, since it wasn't asked
+  for and is easy to add later (e.g. exclude property local names ending in
+  `_role`) if the extra entries in the picker turn out to be annoying rather
+  than just occasionally ignorable.
+- **Hierarchy**: complete instead of 4 branches -- every `rdfs:subClassOf`
+  relationship RiC-O actually defines is present, so the
+  `rdfs:subClassOf*` closure queries in `ArchiveService`/`GraphService`
+  (see "Ontology-driven, not hard-coded" below) become accurate to the
+  whole ontology, not just the Agent/RecordResource/Event/Rule branches the
+  stub covers -- including, notably, `rico:Relation`'s roughly 90
+  subclasses.
+- **Still no OWL reasoning.** Loading the real file's asserted
+  `rdfs:subClassOf` triples doesn't add inference -- domain/range
+  constraints, disjointness, property chain axioms (RiC-O uses these for
+  its "shortcut" properties, e.g. `hasOrganicProvenance`) are all present in
+  the file as data but nothing evaluates them; the app still only ever
+  walks explicit `rdfs:subClassOf*` paths in its own SPARQL, same as with
+  the stub.
+- **Startup will be measurably slower.** The ontology graph is cleared and
+  reloaded from every bundled file on each startup (see
+  [Storage](#storage)/[Updating the ontologies](#updating-the-ontologies)),
+  which is fine for the small stub but means re-parsing a multi-megabyte
+  RDF/XML file every time you restart. Not benchmarked here (nothing in
+  this project has been run, let alone timed), but if it becomes
+  noticeable, the fix is to stop calling `ontology.removeAll()` ahead of
+  loading this specific file and instead load it once, the same way the
+  *data* graph is seeded once and left alone -- trading "always fresh from
+  a re-downloaded file on restart" for "fast restart."
+
+## Language
+
+Classes and properties can carry labels in more than one language --
+concretely, the real RiC-O ontology (see above) labels every class and
+property in English, French, and Spanish, and every class additionally in
+German. Without language handling, a class with four labels would show up
+as four duplicate entries in the class picker; instead, `OntologyService`
+groups labels by resource and `LabelPicker` picks one per resource,
+preferring (in order): an exact match for the current language, then
+English, then an untagged label, then whatever's available.
+
+The current language is a per-**session** preference (`LanguagePreference`,
+session-key `preferredLanguage`, default English), switchable from a small
+EN / FR / ES / DE / DV control in the top nav (`GET /language/{lang}`, a
+plain link-driven GET since it only changes a display preference, not
+archive data, redirecting back via the Referer header rather than a
+passed-through URL parameter). It's read via `RequestContextHolder` rather
+than passed as a method parameter, so it can reach label-resolution code
+(`ArchiveService.label()`, `OntologyService.listClasses()`/
+`listObjectProperties()`/`listDatatypeProperties()`) without threading a
+language argument through every call site that might resolve a label --
+which also means, same lesson as the transaction-per-request fix, that
+anything running outside an HTTP request (startup-time ontology queries in
+particular) has no session to read and falls back to English rather than
+throwing.
+
+This only affects **labels** -- the dropdown's underlying `rico:`/`im:`
+IRIs and the bundled OAIS/stub schema (which only ever has untagged English
+labels) are unaffected either way; the language switcher only matters once
+the real, multilingual RiC-O file is loaded. **Dhivehi (DV) is listed but
+currently inert**: the mechanism is fully generic (any language code
+works, not a hard-coded set), but none of this project's bundled ontology
+files have an `@dv`-tagged `rdfs:label` yet -- accurately translating
+~150 ontology/technical terms needs a qualified native-speaker translator,
+not something to fabricate here. Selecting it today just falls back to
+English rather than erroring; the moment real `rdfs:label ...@dv` triples
+exist anywhere in the ontology graph, it starts working immediately, no
+code changes needed. This is entirely separate from whether *catalogue
+data itself* can be in Dhivehi, covered next -- it already fully can.
+
+## Internationalisation and Dhivehi (Thaana script) support
+
+Distinct from the ontology-label language switcher above, this is about
+the actual *content* NAM staff and the public will read and enter --
+catalogue titles, descriptions, names -- which routinely will be in
+Dhivehi, written in Thaana script (Unicode block U+0780-U+07BF,
+right-to-left). Four concrete things make that work, none of them a token
+gesture:
+
+- **Encoding is UTF-8 end to end, explicitly, not just by relying on
+  defaults.** `server.servlet.encoding` (force=true, so both request and
+  response bodies are UTF-8 regardless of what a client's headers claim)
+  and `spring.thymeleaf.encoding` are set explicitly in `application.yml`;
+  the CSV importer reads files as UTF-8 (`CatalogueImportService`,
+  `new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8)`);
+  every page already had `<meta charset="UTF-8">`. RDF literals themselves
+  need no special handling -- Jena stores and serializes Unicode text
+  natively, this was never a triple-store-level concern. **This only
+  covers encoding once data reaches this app** -- it can't fix a source
+  file that's already corrupted before upload, which is exactly what a
+  plain (non-UTF-8) Excel CSV export does to Thaana script; see "Prefer
+  .xlsx over .csv" in the Catalogue/Accession Register section above for
+  why `.xlsx` import exists specifically to avoid that.
+- **A Thaana-capable font.** Not every system font covers Thaana, so
+  relying purely on the OS default is a gamble; Google's "Noto Sans
+  Thaana" is loaded (`fragments.html`, alongside the existing
+  vis-network CDN dependency -- same offline caveat applies, see the graph
+  view's own note) and appended to the CSS font stack. Font fallback in
+  CSS happens per-*character*, not per-element, so this changes nothing
+  visually for English content and only engages for the specific
+  characters Thaana needs.
+- **Right-to-left rendering, automatically, per element.** Thaana is
+  RTL; this catalogue mixes English and Dhivehi content record by record,
+  so a single fixed page direction would be wrong -- what's needed is each
+  piece of text figuring out its own direction from its own content, which
+  is exactly what `unicode-bidi: plaintext` does (the same standard
+  Unicode Bidi Algorithm auto-detection as the HTML `dir="auto"`
+  attribute, just applied once via CSS across headings, table cells,
+  pills, form inputs, and textareas, rather than needing `dir="auto"`
+  added to dozens of templates individually with the attendant risk of
+  missing some). Again, no visible change for English-only content --
+  it only engages when text actually contains strong-RTL characters.
+- **Search already works correctly on Thaana text without any change.**
+  `searchCatalogue()`'s case-insensitive matching uses SPARQL's `LCASE()`;
+  Thaana (like Arabic and many other scripts) has no case distinction at
+  all, so `LCASE()` on Dhivehi text is a harmless no-op and plain substring
+  matching (`CONTAINS`) works correctly on the raw characters -- verified
+  by reasoning through Unicode's case-folding rules rather than assumed.
+
+### Still seeing question marks instead of Dhivehi script?
+
+Two genuinely different problems produce the exact same symptom, and
+telling them apart matters because only one of them is fixable after the
+fact:
+
+1. **The source file was already corrupted before this app read it.**
+   Once a lossy, non-UTF-8 export has replaced Thaana characters with
+   literal `?`, that's permanent -- no amount of correct handling on this
+   app's side can recover text that's already gone. Re-uploading the same
+   corrupted file will not help. If you generated an `.xlsx` *from* an
+   already-corrupted `.csv` (rather than from the original pristine
+   source), the `.xlsx` carries the same corruption forward.
+2. **The JVM's own default charset isn't UTF-8** (Java 17 and earlier only
+   -- Java 18+'s JEP 400 makes UTF-8 the default everywhere regardless of
+   locale, so this cause doesn't apply at all once you're on 18+), so
+   something in the app's pipeline that doesn't explicitly specify a
+   charset falls back to the platform default and substitutes `?` there
+   instead. `/diagnostics/encoding` checks the JVM version and actual
+   charset/locale configuration directly rather than assuming based on OS
+   or the project's compile target -- confirm what's actually running
+   before concluding this is (or isn't) the cause; a project built against
+   Java 17 can still be *run* on a newer JRE, and only the runtime version
+   matters here, not the compile target in `pom.xml`.
+
+**`/diagnostics/encoding`** exists specifically to tell these apart rather
+than guessing: it renders a Dhivehi phrase that's hard-coded directly in
+this app's own Java source (so it never touched any uploaded file) and
+reports the JVM's actual charset configuration. If that hard-coded string
+also renders as question marks, the problem is (2) -- the JVM -- and fixable
+by launching with `run.bat`. If it renders correctly, the app's own
+pipeline is fine and the problem is (1) -- something already wrong in the
+specific source file you uploaded -- and the fix is to go back to the
+original, pristine source rather than a file that's already passed through
+a lossy CSV export at some point.
+
+One thing worth being precise about, since it's an easy but incorrect
+inference: seeing *some* Dhivehi render correctly and *some* show as `?`
+within the same mixed English/Dhivehi string doesn't mean "mixing the
+scripts confuses the system" as a mechanism -- a non-UTF-8 encoder (in
+either failure mode above) replaces *every* Thaana character it encounters
+with `?` while leaving ASCII/English characters in the very same string
+completely untouched, because the problem encoding usually can represent
+ASCII fine and simply has no Thaana glyphs at all. A mixed string showing
+partial corruption and a pure-Dhivehi string showing total corruption are
+the same underlying bug, not two different ones -- the mixing just makes
+the pattern more visible side by side.
+
+**What this app cannot do anything about**: if problem (1) is what
+happened, the data is gone from that specific file. There's no recovery
+step to offer here beyond re-sourcing the original file, and it would be
+dishonest to imply otherwise.
+
+#### A confirmed third cause, found by direct inspection of a real NAM file
+
+For one specific report against a real file (`1__Manuscripts_President_s_Office.xlsx`,
+record R00098), the source file was directly inspected two independent
+ways -- parsing the raw XML inside the `.xlsx` (it's a ZIP archive of XML
+parts) by hand, and separately loading it with a completely different
+library (`openpyxl`, unrelated to Apache POI's code path). Both agreed: the
+Dhivehi text for that record (Title, Description) was 100% intact in the
+source, zero `?` characters anywhere in it. That ruled out cause (1) for
+this file conclusively, not just by assumption.
+
+That pointed at this app's own XLSX-reading code specifically. Looking at
+it again with that in mind: `CatalogueImportService.importXlsx` and
+`DiagnosticsController.xlsxTest` were both routing *every* cell, string
+content included, through `DataFormatter.formatCellValue()` -- a POI class
+whose actual job is turning a raw numeric or date cell value into the
+formatted text Excel would display (honoring currency symbols, decimal
+places, date patterns, and so on). For genuine text content -- the
+overwhelming majority of archival metadata -- that's the wrong tool: POI's
+direct `Cell.getStringCellValue()` is the simpler, more appropriate API,
+and it's what both are now changed to use for string-typed cells
+specifically, falling back to `DataFormatter` only for the numeric/date/
+formula cells that actually need its formatting logic (so a numeric-
+looking Record No like "00042" still reads back correctly rather than as
+the number 42).
+
+This is a genuine, targeted fix to a real code path, not just another
+diagnostic -- but it's stated carefully rather than declared as *the*
+confirmed root cause, since there was no way to run the actual Java/POI
+code in the environment that built this fix to verify it against the real
+file before delivering it. If question marks persist after this change,
+`/diagnostics/xlsx-test` (now using the same corrected code path) against
+the actual problem file remains the next concrete step, and would be worth
+reporting back either way -- confirmation the fix worked is as useful to
+know as a sign it wasn't the whole story.
+
+One unrelated thing worth knowing about, found during the same
+inspection: the same file has roughly 19 shared strings (out of over
+7,000) containing a literal `?`, but every one of them found was in
+Latin-script transliterated text (e.g. "Boaga?", "Buenos Aires?"), not
+Dhivehi -- almost certainly a pre-existing, minor data-entry or earlier-
+digitization quirk in the original spreadsheet, unrelated to the Thaana
+issue and not something this app introduced or can safely auto-correct
+without knowing what character was actually intended.
+
+**What this doesn't cover**, stated plainly: the UI chrome itself (nav
+labels, button text, page headings like "Catalogue"/"Upload"/"Search") is
+still English-only. Translating that is a real, separate undertaking
+(Spring's `MessageSource`/resource-bundle mechanism is the standard way to
+do it) that would need actual Dhivehi translations for every UI string,
+which -- same reasoning as the ontology labels above -- isn't something to
+fabricate without a qualified translator. Nor does the page layout itself
+flip to RTL (nav bar order, table column order) -- only the *text content*
+within it does. Both are legitimate follow-on work if wanted, just outside
+what "the data can be in Dhivehi and renders/searches correctly" required.
+
+## Design notes / known limitations
+
+- **Ontology-driven, not hard-coded, class/property enumeration.** Nothing
+  in the Java code hard-codes "which RiC-O classes count as an Agent" or
+  similar. `listAgents()`, `listRecordResources()`, `listActivities()`, and
+  `listMandates()` in `ArchiveService` all run a
+  `?type rdfs:subClassOf* rico:SomeTopClass` SPARQL query against the
+  ontology graph instead of matching a fixed list of leaf class names; the
+  same subclass-closure query backs `GraphService`'s node grouping/routing.
+  This depends on `rdfs:subClassOf` triples actually being present in the
+  ontology graph for the branches being queried (Agent, RecordResource,
+  Event, Rule) -- see the note in `rico-vocabulary.ttl` for how much of
+  RiC-O's real hierarchy that stub does and doesn't reconstruct (short
+  version: just those four branches, best-effort, not verified against the
+  authoritative OWL file). `EntityController`'s class and property pickers
+  were already fully ontology-driven before this (see `OntologyService`).
+- **IDs** are the URL-safe-base64 encoding of the full IRI (`IdCodec`), so
+  any resource from any namespace is directly linkable without a separate
+  ID-minting scheme.
+- The bridging ontology intentionally avoids `owl:equivalentClass` between
+  RiC-O and OAIS classes -- see the comments at the top of
+  `oais-ric-bridge.ttl` for why.
+- **The graph view loads `vis-network` from a CDN** (`unpkg.com`), so it
+  needs internet access in the browser. If you're running somewhere offline,
+  download `vis-network.min.js` and change the `<script src="...">` in
+  `templates/graph/view.html` to point at a local copy under `static/js/`.
+- **Format description tools fields are fixed-length only.** `FormatField`
+  has no way to express "this field's length is given by an earlier field's
+  decoded value" (e.g. a length-prefixed string), which real formats commonly
+  need -- `oais-structure-adapters`' own `point2d.ksy` example does exactly
+  this (`size: label_len`). Describing such a format currently means treating
+  the length-prefix and the value as two separate fixed-length fields and
+  noting the relationship in the format's free-text notes instead of in the
+  generated schema itself.
+

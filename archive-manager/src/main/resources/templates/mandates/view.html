@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(${title})}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <p class="breadcrumb"><a th:href="@{/mandates}">&larr; Mandates</a></p>
+    <h1 th:text="${title}">Mandate</h1>
+    <code th:text="${iri}">iri</code>
+
+    <p>
+        <a class="button button-secondary" th:href="@{/graph/{id}(id=${id})}">View in graph &rarr;</a>
+        <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}">Edit &rarr;</a>
+    </p>
+
+    <div class="grid">
+        <section th:if="${!attributes.isEmpty()}">
+            <h3>Properties</h3>
+            <table class="attrs">
+                <tr th:each="a : ${attributes}">
+                    <td class="prop" th:text="${a.propertyLocalName}">prop</td>
+                    <td>
+                        <a th:if="${a.value != null and (a.value.startsWith('http://') or a.value.startsWith('https://'))}"
+                           th:href="${a.value}" th:text="${a.value}"
+                           target="_blank" rel="noopener noreferrer" title="Opens in a new tab">value &#8599;</a>
+                        <span th:unless="${a.value != null and (a.value.startsWith('http://') or a.value.startsWith('https://'))}" th:text="${a.value}">value</span>
+                    </td>
+                </tr>
+            </table>
+        </section>
+
+        <section th:if="${!records.isEmpty()}">
+            <h3>Regulates</h3>
+            <ul><li th:each="r : ${records}"><a th:href="@{/records/{id}(id=${r.id})}" th:text="${r.title}">Record</a></li></ul>
+        </section>
+    </div>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

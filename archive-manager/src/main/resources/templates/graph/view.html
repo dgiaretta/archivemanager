@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(${pageTitle})}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container container-wide">
+    <p class="breadcrumb" th:if="${focusId != null}">
+        <a th:href="@{/resource/{id}(id=${focusId})}">&larr; back to resource</a>
+    </p>
+    <h1 th:text="${pageTitle}">Graph</h1>
+
+    <div class="graph-toolbar">
+        <span class="legend-item"><span class="swatch swatch-rico"></span> RiC-O</span>
+        <span class="legend-item"><span class="swatch swatch-oais"></span> OAIS</span>
+        <span class="legend-item"><span class="swatch swatch-other"></span> other</span>
+        <span class="legend-item"><span class="swatch-line swatch-cross"></span> cross-ontology link (via the bridge)</span>
+
+        <span class="spacer"></span>
+
+        <span th:if="${focusId != null}">
+            depth:
+            <a th:each="d : ${#numbers.sequence(1, 4)}"
+               th:href="@{/graph/{id}(id=${focusId}, depth=${d})}"
+               th:text="${d}"
+               th:classappend="${depth != null and depth == d} ? 'active' : ''"
+               class="depth-link">1</a>
+        </span>
+        <a th:href="@{/graph}" class="button-link">View full graph</a>
+    </div>
+
+    <div class="highlight-panel">
+        <div class="highlight-group">
+            <span class="highlight-heading">Highlight entity types</span>
+            <div id="highlight-types" class="highlight-checkboxes"></div>
+        </div>
+        <div class="highlight-group">
+            <span class="highlight-heading">Highlight properties</span>
+            <div id="highlight-node-properties" class="highlight-checkboxes"></div>
+        </div>
+        <div class="highlight-group">
+            <span class="highlight-heading">Highlight relationship types</span>
+            <div id="highlight-relationship-types" class="highlight-checkboxes"></div>
+        </div>
+        <button type="button" id="highlight-clear" class="page-link">Clear highlight</button>
+    </div>
+
+    <div id="network"></div>
+    <div id="node-context-menu" class="node-context-menu" style="display:none;"></div>
+    <p class="muted">
+        <span id="node-count">0</span> nodes, <span id="edge-count">0</span> edges.
+        Scroll to zoom, drag to pan, double-click a node to open it, right-click for its links.
+    </p>
+    <div class="callout" id="truncated-notice" style="display:none;">
+        <strong>This view is truncated.</strong>
+        <span th:if="${focusId == null}">
+            The full graph has more resource-to-resource triples than this view renders at once. Try a
+            focused view from a specific record/agent/etc. instead ("View in graph" on its page), which
+            supports adjustable depth and stays responsive at any archive size.
+        </span>
+        <span th:if="${focusId != null}">
+            This resource's neighbourhood has more connected nodes than this view renders at once. Try a
+            smaller depth from the toolbar above.
+        </span>
+    </div>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+
+<script src="https://unpkg.com/vis-network@9/standalone/umd/vis-network.min.js"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const apiUrl = /*[[${apiUrl}]]*/ '/api/graph';
+
+    const groupColors = {
+        rico:  '#2f5d8a',
+        oais:  '#8a4b2f',
+        other: '#6b7280'
+    };
+
+    fetch(apiUrl)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('node-count').textContent = data.nodes.length;
+            document.getElementById('edge-count').textContent = data.edges.length;
+            if (data.truncated) {
+                document.getElementById('truncated-notice').style.display = 'block';
+            }
+
+            const nodesById = {};
+            data.nodes.forEach(n => { nodesById[n.id] = n; });
+
+            const SELECT_COLOR = '#ffb300';
+            const BASE_NODE_SIZE = 14;
+            const SELECTED_NODE_SIZE = 22;
+
+            const DIM_NODE_COLOR = {
+                background: '#e2e5ea',
+                border: '#e2e5ea',
+                highlight: { background: '#e2e5ea', border: SELECT_COLOR },
+                hover: { background: '#e2e5ea', border: SELECT_COLOR }
+            };
+            const DIM_EDGE_COLOR = { color: '#e8e9eb', highlight: '#e8e9eb' };
+
+            const nodeColorFor = n => {
+                const base = groupColors[n.group] || groupColors.other;
+                return {
+                    background: base,
+                    border: '#ffffff',
+                    highlight: { background: base, border: SELECT_COLOR },
+                    hover: { background: base, border: SELECT_COLOR }
+                };
+            };
+            const edgeColorFor = e => ({ color: e.crossOntology ? '#c0392b' : '#c8ccd3', highlight: '#2f5d8a' });
+
+            const nodes = new vis.DataSet(data.nodes.map(n => ({
+                id: n.id,
+                label: n.label,
+                title: n.title,
+                shape: 'dot',
+                size: BASE_NODE_SIZE,
+                color: nodeColorFor(n),
+                borderWidth: 2,
+                borderWidthSelected: 5,
+                font: { color: '#1f2430', size: 13 }
+            })));
+
+            const edges = new vis.DataSet(data.edges.map((e, i) => ({
+                id: i,
+                from: e.from,
+                to: e.to,
+                label: e.label,
+                arrows: 'to',
+                dashes: e.crossOntology,
+                color: edgeColorFor(e),
+                font: { size: 9, color: '#6b7280', align: 'middle', strokeWidth: 4, strokeColor: '#fafafa' },
+                smooth: { type: 'dynamic' }
+            })));
+
+            const network = new vis.Network(
+                document.getElementById('network'),
+                { nodes: nodes, edges: edges },
+                {
+                    physics: {
+                        stabilization: true,
+                        barnesHut: { gravitationalConstant: -9000, springLength: 150, springConstant: 0.03 }
+                    },
+                    interaction: { hover: true, navigationButtons: true, keyboard: true },
+                    layout: { improvedLayout: true }
+                }
+            );
+
+            network.on('selectNode', function (params) {
+                nodes.update(params.nodes.map(id => ({ id: id, size: SELECTED_NODE_SIZE })));
+            });
+            network.on('deselectNode', function (params) {
+                nodes.update(params.previousSelection.nodes.map(id => ({ id: id, size: BASE_NODE_SIZE })));
+            });
+
+            network.on('doubleClick', function (params) {
+                if (params.nodes.length > 0) {
+                    const n = nodesById[params.nodes[0]];
+                    if (n && n.detailUrl) {
+                        window.location.href = n.detailUrl;
+                    }
+                }
+            });
+
+            // vis-network renders to a <canvas>, so there's no real anchor element for the
+            // browser's own context menu to act on -- right-click builds a small menu of
+            // its own instead, listing the detail page plus any literal property (like an
+            // external rdfs:seeAlso) whose value is itself a URL worth opening directly.
+            const contextMenu = document.getElementById('node-context-menu');
+
+            function hideContextMenu() {
+                contextMenu.style.display = 'none';
+                contextMenu.innerHTML = '';
+            }
+
+            function addMenuItem(label, sublabel, onClick) {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'menu-item';
+                const propSpan = document.createElement('span');
+                propSpan.className = 'menu-item-prop';
+                propSpan.textContent = label;
+                item.appendChild(propSpan);
+                if (sublabel) {
+                    const urlSpan = document.createElement('span');
+                    urlSpan.className = 'menu-item-url';
+                    urlSpan.textContent = sublabel;
+                    item.appendChild(urlSpan);
+                }
+                item.addEventListener('click', function () {
+                    hideContextMenu();
+                    onClick();
+                });
+                contextMenu.appendChild(item);
+            }
+
+            network.on('oncontext', function (params) {
+                const nodeId = network.getNodeAt(params.pointer.DOM);
+                if (nodeId === undefined) {
+                    hideContextMenu();
+                    return;
+                }
+                params.event.preventDefault();
+                const n = nodesById[nodeId];
+                if (!n) {
+                    return;
+                }
+
+                contextMenu.innerHTML = '';
+                if (n.detailUrl) {
+                    addMenuItem('Open detail page', null, function () {
+                        window.open(n.detailUrl, '_blank', 'noopener,noreferrer');
+                    });
+                }
+                const links = n.links || [];
+                if (links.length > 0) {
+                    if (n.detailUrl) {
+                        const divider = document.createElement('div');
+                        divider.className = 'menu-divider';
+                        contextMenu.appendChild(divider);
+                    }
+                    const heading = document.createElement('div');
+                    heading.className = 'menu-heading';
+                    heading.textContent = 'Links';
+                    contextMenu.appendChild(heading);
+                    links.forEach(function (link) {
+                        addMenuItem(link.propertyLocalName, link.url, function () {
+                            window.open(link.url, '_blank', 'noopener,noreferrer');
+                        });
+                    });
+                }
+
+                contextMenu.style.left = params.event.clientX + 'px';
+                contextMenu.style.top = params.event.clientY + 'px';
+                contextMenu.style.display = 'block';
+            });
+
+            document.addEventListener('click', hideContextMenu);
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') {
+                    hideContextMenu();
+                }
+            });
+            network.on('dragStart', hideContextMenu);
+            network.on('zoom', hideContextMenu);
+
+            // -- Highlight panel: entity types, node properties, and relationship (edge) types --
+            // Populated from whatever's actually in this loaded graph, not a fixed
+            // list, so it always matches what's on screen.
+            const typeSet = new Set();
+            data.nodes.forEach(n => (n.types || []).forEach(t => typeSet.add(t)));
+            const nodePropertySet = new Set();
+            (data.propertyNames || []).forEach(p => nodePropertySet.add(p));
+            data.nodes.forEach(n => (n.properties || []).forEach(p => nodePropertySet.add(p)));
+            const relationshipTypeSet = new Set();
+            data.edges.forEach(e => relationshipTypeSet.add(e.label));
+
+            function buildCheckboxes(containerId, values) {
+                const container = document.getElementById(containerId);
+                Array.from(values).sort().forEach(value => {
+                    const label = document.createElement('label');
+                    label.className = 'highlight-checkbox';
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.value = value;
+                    input.addEventListener('change', applyHighlight);
+                    label.appendChild(input);
+                    label.appendChild(document.createTextNode(' ' + value));
+                    container.appendChild(label);
+                });
+            }
+            buildCheckboxes('highlight-types', typeSet);
+            buildCheckboxes('highlight-node-properties', nodePropertySet);
+            buildCheckboxes('highlight-relationship-types', relationshipTypeSet);
+
+            function selectedValues(containerId) {
+                const inputs = document.querySelectorAll('#' + containerId + ' input:checked');
+                return Array.from(inputs).map(i => i.value);
+            }
+
+            function applyHighlight() {
+                const selectedTypes = selectedValues('highlight-types');
+                const selectedNodeProperties = selectedValues('highlight-node-properties');
+                const selectedRelationshipTypes = selectedValues('highlight-relationship-types');
+
+                const nodeMatchesType = n => selectedTypes.length === 0 || (n.types || []).some(t => selectedTypes.includes(t));
+                const nodeMatchesProperty = n => selectedNodeProperties.length === 0 || (n.properties || []).some(p => selectedNodeProperties.includes(p));
+
+                const nodeUpdates = data.nodes.map(n => {
+                    const matches = (!selectedTypes.length || nodeMatchesType(n))
+                        && (!selectedNodeProperties.length || nodeMatchesProperty(n));
+                    return {
+                        id: n.id,
+                        color: matches ? nodeColorFor(n) : DIM_NODE_COLOR
+                    };
+                });
+                nodes.update(nodeUpdates);
+
+                const edgeUpdates = data.edges.map((e, i) => {
+                    const relationMatches = !selectedRelationshipTypes.length || selectedRelationshipTypes.includes(e.label);
+                    const typeMatches = !selectedTypes.length || nodeMatchesType(nodesById[e.from]) || nodeMatchesType(nodesById[e.to]);
+                    const propertyMatches = !selectedNodeProperties.length || nodeMatchesProperty(nodesById[e.from]) || nodeMatchesProperty(nodesById[e.to]);
+                    const matches = relationMatches && typeMatches && propertyMatches;
+                    return { id: i, color: matches ? edgeColorFor(e) : DIM_EDGE_COLOR };
+                });
+                edges.update(edgeUpdates);
+            }
+
+            document.getElementById('highlight-clear').addEventListener('click', function () {
+                document.querySelectorAll('.highlight-checkboxes input').forEach(i => { i.checked = false; });
+                applyHighlight();
+            });
+        })
+        .catch(err => {
+            document.getElementById('network').innerHTML =
+                '<p class="muted">Could not load graph data: ' + err + '</p>';
+        });
+    /*]]>*/
+</script>
+</body>
+</html>

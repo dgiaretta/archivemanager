@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Upload to Catalogue')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <p class="breadcrumb"><a th:href="@{/catalogue}">&larr; Catalogue</a></p>
+    <h1>Bulk upload</h1>
+    <p class="muted">
+        Upload a Bulk Upload Spreadsheet (the 26-column format from NAM's Preservation Policy and
+        Implementation Plan, "Upload Spreadsheet and Accession Register") as either <code>.xlsx</code>
+        or <code>.csv</code>. Column headers must match the spreadsheet's field names (matching is
+        case- and space-insensitive, so <code>FixityHashSHA256</code> and <code>fixity hash sha256</code>
+        are treated the same; <code>Original Title</code> is also accepted as an alternate header for
+        <code>Title</code>). Repeatable fields (Subject, Description, Contributor, Date, Type, Format,
+        Identifier, Source, Language, Relation, Coverage, Rights, Provenance, FormatInfo, Semantics,
+        OtherRI) accept multiple values in one cell separated by <code>;</code>.
+    </p>
+    <div class="callout">
+        <strong>Prefer .xlsx over .csv if any of your data is in Dhivehi (or any non-Latin script).</strong>
+        Excel's plain "CSV (Comma delimited)" export writes the file using the system's ANSI code
+        page, not UTF-8, unless "CSV UTF-8 (Comma delimited)" is chosen specifically -- and the
+        Windows ANSI code page has no representation for Thaana script at all, so that export step
+        silently replaces every Dhivehi character with a literal <code>?</code> in the file itself,
+        before this app ever sees it. That corruption is permanent once it's in the CSV; uploading an
+        already-corrupted CSV again won't recover it, however this app handles encoding. Uploading the
+        original <code>.xlsx</code> avoids the lossy step entirely.
+    </div>
+    <p class="muted">
+        Each row becomes one Catalogue record. The whole upload becomes one Accession Register
+        entry linking every record it created. No column is required -- a blank cell just means
+        that property isn't recorded for this row, which is normal; rows are only skipped (and
+        reported, not silently dropped) if something genuinely unexpected goes wrong reading them.
+    </p>
+
+    <div class="callout" th:if="${error}">
+        <strong>Not imported.</strong> <span th:text="${error}">error</span>
+    </div>
+
+    <form th:action="@{/catalogue/upload}" method="post" enctype="multipart/form-data" class="form">
+        <label>
+            Spreadsheet file (.xlsx or .csv)
+            <input type="file" name="file" accept=".xlsx,.csv" required/>
+        </label>
+        <label>
+            Accession description
+            <textarea name="accessionDescription" rows="3" placeholder="e.g. Transfer from the Ministry of Fisheries, March 2026"></textarea>
+        </label>
+        <label>
+            Depositor
+            <input type="text" name="depositor" placeholder="If different from the creator"/>
+        </label>
+        <label>
+            Recording archivist
+            <input type="text" name="recordingArchivist" placeholder="Your name"/>
+        </label>
+        <label>
+            Accession date
+            <input type="text" name="accessionDate" placeholder="YYYY-MM-DD"/>
+        </label>
+        <button type="submit">Upload</button>
+    </form>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('SPARQL console')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <h1>SPARQL console</h1>
+    <p class="muted">
+        Runs SELECT queries against the union of the archive's data graph and the ontology graph
+        (OAIS schema + bridging ontology), so you can query instance data and schema-level bridge
+        mappings (e.g. <code>skos:closeMatch</code>, <code>bridge:mappingRationale</code>) together.
+        Only SELECT queries are accepted here.
+    </p>
+
+    <form th:action="@{/sparql}" method="post" class="form">
+        <label>
+            Query
+            <textarea class="sparql" name="queryText" th:text="${queryText}"></textarea>
+        </label>
+        <button type="submit">Run</button>
+    </form>
+
+    <div class="callout" th:if="${error}">
+        <strong>Error:</strong> <span th:text="${error}">error</span>
+    </div>
+
+    <table class="listing" th:if="${rows != null}">
+        <thead>
+        <tr><th th:each="c : ${columns}" th:text="${c}">col</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="row : ${rows}">
+            <td th:each="c : ${columns}" th:text="${row.get(c)}">value</td>
+        </tr>
+        </tbody>
+    </table>
+    <p th:if="${rows != null and rows.isEmpty()}" class="muted">No results.</p>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

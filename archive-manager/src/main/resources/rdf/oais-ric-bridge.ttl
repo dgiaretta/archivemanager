@@ -1,0 +1,258 @@
+# OAIS <-> RiC-O bridging ontology
+#
+# Aligns the OAIS Information Model (http://ontology.oais.org/im/, as
+# exported in oais_im_schema-sh-v5.ttl, baselined on CCSDS 650.0-M-3
+# Issue 3, December 2024) with the Records in Context Ontology, RiC-O
+# v1.1 (https://www.ica.org/standards/RiC/ontology, May 2025 / RiC-CM 1.0).
+#
+# DESIGN NOTE ON MAPPING STRENGTH
+# --------------------------------
+# OAIS and RiC-O were built on different modelling assumptions: OAIS
+# organizes preservation-relevant information into a small set of
+# documentary "Information Object" categories (Provenance, Context,
+# Fixity, Reference, Access Rights...), each of which is itself a piece
+# of descriptive text/metadata *about* something. RiC-O, by contrast,
+# models the archival domain as a graph of first-class entities (Agent,
+# Event, Relation...) connected by properties -- the "documentation" is
+# the graph itself, not a separate object.
+#
+# Because of this mismatch, this bridge deliberately avoids
+# owl:equivalentClass, which would assert that the two classes have
+# identical instances and let a reasoner infer things neither
+# vocabulary intends. Instead it uses the SKOS mapping vocabulary
+# (skos:closeMatch, skos:broadMatch, skos:relatedMatch), applied here
+# as lightweight, non-committing correspondence annotations between
+# OWL classes -- a common, pragmatic pattern for cross-ontology bridges
+# where full logical equivalence isn't warranted. A custom annotation
+# property (bridge:mappingRationale) documents the reasoning behind
+# each choice, and bridge:noCorrespondingClass records the one
+# deliberate gap (OAIS Representation Information).
+#
+# This file does NOT owl:import either source ontology (to avoid
+# forcing a network fetch of both large vocabularies at load time).
+# Load oais_im_schema-sh-v5.ttl and RiC-O_1-1.rdf alongside this file
+# if you need the source class definitions resolved.
+#
+# Namespace: https://oais.info/bridge#
+
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+@prefix im:    <http://ontology.oais.org/im/> .
+@prefix rico:  <https://www.ica.org/standards/RiC/ontology#> .
+@prefix bridge: <https://oais.info/bridge#> .
+
+bridge:
+  a owl:Ontology ;
+  rdfs:label "OAIS Information Model / RiC-O 1.1 Bridging Ontology" ;
+  rdfs:comment "Correspondence assertions between the OAIS Information Model and RiC-O 1.1, using SKOS mapping relations rather than OWL class equivalence because the two source ontologies differ in how they model documentary vs. entity-graph information." ;
+  rdfs:seeAlso <http://ontology.oais.org/im/> ,
+               <https://www.ica.org/standards/RiC/ontology> .
+
+# -- bridge-local annotation properties
+
+bridge:mappingRationale
+  a owl:AnnotationProperty ;
+  rdfs:subPropertyOf rdfs:comment ;
+  rdfs:comment "Explains why a given SKOS mapping relation (and not a stronger or weaker one) was chosen for a specific class or property correspondence." .
+
+bridge:noCorrespondingClass
+  a owl:AnnotationProperty ;
+  rdfs:comment "Marks a class in one source ontology for which the other source ontology defines no corresponding class, and records why." .
+
+# ============================================================
+# 1. RiC Instantiation <-> OAIS Data Object
+# ============================================================
+# Both represent the physical/digital embodiment of information, as
+# distinct from the intellectual content it carries. This is the
+# tightest of the seven correspondences.
+
+rico:Instantiation
+  skos:closeMatch im:DataObject ;
+  bridge:mappingRationale "rico:Instantiation is 'the inscription of information ... on a physical carrier'; im:DataObject is 'either a Physical Object or a Digital Object'. Both classes exist specifically to separate the carrier/embodiment layer from the intellectual-content layer (rico:RecordResource / im:InformationObject), so closeMatch is appropriate. Note im:DataObject is declared abstract in the OAIS schema (disjoint union of Physical Object c-0003 and Digital Object c-0004); an Instantiation on paper corresponds more specifically to im:PhysicalObject, and a digital Instantiation to im:DigitalObject."@en .
+
+im:DataObject
+  skos:closeMatch rico:Instantiation .
+
+# rico:physicalCharacteristicsNote (free text on an Instantiation) is a
+# relevant signal for deciding, case by case, whether that Instantiation's
+# im:DataObject counterpart above should be typed im:PhysicalObject or
+# im:DigitalObject -- but it doesn't formally determine that choice: it's
+# free text, and it could just as easily describe a digital object's
+# physical storage medium ("held on LTO tape") as describe a genuinely
+# physical item. No skos:*Match is asserted for this property specifically
+# (SKOS mapping relations are for classes/concepts, not literal-valued
+# properties); this note just records the relationship for anyone reading
+# this file. Separately, RiC-O does not mirror OAIS's Physical/Digital
+# *class* split at all -- instead of one Instantiation being typed as
+# either, RiC-O links two distinct Instantiation individuals via
+# rico:hasOrHadAnalogueInstantiation / rico:hasOrHadDigitalInstantiation
+# (e.g. a physical photograph linked to its digital scan), a structurally
+# different way of modelling the same underlying concern.
+
+# ============================================================
+# 2-4. RiC Record / RecordPart / RecordSet <-> OAIS Information Object
+# ============================================================
+# OAIS does not distinguish granularity levels the way RiC-O does:
+# a single Record, a RecordPart, and a RecordSet (e.g. a fonds or
+# series) all count as an Information Object in OAIS terms. The
+# mapping is therefore broadMatch (OAIS's class is the broader,
+# granularity-agnostic one), asserted from each RiC-O class.
+
+rico:Record
+  skos:broadMatch im:InformationObject ;
+  bridge:mappingRationale "im:InformationObject ('A Data Object together with its Representation Information') is broader than rico:Record: it does not distinguish a single Record from a RecordPart or a RecordSet, and it bundles in an explicit Representation Information object that a bare rico:Record does not itself carry (see the RepresentationInformation gap noted below)."@en .
+
+rico:RecordPart
+  skos:broadMatch im:InformationObject ;
+  bridge:mappingRationale "Same rationale as rico:Record: OAIS has no class distinguishing a part of a record from the record itself."@en .
+
+rico:RecordSet
+  skos:broadMatch im:InformationObject ;
+  bridge:mappingRationale "Same rationale as rico:Record: OAIS has no class for an aggregation of records (fonds, series, file, collection) distinct from a single Information Object."@en .
+
+im:InformationObject
+  skos:narrowMatch rico:Record , rico:RecordPart , rico:RecordSet .
+
+# ============================================================
+# 5. OAIS Representation Information -- deliberate gap
+# ============================================================
+# RiC-O has no class equivalent to im:RepresentationInformation. RiC-O captures some of
+# the same ground only piecemeal, through typed properties on
+# Instantiation (documentary/carrier/production-technique/
+# representation type) rather than as a first-class "representation
+# information" object bundled with the content.
+
+im:RepresentationInformation
+  bridge:noCorrespondingClass "RiC-O v1.1 defines no class corresponding to OAIS Representation Information (the structure/semantic information needed to render a Data Object's bits meaningful). RiC-O instead scatters partial, non-bundled coverage of this ground across typed properties of rico:Instantiation: rico:hasRepresentationType, rico:hasDocumentaryFormType, rico:hasCarrierType, rico:hasProductionTechniqueType, rico:technicalCharacteristics (see its own relatedMatch to im:OtherRepresentationInformation below), and the free-text rico:qualityOfRepresentationNote. None of these constitute a class that could stand in an equivalentClass, closeMatch, or broadMatch relation to im:RepresentationInformation; they are individual attributes rather than a bundled Structure/Semantic Representation Information object (im:StructureRepresentationInformation / im:SemanticRepresentationInformation). Institutions needing to carry full Representation Information in a RiC-O graph should extend RiC-O locally, e.g. with a bridge-defined subclass of rico:Thing, or attach it as an external (non-RiC-O) resource linked from the Instantiation."@en .
+
+# rico:technicalCharacteristics ("Describes any relevant physical or software
+# feature of any device involved in the creation or management of a Record
+# Resource") is genuinely dual-natured -- it could be read as documenting the
+# creation event (a provenance fact: which device did this) or as documenting
+# what's needed to correctly interpret the result (a representation fact).
+# relatedMatch to Other Representation Information specifically, rather than
+# to Provenance Information, because OAIS defines that facet as exactly
+# "hardware and software environment" dependencies needed for rendering --
+# and in practice, a device/software feature is almost always recorded
+# *because* it's needed to process or interpret the object correctly, which
+# is a representation concern, not a custody-chain one. This property is not
+# in the bundled rico-vocabulary.ttl stub (it's outside the curated subset);
+# it only resolves to a real property if the full RiC-O ontology has been
+# loaded (see README "Is the real RiC-O ontology loaded?").
+rico:technicalCharacteristics
+  skos:relatedMatch im:OtherRepresentationInformation ;
+  bridge:mappingRationale "Describes a physical or software feature of a device involved in creating/managing a Record Resource. OAIS's Other Representation Information covers exactly this kind of hardware/software environment dependency (the part of Representation Information not captured by pure Structure or Semantic facets), so relatedMatch here reflects that overlap -- not closeMatch, since rico:technicalCharacteristics is a plain datatype property (free text on a Record Resource) while im:OtherRepresentationInformation is a bundled information object in its own right, and the RiC-O property could equally be read as a provenance fact about the creation event rather than a rendering requirement, depending on why it was recorded."@en .
+
+# ============================================================
+# 6. RiC Event / Agent <-> OAIS Provenance Information
+# ============================================================
+# OAIS treats provenance as a single documentary object (history,
+# origin, custody chain, as prose or structured metadata attached
+# to the Content Data Object). RiC-O instead represents the same
+# facts natively as a graph of Event and Agent entities connected
+# by provenance relations (rico:OrganicProvenanceRelation,
+# rico:CreationRelation, rico:AccumulationRelation, and their
+# properties such as rico:hasCreator, rico:hasAccumulator,
+# rico:documents/rico:documentedBy). The correspondence is
+# functional, not extensional -- hence relatedMatch, not
+# close/broadMatch.
+
+rico:Event
+  skos:relatedMatch im:ProvenanceInformation ;
+  bridge:mappingRationale "im:ProvenanceInformation documents 'the history ... origin or source ... changes ... and who has had custody' of the content. In RiC-O this history is not written up as a separate object at all: it is expressed as a series of rico:Event (and rico:Activity) instances linked to the record resource via rico:documents/rico:documentedBy and the provenance Relation classes. relatedMatch reflects that Event supplies the same information Provenance Information documents, without Event itself being a kind of documentary object."@en .
+
+rico:Agent
+  skos:relatedMatch im:ProvenanceInformation ;
+  bridge:mappingRationale "Provenance Information records origin and custody, which in RiC-O is expressed relationally via rico:Agent instances connected through rico:OrganicProvenanceRelation and its subclasses (rico:CreationRelation, rico:AccumulationRelation) and rico:hasOrHadHolder/rico:hasOrHadManager for custody. relatedMatch, not closeMatch: an Agent is an actor, not a documentary summary of that actor's role."@en .
+
+im:ProvenanceInformation
+  skos:relatedMatch rico:Event , rico:Agent .
+
+# ============================================================
+# 7. RiC Mandate <-> OAIS Access Rights Information
+# ============================================================
+# rico:Mandate ("delegation of responsibility or authority by an
+# Agent to another Agent") is a subclass of rico:Rule. OAIS Access
+# Rights Information covers legal framework, licensing, and access
+# control for a Content Data Object. The two are cross-category
+# (an authorization entity vs. a documentary rights record) but
+# functionally aligned: a Mandate is typically the source of the
+# authority that an access-rights statement documents.
+
+rico:Mandate
+  rdfs:subClassOf rico:Rule ;
+  skos:relatedMatch im:AccessRightsInformation ;
+  bridge:mappingRationale "A Mandate confers the responsibility/authority that access restrictions ultimately derive from, so it is the closest RiC-O class to im:AccessRightsInformation ('legal framework, licensing terms, and access control'). It is a relatedMatch rather than closeMatch because Mandate models the delegation of authority itself (an Agent-to-Agent relation target), not a rights statement attached to content. For the narrower, statement-level facts OAIS packages into Access Rights Information, also consider the RiC-O datatype properties rico:conditionsOfAccess and rico:conditionsOfUse (domain rico:Instantiation) and the object property rico:isOrWasRegulatedBy (RecordResource/Instantiation -> rico:Rule), which is the general mechanism Mandate specializes."@en .
+
+im:AccessRightsInformation
+  skos:relatedMatch rico:Mandate .
+
+# ============================================================
+# 8. RiC Relation <-> OAIS Context Information
+# ============================================================
+# rico:Relation is a broad, generic entity for connecting any two
+# (or more) Things -- most of its ~90 subclasses have nothing to do
+# with "environment" in the OAIS sense (e.g. FamilyRelation,
+# CorrespondenceRelation). im:ContextInformation is a
+# narrowly-scoped PDI category documenting why content was created
+# and how it relates to its environment. relatedMatch captures that
+# instances of the environment/context-relevant RiC-O Relation
+# subclasses (in particular rico:EventRelation, rico:AuthorityRelation
+# and rico:OrganicOrFunctionalProvenanceRelation and their
+# descendants) serve the same descriptive purpose as OAIS Context
+# Information, without the classes being co-extensive.
+
+rico:Relation
+  skos:relatedMatch im:ContextInformation ;
+  bridge:mappingRationale "im:ContextInformation documents why content was created and how it relates to other content/its environment. rico:Relation is a much more general n-ary class covering every kind of connection in the RiC-CM model, so equating the two classes would be too strong. The correspondence holds most cleanly for the context/provenance-flavoured Relation subclasses (rico:EventRelation, rico:AuthorityRelation, rico:OrganicOrFunctionalProvenanceRelation and their descendants); a RiC-O graph's set of such Relation instances collectively plays the role OAIS assigns to a single Context Information object."@en .
+
+im:ContextInformation
+  skos:relatedMatch rico:Relation .
+
+# ============================================================
+# Supporting property-level correspondence
+# ============================================================
+# One structural property pair lines up cleanly enough to assert
+# directly: the property that attaches an embodiment to its
+# intellectual-content object.
+
+rico:hasOrHadInstantiation
+  skos:closeMatch im:hasDataObject ;
+  bridge:mappingRationale "rico:hasOrHadInstantiation connects a RecordResource to its Instantiation(s); im:hasDataObject 'has Data Object' connects an Information Object to its Data Object. Both play the same structural role of linking intellectual content to embodiment, mirroring the Record/RecordPart/RecordSet <-> Information Object and Instantiation <-> Data Object class correspondences above."@en .
+
+im:hasDataObject
+  skos:closeMatch rico:hasOrHadInstantiation .
+
+# ============================================================
+# Instance-level bridge properties
+# ============================================================
+# The class-level SKOS mappings above say which classes correspond;
+# they say nothing about which *individuals* correspond. Applications
+# that hold both a RiC-O description and an OAIS-structured
+# preservation record for the same holdings need a way to point from
+# one individual to the other. These two properties (inverses of each
+# other) exist for that purpose. They deliberately have no declared
+# rdfs:domain/rdfs:range, since either side may be any class from
+# either ontology, depending on which correspondence (of the eight
+# above) is being instantiated.
+
+bridge:hasOAISCounterpart
+  a owl:ObjectProperty ;
+  owl:inverseOf bridge:hasRiCDescription ;
+  rdfs:label "has OAIS counterpart"@en ;
+  rdfs:comment "Relates a RiC-O individual to the OAIS Information Model individual that represents the same real-world holdings, information, or entity from an OAIS-preservation perspective."@en .
+
+bridge:hasRiCDescription
+  a owl:ObjectProperty ;
+  owl:inverseOf bridge:hasOAISCounterpart ;
+  rdfs:label "has RiC-O description"@en ;
+  rdfs:comment "Relates an OAIS Information Model individual to the RiC-O individual that represents the same real-world holdings, information, or entity from an archival-description perspective."@en .
+
+bridge:hasStorageLocation
+  a owl:ObjectProperty ;
+  rdfs:label "Has storage location"@en ;
+  rdfs:subPropertyOf rdfs:seeAlso ;
+  rdfs:comment "Points to the actual retrievable location of an object's bits (e.g. a Dropbox link, cloud storage URI) -- more specific and self-documenting than plain rdfs:seeAlso for this one purpose. Usable on either a rico:Instantiation or an im:DataObject/im:DigitalObject, matching the 'describe it from both sides' pattern used throughout this bridge. Deliberately kept in the bridge namespace, not the OAIS schema itself, since OAIS treats bit-location/retrieval as implementation-specific and out of scope for the reference model -- adding it directly to oais_im_schema-sh-v5.ttl would misrepresent it as part of the real standard."@en .

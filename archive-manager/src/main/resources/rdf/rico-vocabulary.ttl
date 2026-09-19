@@ -1,0 +1,275 @@
+# Companion RiC-O 1.1 vocabulary stub.
+#
+# The official RiC-O OWL file (107 classes, 75 datatype properties, 480 object
+# properties) is too large to bundle here. This stub declares all 107 RiC-O 1.1
+# classes (so the class picker in the entity editor is genuinely complete) plus a
+# curated set of the most commonly used object and datatype properties (so the
+# property picker has useful suggestions). It is NOT a complete re-publication of
+# RiC-O -- no domains, ranges, hierarchies or full documentation are asserted, only
+# rdf:type + rdfs:label, which is all the entity editor needs to enumerate options.
+# Properties outside this curated set can still be used via free-text entry in the
+# editor; this file only affects what appears as a suggestion.
+#
+# Source: RiC-O 1.1 (https://www.ica.org/standards/RiC/ontology), May 2025.
+
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rico: <https://www.ica.org/standards/RiC/ontology#> .
+
+# -- classes (all 107) --
+
+rico:AccumulationRelation a owl:Class ; rdfs:label "Accumulation Relation" .
+rico:Activity a owl:Class ; rdfs:label "Activity" .
+rico:ActivityDocumentationRelation a owl:Class ; rdfs:label "Activity Documentation Relation" .
+rico:ActivityType a owl:Class ; rdfs:label "Activity Type" .
+rico:Agent a owl:Class ; rdfs:label "Agent" .
+rico:AgentControlRelation a owl:Class ; rdfs:label "Agent Control Relation" .
+rico:AgentHierarchicalRelation a owl:Class ; rdfs:label "Agent Hierarchical Relation" .
+rico:AgentName a owl:Class ; rdfs:label "Agent Name" .
+rico:AgentTemporalRelation a owl:Class ; rdfs:label "Agent Temporal Relation" .
+rico:AgentToAgentRelation a owl:Class ; rdfs:label "Agent To Agent Relation" .
+rico:Appellation a owl:Class ; rdfs:label "Appellation" .
+rico:AppellationRelation a owl:Class ; rdfs:label "Appellation Relation" .
+rico:AuthorityRelation a owl:Class ; rdfs:label "Authority Relation" .
+rico:AuthorshipRelation a owl:Class ; rdfs:label "Authorship Relation" .
+rico:CarrierExtent a owl:Class ; rdfs:label "Carrier Extent" .
+rico:CarrierType a owl:Class ; rdfs:label "Carrier Type" .
+rico:ChildRelation a owl:Class ; rdfs:label "Child Relation" .
+rico:Concept a owl:Class ; rdfs:label "Concept" .
+rico:ContentType a owl:Class ; rdfs:label "Content Type" .
+rico:Coordinates a owl:Class ; rdfs:label "Coordinates" .
+rico:CorporateBody a owl:Class ; rdfs:label "Corporate Body" .
+rico:CorporateBodyType a owl:Class ; rdfs:label "Corporate Body Type" .
+rico:CorrespondenceRelation a owl:Class ; rdfs:label "Correspondence Relation" .
+rico:CreationRelation a owl:Class ; rdfs:label "Creation Relation" .
+rico:Date a owl:Class ; rdfs:label "Date" .
+rico:DateType a owl:Class ; rdfs:label "Date Type" .
+rico:DemographicGroup a owl:Class ; rdfs:label "Demographic Group" .
+rico:DerivationRelation a owl:Class ; rdfs:label "Derivation Relation" .
+rico:DescendanceRelation a owl:Class ; rdfs:label "Descendance Relation" .
+rico:DocumentaryFormType a owl:Class ; rdfs:label "Documentary Form Type" .
+rico:Event a owl:Class ; rdfs:label "Event" .
+rico:EventRelation a owl:Class ; rdfs:label "Event Relation" .
+rico:EventType a owl:Class ; rdfs:label "Event Type" .
+rico:Extent a owl:Class ; rdfs:label "Extent" .
+rico:ExtentType a owl:Class ; rdfs:label "Extent Type" .
+rico:Family a owl:Class ; rdfs:label "Family" .
+rico:FamilyRelation a owl:Class ; rdfs:label "Family Relation" .
+rico:FamilyType a owl:Class ; rdfs:label "Family Type" .
+rico:FunctionalEquivalenceRelation a owl:Class ; rdfs:label "Functional Equivalence Relation" .
+rico:Group a owl:Class ; rdfs:label "Group" .
+rico:GroupSubdivisionRelation a owl:Class ; rdfs:label "Group Subdivision Relation" .
+rico:Identifier a owl:Class ; rdfs:label "Identifier" .
+rico:IdentifierType a owl:Class ; rdfs:label "Identifier Type" .
+rico:Instantiation a owl:Class ; rdfs:label "Instantiation" .
+rico:InstantiationExtent a owl:Class ; rdfs:label "Instantiation Extent" .
+rico:InstantiationToInstantiationRelation a owl:Class ; rdfs:label "Instantiation To Instantiation Relation" .
+rico:IntellectualPropertyRightsRelation a owl:Class ; rdfs:label "Intellectual Property Rights Relation" .
+rico:KnowingOfRelation a owl:Class ; rdfs:label "Knowing Of Relation" .
+rico:KnowingRelation a owl:Class ; rdfs:label "Knowing Relation" .
+rico:Language a owl:Class ; rdfs:label "Language" .
+rico:LeadershipRelation a owl:Class ; rdfs:label "Leadership Relation" .
+rico:LegalStatus a owl:Class ; rdfs:label "Legal Status" .
+rico:ManagementRelation a owl:Class ; rdfs:label "Management Relation" .
+rico:Mandate a owl:Class ; rdfs:label "Mandate" .
+rico:MandateRelation a owl:Class ; rdfs:label "Mandate Relation" .
+rico:MandateType a owl:Class ; rdfs:label "Mandate Type" .
+rico:Mechanism a owl:Class ; rdfs:label "Mechanism" .
+rico:MembershipRelation a owl:Class ; rdfs:label "Membership Relation" .
+rico:MigrationRelation a owl:Class ; rdfs:label "Migration Relation" .
+rico:Name a owl:Class ; rdfs:label "Name" .
+rico:OccupationType a owl:Class ; rdfs:label "Occupation Type" .
+rico:OrganicOrFunctionalProvenanceRelation a owl:Class ; rdfs:label "Organic Or Functional Provenance Relation" .
+rico:OrganicProvenanceRelation a owl:Class ; rdfs:label "Organic Provenance Relation" .
+rico:OwnershipRelation a owl:Class ; rdfs:label "Ownership Relation" .
+rico:PerformanceRelation a owl:Class ; rdfs:label "Performance Relation" .
+rico:Person a owl:Class ; rdfs:label "Person" .
+rico:PhysicalLocation a owl:Class ; rdfs:label "Physical Location" .
+rico:Place a owl:Class ; rdfs:label "Place" .
+rico:PlaceName a owl:Class ; rdfs:label "Place Name" .
+rico:PlaceRelation a owl:Class ; rdfs:label "Place Relation" .
+rico:PlaceType a owl:Class ; rdfs:label "Place Type" .
+rico:Position a owl:Class ; rdfs:label "Position" .
+rico:PositionHoldingRelation a owl:Class ; rdfs:label "Position Holding Relation" .
+rico:PositionToGroupRelation a owl:Class ; rdfs:label "Position To Group Relation" .
+rico:ProductionTechniqueType a owl:Class ; rdfs:label "Production Technique Type" .
+rico:Proxy a owl:Class ; rdfs:label "Proxy" .
+rico:Record a owl:Class ; rdfs:label "Record" .
+rico:RecordPart a owl:Class ; rdfs:label "Record Part" .
+rico:RecordResource a owl:Class ; rdfs:label "Record Resource" .
+rico:RecordResourceExtent a owl:Class ; rdfs:label "Record Resource Extent" .
+rico:RecordResourceGeneticRelation a owl:Class ; rdfs:label "Record Resource Genetic Relation" .
+rico:RecordResourceHoldingRelation a owl:Class ; rdfs:label "Record Resource Holding Relation" .
+rico:RecordResourceToInstantiationRelation a owl:Class ; rdfs:label "Record Resource To Instantiation Relation" .
+rico:RecordResourceToRecordResourceRelation a owl:Class ; rdfs:label "Record Resource To Record Resource Relation" .
+rico:RecordSet a owl:Class ; rdfs:label "Record Set" .
+rico:RecordSetType a owl:Class ; rdfs:label "Record Set Type" .
+rico:RecordState a owl:Class ; rdfs:label "Record State" .
+rico:Relation a owl:Class ; rdfs:label "Relation" .
+rico:RepresentationType a owl:Class ; rdfs:label "Representation Type" .
+rico:RoleType a owl:Class ; rdfs:label "Role Type" .
+rico:Rule a owl:Class ; rdfs:label "Rule" .
+rico:RuleRelation a owl:Class ; rdfs:label "Rule Relation" .
+rico:RuleType a owl:Class ; rdfs:label "Rule Type" .
+rico:SequentialRelation a owl:Class ; rdfs:label "Sequential Relation" .
+rico:SiblingRelation a owl:Class ; rdfs:label "Sibling Relation" .
+rico:SpouseRelation a owl:Class ; rdfs:label "Spouse Relation" .
+rico:StudyAtRelation a owl:Class ; rdfs:label "Study At Relation" .
+rico:TeachingRelation a owl:Class ; rdfs:label "Teaching Relation" .
+rico:TemporalRelation a owl:Class ; rdfs:label "Temporal Relation" .
+rico:Thing a owl:Class ; rdfs:label "Thing" .
+rico:Title a owl:Class ; rdfs:label "Title" .
+rico:TitleType a owl:Class ; rdfs:label "Title Type" .
+rico:Type a owl:Class ; rdfs:label "Type" .
+rico:TypeRelation a owl:Class ; rdfs:label "Type Relation" .
+rico:UnitOfMeasurement a owl:Class ; rdfs:label "Unit Of Measurement" .
+rico:WholePartRelation a owl:Class ; rdfs:label "Whole Part Relation" .
+rico:WorkRelation a owl:Class ; rdfs:label "Work Relation" .
+
+# -- class hierarchy (subclass relationships) --
+#
+# Only the branches this application's own queries actually walk (Agent,
+# RecordResource, Event, Rule) are asserted here -- this is NOT a
+# reconstruction of RiC-O's full class hierarchy, which is much deeper (in
+# particular, rico:Relation alone has on the order of 90 subclasses that
+# aren't represented here at all). What's below is reconstructed from
+# general familiarity with RiC-O's structure rather than transcribed from
+# the authoritative OWL file (which isn't bundled here -- see the note at
+# the top of this file); treat it as best-effort, not a verified
+# re-publication of the spec, and extend it if your data needs more of the
+# hierarchy walked generically.
+
+rico:Person rdfs:subClassOf rico:Agent .
+rico:Group rdfs:subClassOf rico:Agent .
+rico:CorporateBody rdfs:subClassOf rico:Group .
+rico:Family rdfs:subClassOf rico:Group .
+rico:Position rdfs:subClassOf rico:Agent .
+rico:Mechanism rdfs:subClassOf rico:Agent .
+
+rico:Record rdfs:subClassOf rico:RecordResource .
+rico:RecordPart rdfs:subClassOf rico:RecordResource .
+rico:RecordSet rdfs:subClassOf rico:RecordResource .
+
+rico:Activity rdfs:subClassOf rico:Event .
+
+rico:Mandate rdfs:subClassOf rico:Rule .
+
+# -- object properties (curated subset; see note above) --
+
+rico:hasCreator a owl:ObjectProperty ; rdfs:label "Has creator" ; rdfs:comment "Record Resource or Instantiation -> Agent that created it" .
+rico:hasOrHadCreator a owl:ObjectProperty ; rdfs:label "Has or had creator" ; rdfs:comment "alias of hasCreator (past-inclusive form)" .
+rico:isCreatorOf a owl:ObjectProperty ; rdfs:label "Is creator of" ; rdfs:comment "inverse of hasCreator" .
+rico:hasAccumulator a owl:ObjectProperty ; rdfs:label "Has accumulator" ; rdfs:comment "Record Resource or Instantiation -> Agent that accumulated it" .
+rico:hasCollector a owl:ObjectProperty ; rdfs:label "Has collector" ; rdfs:comment "-> Agent that collected it" .
+rico:hasPublisher a owl:ObjectProperty ; rdfs:label "Has publisher" ; rdfs:comment "-> Agent that published it" .
+rico:hasSender a owl:ObjectProperty ; rdfs:label "Has sender" ; rdfs:comment "-> Agent that sent it" .
+rico:hasReceiver a owl:ObjectProperty ; rdfs:label "Has receiver" ; rdfs:comment "-> Agent that received it" .
+rico:hasAddressee a owl:ObjectProperty ; rdfs:label "Has addressee" ; rdfs:comment "-> Agent addressed by it" .
+rico:hasOrHadHolder a owl:ObjectProperty ; rdfs:label "Has or had holder" ; rdfs:comment "-> Agent currently or formerly holding it" .
+rico:hasOrHadManager a owl:ObjectProperty ; rdfs:label "Has or had manager" ; rdfs:comment "-> Agent managing it" .
+rico:hasOrHadIntellectualPropertyRightsHolder a owl:ObjectProperty ; rdfs:label "Has or had intellectual property rights holder" ; rdfs:comment "-> Agent holding IP rights" .
+rico:hasOrHadOwner a owl:ObjectProperty ; rdfs:label "Has or had owner" ; rdfs:comment "-> Agent owning it" .
+rico:hasOrHadController a owl:ObjectProperty ; rdfs:label "Has or had controller" ; rdfs:comment "-> Agent controlling it" .
+rico:hasOrHadConstituent a owl:ObjectProperty ; rdfs:label "Has or had constituent" ; rdfs:comment "whole -> part (Record/RecordPart/RecordSet)" .
+rico:isOrWasConstituentOf a owl:ObjectProperty ; rdfs:label "Is or was constituent of" ; rdfs:comment "inverse of hasOrHadConstituent" .
+rico:hasOrHadComponent a owl:ObjectProperty ; rdfs:label "Has or had component" ; rdfs:comment "Instantiation -> component Instantiation" .
+rico:isOrWasComponentOf a owl:ObjectProperty ; rdfs:label "Is or was component of" ; rdfs:comment "inverse of hasOrHadComponent" .
+rico:hasOrHadInstantiation a owl:ObjectProperty ; rdfs:label "Has or had instantiation" ; rdfs:comment "RecordResource -> Instantiation" .
+rico:isOrWasInstantiationOf a owl:ObjectProperty ; rdfs:label "Is or was instantiation of" ; rdfs:comment "inverse of hasOrHadInstantiation" .
+rico:hasOrHadDerivedInstantiation a owl:ObjectProperty ; rdfs:label "Has or had derived instantiation" ; rdfs:comment "Instantiation -> derived Instantiation" .
+rico:isOrWasDerivedFromInstantiation a owl:ObjectProperty ; rdfs:label "Is or was derived from instantiation" ; rdfs:comment "inverse" .
+rico:hasOrHadAnalogueInstantiation a owl:ObjectProperty ; rdfs:label "Has or had analogue instantiation" ; rdfs:comment "-> analogue Instantiation" .
+rico:hasOrHadDigitalInstantiation a owl:ObjectProperty ; rdfs:label "Has or had digital instantiation" ; rdfs:comment "-> digital Instantiation" .
+rico:isFunctionallyEquivalentTo a owl:ObjectProperty ; rdfs:label "Is functionally equivalent to" ; rdfs:comment "Instantiation <-> Instantiation" .
+rico:isOrWasRegulatedBy a owl:ObjectProperty ; rdfs:label "Is or was regulated by" ; rdfs:comment "RecordResource/Instantiation -> Rule/Mandate" .
+rico:isOrWasResponsibleForEnforcing a owl:ObjectProperty ; rdfs:label "Is or was responsible for enforcing" ; rdfs:comment "Agent -> Rule" .
+rico:isOrWasEnforcedBy a owl:ObjectProperty ; rdfs:label "Is or was enforced by" ; rdfs:comment "inverse" .
+rico:authorizes a owl:ObjectProperty ; rdfs:label "Authorizes" ; rdfs:comment "Agent (mandating) -> Agent (mandated), via Mandate" .
+rico:isOrWasUnderAuthorityOf a owl:ObjectProperty ; rdfs:label "Is or was under authority of" ; rdfs:comment "Agent -> Agent with authority over it" .
+rico:hasOrHadAuthorityOver a owl:ObjectProperty ; rdfs:label "Has or had authority over" ; rdfs:comment "inverse" .
+rico:hasOrganicProvenance a owl:ObjectProperty ; rdfs:label "Has organic provenance" ; rdfs:comment "RecordResource/Instantiation -> Agent (organic provenance)" .
+rico:isOrganicProvenanceOf a owl:ObjectProperty ; rdfs:label "Is organic provenance of" ; rdfs:comment "inverse" .
+rico:hasOrganicOrFunctionalProvenance a owl:ObjectProperty ; rdfs:label "Has organic or functional provenance" ; rdfs:comment "RecordResource/Instantiation -> Agent or Activity" .
+rico:isOrganicOrFunctionalProvenanceOf a owl:ObjectProperty ; rdfs:label "Is organic or functional provenance of" ; rdfs:comment "inverse" .
+rico:hasOrHadParticipant a owl:ObjectProperty ; rdfs:label "Has or had participant" ; rdfs:comment "Event/Activity -> Agent" .
+rico:isOrWasParticipantIn a owl:ObjectProperty ; rdfs:label "Is or was participant in" ; rdfs:comment "inverse" .
+rico:performsOrPerformed a owl:ObjectProperty ; rdfs:label "Performs or performed" ; rdfs:comment "Agent -> Activity" .
+rico:isOrWasPerformedBy a owl:ObjectProperty ; rdfs:label "Is or was performed by" ; rdfs:comment "inverse" .
+rico:hasOrHadSubevent a owl:ObjectProperty ; rdfs:label "Has or had subevent" ; rdfs:comment "Event -> sub-Event" .
+rico:isOrWasSubeventOf a owl:ObjectProperty ; rdfs:label "Is or was subevent of" ; rdfs:comment "inverse" .
+rico:documents a owl:ObjectProperty ; rdfs:label "Documents" ; rdfs:comment "Event/Activity -> Thing it documents" .
+rico:documentedBy a owl:ObjectProperty ; rdfs:label "Documented by" ; rdfs:comment "inverse" .
+rico:hasOrHadSubordinate a owl:ObjectProperty ; rdfs:label "Has or had subordinate" ; rdfs:comment "Agent -> subordinate Agent" .
+rico:isOrWasSubordinateTo a owl:ObjectProperty ; rdfs:label "Is or was subordinate to" ; rdfs:comment "inverse" .
+rico:hasOrHadMember a owl:ObjectProperty ; rdfs:label "Has or had member" ; rdfs:comment "Group -> member Agent" .
+rico:isOrWasMemberOf a owl:ObjectProperty ; rdfs:label "Is or was member of" ; rdfs:comment "inverse" .
+rico:hasOrHadLeader a owl:ObjectProperty ; rdfs:label "Has or had leader" ; rdfs:comment "Group -> leading Person" .
+rico:isOrWasLeaderOf a owl:ObjectProperty ; rdfs:label "Is or was leader of" ; rdfs:comment "inverse" .
+rico:hasOrHadPosition a owl:ObjectProperty ; rdfs:label "Has or had position" ; rdfs:comment "Agent -> Position" .
+rico:hasOrHadSubdivision a owl:ObjectProperty ; rdfs:label "Has or had subdivision" ; rdfs:comment "Group -> subdivision Group" .
+rico:isOrWasSubdivisionOf a owl:ObjectProperty ; rdfs:label "Is or was subdivision of" ; rdfs:comment "inverse" .
+rico:hasOrHadEmployer a owl:ObjectProperty ; rdfs:label "Has or had employer" ; rdfs:comment "Person -> employer CorporateBody" .
+rico:isOrWasEmployerOf a owl:ObjectProperty ; rdfs:label "Is or was employer of" ; rdfs:comment "inverse" .
+rico:hasOrHadAgentName a owl:ObjectProperty ; rdfs:label "Has or had agent name" ; rdfs:comment "Agent -> AgentName" .
+rico:hasOrHadIdentifier a owl:ObjectProperty ; rdfs:label "Has or had identifier" ; rdfs:comment "Thing -> Identifier" .
+rico:hasOrHadAppellation a owl:ObjectProperty ; rdfs:label "Has or had appellation" ; rdfs:comment "Thing -> Appellation (Name/Identifier)" .
+rico:hasOrHadCoordinates a owl:ObjectProperty ; rdfs:label "Has or had coordinates" ; rdfs:comment "Place -> Coordinates" .
+rico:hasOrHadLocation a owl:ObjectProperty ; rdfs:label "Has or had location" ; rdfs:comment "Place -> PhysicalLocation" .
+rico:agentHasOrHadLocation a owl:ObjectProperty ; rdfs:label "Agent has or had location" ; rdfs:comment "Agent -> Place" .
+rico:hasCarrierType a owl:ObjectProperty ; rdfs:label "Has carrier type" ; rdfs:comment "Instantiation -> CarrierType" .
+rico:hasDocumentaryFormType a owl:ObjectProperty ; rdfs:label "Has documentary form type" ; rdfs:comment "Record/RecordPart -> DocumentaryFormType" .
+rico:hasContentOfType a owl:ObjectProperty ; rdfs:label "Has content of type" ; rdfs:comment "Record/RecordPart -> ContentType" .
+rico:hasRepresentationType a owl:ObjectProperty ; rdfs:label "Has representation type" ; rdfs:comment "Instantiation -> RepresentationType" .
+rico:hasProductionTechniqueType a owl:ObjectProperty ; rdfs:label "Has production technique type" ; rdfs:comment "Instantiation -> ProductionTechniqueType" .
+rico:hasOrHadLanguage a owl:ObjectProperty ; rdfs:label "Has or had language" ; rdfs:comment "-> Language" .
+rico:hasOrHadLegalStatus a owl:ObjectProperty ; rdfs:label "Has or had legal status" ; rdfs:comment "Agent -> LegalStatus" .
+rico:hasOrHadCorporateBodyType a owl:ObjectProperty ; rdfs:label "Has or had corporate body type" ; rdfs:comment "CorporateBody -> CorporateBodyType" .
+rico:hasOrHadDemographicGroup a owl:ObjectProperty ; rdfs:label "Has or had demographic group" ; rdfs:comment "Person/Group -> DemographicGroup" .
+rico:hasFamilyType a owl:ObjectProperty ; rdfs:label "Has family type" ; rdfs:comment "Family -> FamilyType" .
+rico:hasActivityType a owl:ObjectProperty ; rdfs:label "Has activity type" ; rdfs:comment "Activity -> ActivityType" .
+rico:hasEventType a owl:ObjectProperty ; rdfs:label "Has event type" ; rdfs:comment "Event -> EventType" .
+rico:hasDateType a owl:ObjectProperty ; rdfs:label "Has date type" ; rdfs:comment "Date -> DateType" .
+rico:hasOrHadMandateType a owl:ObjectProperty ; rdfs:label "Has or had mandate type" ; rdfs:comment "Mandate -> MandateType" .
+rico:hasOrHadType a owl:ObjectProperty ; rdfs:label "Has or had type" ; rdfs:comment "generic Thing -> Type" .
+rico:isOrWasTypeOf a owl:ObjectProperty ; rdfs:label "Is or was type of" ; rdfs:comment "inverse" .
+rico:hasOrHadSubject a owl:ObjectProperty ; rdfs:label "Has or had subject" ; rdfs:comment "Record/RecordPart -> Thing it is about" .
+rico:hasOrHadMainSubject a owl:ObjectProperty ; rdfs:label "Has or had main subject" ; rdfs:comment "-> primary subject" .
+rico:occurredAtDate a owl:ObjectProperty ; rdfs:label "Occurred at date" ; rdfs:comment "Event -> Date" .
+rico:hasCreationDate a owl:ObjectProperty ; rdfs:label "Has creation date" ; rdfs:comment "-> Date of creation" .
+rico:hasAccumulationDate a owl:ObjectProperty ; rdfs:label "Has accumulation date" ; rdfs:comment "-> Date of accumulation" .
+rico:hasBirthDate a owl:ObjectProperty ; rdfs:label "Has birth date" ; rdfs:comment "Person -> Date" .
+rico:hasDeathDate a owl:ObjectProperty ; rdfs:label "Has death date" ; rdfs:comment "Person -> Date" .
+rico:hasPublicationDate a owl:ObjectProperty ; rdfs:label "Has publication date" ; rdfs:comment "-> Date of publication" .
+rico:hasDestructionDate a owl:ObjectProperty ; rdfs:label "Has destruction date" ; rdfs:comment "-> Date of destruction" .
+rico:relationHasSource a owl:ObjectProperty ; rdfs:label "Relation has source" ; rdfs:comment "n-ary Relation -> source Thing" .
+rico:relationHasTarget a owl:ObjectProperty ; rdfs:label "Relation has target" ; rdfs:comment "n-ary Relation -> target Thing" .
+rico:relationConnects a owl:ObjectProperty ; rdfs:label "Relation connects" ; rdfs:comment "n-ary Relation -> connected Thing (non-oriented relations)" .
+rico:relationHasDate a owl:ObjectProperty ; rdfs:label "Relation has date" ; rdfs:comment "n-ary Relation -> Date" .
+rico:isSuccessorOf a owl:ObjectProperty ; rdfs:label "Is successor of" ; rdfs:comment "Agent -> predecessor Agent" .
+rico:hasSuccessor a owl:ObjectProperty ; rdfs:label "Has successor" ; rdfs:comment "inverse" .
+rico:wasMergedInto a owl:ObjectProperty ; rdfs:label "Was merged into" ; rdfs:comment "CorporateBody -> resulting CorporateBody" .
+rico:resultedFromTheMergerOf a owl:ObjectProperty ; rdfs:label "Resulted from the merger of" ; rdfs:comment "inverse" .
+rico:wasSplitInto a owl:ObjectProperty ; rdfs:label "Was split into" ; rdfs:comment "CorporateBody -> resulting CorporateBody" .
+rico:resultedFromTheSplitOf a owl:ObjectProperty ; rdfs:label "Resulted from the split of" ; rdfs:comment "inverse" .
+
+# -- datatype properties (curated subset; see note above) --
+
+rico:title a owl:DatatypeProperty ; rdfs:label "Title" ; rdfs:comment "Record/RecordPart -> title text" .
+rico:name a owl:DatatypeProperty ; rdfs:label "Name" ; rdfs:comment "Thing -> a simple name (usability shortcut for Appellation)" .
+rico:generalDescription a owl:DatatypeProperty ; rdfs:label "General description" ; rdfs:comment "Thing -> free-text description" .
+rico:scopeAndContent a owl:DatatypeProperty ; rdfs:label "Scope and content" ; rdfs:comment "Record/RecordPart/RecordSet -> scope and content note" .
+rico:history a owl:DatatypeProperty ; rdfs:label "History" ; rdfs:comment "Thing -> free-text history (usability shortcut for Event)" .
+rico:type a owl:DatatypeProperty ; rdfs:label "Type" ; rdfs:comment "Thing -> a plain-text category (usability shortcut for a Type class)" .
+rico:identifier a owl:DatatypeProperty ; rdfs:label "Identifier" ; rdfs:comment "Thing -> a simple identifier string" .
+rico:textualValue a owl:DatatypeProperty ; rdfs:label "Textual value" ; rdfs:comment "Appellation/Date/Extent -> literal text value" .
+rico:normalizedValue a owl:DatatypeProperty ; rdfs:label "Normalized value" ; rdfs:comment "Appellation/Date/Extent -> normalized value" .
+rico:conditionsOfAccess a owl:DatatypeProperty ; rdfs:label "Conditions of access" ; rdfs:comment "Instantiation -> access conditions text" .
+rico:conditionsOfUse a owl:DatatypeProperty ; rdfs:label "Conditions of use" ; rdfs:comment "Instantiation -> use conditions text" .
+rico:ruleFollowed a owl:DatatypeProperty ; rdfs:label "Rule followed" ; rdfs:comment "Thing -> free-text rule reference (usability shortcut for Rule)" .
+rico:note a owl:DatatypeProperty ; rdfs:label "Note" ; rdfs:comment "Thing -> generic note" .
+rico:physicalCharacteristicsNote a owl:DatatypeProperty ; rdfs:label "Physical characteristics note" ; rdfs:comment "Instantiation -> physical characteristics note" .
+rico:authenticityNote a owl:DatatypeProperty ; rdfs:label "Authenticity note" ; rdfs:comment "Instantiation -> authenticity note" .
+rico:integrityNote a owl:DatatypeProperty ; rdfs:label "Integrity note" ; rdfs:comment "Instantiation -> integrity note" .
+rico:quantity a owl:DatatypeProperty ; rdfs:label "Quantity" ; rdfs:comment "Extent -> numeric quantity" .
+rico:measure a owl:DatatypeProperty ; rdfs:label "Measure" ; rdfs:comment "Coordinates/Extent -> a measurement value" .
+rico:geographicalCoordinates a owl:DatatypeProperty ; rdfs:label "Geographical coordinates" ; rdfs:comment "Coordinates -> plain-text coordinates" .

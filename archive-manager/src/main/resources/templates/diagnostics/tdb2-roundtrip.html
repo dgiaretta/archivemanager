@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('TDB2 round-trip test')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <p class="breadcrumb"><a th:href="@{/diagnostics/encoding}">&larr; Encoding diagnostics</a></p>
+    <h1>TDB2 storage round-trip test</h1>
+    <p class="muted">
+        Neither the hardcoded test string on the encoding diagnostics page nor the XLSX read test
+        actually goes through Jena/TDB2 at all &mdash; one skips file reading entirely, the other
+        skips storage entirely. This page tests the one remaining link: does a Dhivehi string
+        survive being written to the data graph, committed, and read back in a later, separate
+        request &mdash; the same round trip a real import and a later Catalogue page view go
+        through.
+    </p>
+
+    <div class="editor-section">
+        <h2>Expected</h2>
+        <p style="font-size:1.4rem; padding:1rem; background:var(--accent-soft); border-radius:8px;" th:text="${expectedValue}">expected</p>
+    </div>
+
+    <div class="editor-section">
+        <h2>What was read back from TDB2</h2>
+        <p th:if="${storedValue != null}"
+           style="font-size:1.4rem; padding:1rem; background:var(--accent-soft); border-radius:8px;"
+           th:text="${storedValue}">stored</p>
+        <p th:if="${storedValue == null}" class="muted">
+            Nothing written yet &mdash; click the button below, which writes the expected string
+            above into the data graph and immediately redirects back here as a fresh request, so
+            what you see after is a genuine read-back, not just an echo of what was just submitted.
+        </p>
+    </div>
+
+    <form th:action="@{/diagnostics/tdb2-roundtrip}" method="post">
+        <button type="submit">Write test string, then read it back</button>
+    </form>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

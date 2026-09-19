@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Help')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <h1>Help</h1>
+    <p class="muted">
+        A quick tour of the main things this app does. For the full picture &mdash; storage,
+        the login model, scale limits, internationalisation, how to update the ontologies &mdash;
+        see this project's <code>README.md</code> in the repository root; it goes well beyond
+        what's summarised here.
+    </p>
+
+    <section class="editor-section">
+        <h2>1. Browse, no login needed</h2>
+        <p>
+            <a th:href="@{/catalogue}">Catalogue</a> and
+            <a th:href="@{/accession-register}">Accession Register</a> are public search/browse
+            views. From any record, <a th:href="@{/records}">Records</a>,
+            <a th:href="@{/agents}">Agents</a>, <a th:href="@{/activities}">Provenance events</a>,
+            and <a th:href="@{/mandates}">Mandates</a> link to each other (an agent's page lists
+            what it created, and so on).
+        </p>
+    </section>
+
+    <section class="editor-section">
+        <h2>2. See a record's OAIS mapping</h2>
+        <p>
+            Open any record and follow its "OAIS mapping" link. The top half shows which OAIS
+            classes correspond to the record's RiC-O type(s), read live from the bridging
+            ontology; the bottom half, if the record has one, shows the actual linked OAIS
+            preservation-description structure (Information Object &rarr; Data Object &rarr; Bit,
+            and so on).
+        </p>
+    </section>
+
+    <section class="editor-section">
+        <h2>3. Explore the interactive graph</h2>
+        <p>
+            <a th:href="@{/graph}">Graph</a> shows the whole archive as a network; "View in
+            graph" on any record/agent/activity/mandate page shows a focused view around just
+            that one, with an adjustable depth. Double-click a node to open its detail page,
+            right-click for a menu of its links (its detail page, and any external URL-valued
+            property it has, like an <code>rdfs:seeAlso</code>). The checkboxes above the graph
+            highlight nodes/edges by entity type, property, or relationship type &mdash; whatever's
+            actually present in the currently-loaded graph.
+        </p>
+    </section>
+
+    <section class="editor-section">
+        <h2>4. Query it directly</h2>
+        <p>
+            <a th:href="@{/sparql}">SPARQL console</a> runs arbitrary <code>SELECT</code> queries
+            against the union of the data and ontology graphs &mdash; useful for answering a
+            question none of the built-in pages happen to show, or for exploring the ontologies
+            themselves.
+        </p>
+    </section>
+
+    <section class="editor-section">
+        <h2>5. Log in to create or edit anything</h2>
+        <p>
+            Everything above is read-only and needs no account. <a th:href="@{/login}">Log in</a>
+            with the shared edit password to unlock:
+        </p>
+        <ul>
+            <li><a th:href="@{/entities}">Entities</a> &mdash; the generic editor. Create an
+                individual of <em>any</em> RiC-O or OAIS class, then add its types, literal
+                properties, and relationships one at a time. <code>/entities/import</code>
+                (linked from that page) bulk-loads a pasted Turtle document instead.</li>
+            <li><a th:href="@{/catalogue/upload}">Bulk Upload Spreadsheet</a> (linked from the
+                Catalogue page) &mdash; import a CSV/XLSX of NAM-format records in one go.</li>
+            <li><a th:href="@{/format-tools}">Format description tools</a> &mdash; a guided
+                editor for building Kaitai Struct, DFDL, and/or DRB descriptions of a binary or
+                self-describing data format (built-in FITS and HDF5 starting points), saved into
+                the archive as real Structure/Semantic Representation Information.</li>
+        </ul>
+    </section>
+
+    <section class="editor-section">
+        <h2>Developer documentation</h2>
+        <p>
+            <a class="button-link" href="/apidocs/index.html" target="_blank" rel="noopener noreferrer">
+                Javadoc API reference &rarr;
+            </a>
+            &mdash; generated from this codebase's own <code>/** ... */</code> source comments
+            (<code>mvn javadoc:javadoc</code>), bundled into this running app so it's always
+            up to date with whatever version is actually deployed.
+        </p>
+        <p class="muted">
+            The two bundled ontology source files are downloadable from the
+            <a th:href="@{/}">home page</a>, byte-for-byte as loaded at startup.
+        </p>
+    </section>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

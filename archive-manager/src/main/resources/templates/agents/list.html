@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Agents')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <h1>Agents</h1>
+    <table class="listing">
+        <thead><tr><th>Type</th><th>Name</th></tr></thead>
+        <tbody>
+        <tr th:each="a : ${resultPage.items}">
+            <td><span class="pill" th:text="${a.typeLocalName}">Type</span></td>
+            <td><a th:href="@{/agents/{id}(id=${a.id})}" th:text="${a.title}">Name</a></td>
+        </tr>
+        </tbody>
+    </table>
+    <div th:replace="~{pagination :: pagination(${resultPage}, '/agents')}"></div>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Home')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <h1>Archive Manager</h1>
+    <p>
+        A small archive-management application over
+        <a href="https://www.ica.org/standards/RiC/ontology" target="_blank">RiC-O 1.1</a> and the
+        <a href="http://ontology.oais.org/im/" target="_blank">OAIS Information Model</a>,
+        connected by a custom bridging ontology. Records are described natively in RiC-O; the
+        <strong>OAIS mapping</strong> view on each record shows the corresponding OAIS classes and,
+        where the sample data links one, the actual OAIS preservation-description structure for
+        the same holdings.
+    </p>
+
+    <p class="muted persistence-note">
+        Data lives in <a href="https://jena.apache.org/documentation/tdb2/" target="_blank">Apache Jena TDB2</a>,
+        a real disk-backed transactional triple store, at
+        <code th:text="${storageLocation}">data/tdb2</code>. Every change commits as part of the
+        request that made it &mdash; there's no separate save step, and it survives restarts.
+    </p>
+
+    <p class="downloads-row">
+        <a class="button button-secondary" th:href="@{/download/bridge-ontology}">&darr; Download bridge ontology (.ttl)</a>
+        <a class="button button-secondary" th:href="@{/download/oais-ontology}">&darr; Download OAIS ontology (.ttl)</a>
+    </p>
+
+    <div class="cards">
+        <a class="card card-accent" th:href="@{/catalogue}">
+            <span class="count" th:text="${counts.records}">0</span>
+            <span class="label">NAM Catalogue &mdash; public search, no login needed</span>
+        </a>
+        <a class="card card-accent" th:href="@{/accession-register}">
+            <span class="count" th:text="${counts.accessions}">0</span>
+            <span class="label">NAM Accession Register &mdash; public, no login needed</span>
+        </a>
+        <a class="card" th:href="@{/records}">
+            <span class="count" th:text="${counts.records}">0</span>
+            <span class="label">Records / Record Parts / Record Sets</span>
+        </a>
+        <a class="card" th:href="@{/agents}">
+            <span class="count" th:text="${counts.agents}">0</span>
+            <span class="label">Agents</span>
+        </a>
+        <a class="card" th:href="@{/activities}">
+            <span class="count" th:text="${counts.activities}">0</span>
+            <span class="label">Provenance events / activities</span>
+        </a>
+        <a class="card" th:href="@{/mandates}">
+            <span class="count" th:text="${counts.mandates}">0</span>
+            <span class="label">Mandates</span>
+        </a>
+        <a class="card card-accent" th:href="@{/entities}">
+            <span class="count">&#9998;</span>
+            <span class="label">Browse &amp; edit all entities (any RiC-O or OAIS class)</span>
+        </a>
+        <a class="card" th:href="@{/sparql}">
+            <span class="count" th:text="${counts.triples}">0</span>
+            <span class="label">Triples in the data graph &mdash; open SPARQL console</span>
+        </a>
+        <a class="card card-accent" th:href="@{/graph}">
+            <span class="count">&#8778;</span>
+            <span class="label">Interactive relationship graph</span>
+        </a>
+    </div>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

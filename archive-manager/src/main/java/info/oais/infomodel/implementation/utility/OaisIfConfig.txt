@@ -1,0 +1,111 @@
+package info.oais.infomodel.implementation.utility;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Arrays;
+import java.util.Properties;
+
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.web.client.RestTemplate;
+
+//import org.springframework.http.HttpEntity;
+//import org.springframework.http.HttpHeaders;
+//import org.springframework.http.HttpMethod;
+//import org.springframework.http.MediaType;
+//import org.springframework.web.client.RestTemplate;
+
+//import org.springframework.http.HttpEntity;
+//import org.springframework.http.HttpHeaders;
+//import org.springframework.http.HttpMethod;
+//import org.springframework.http.MediaType;
+//import org.springframework.web.client.RestTemplate;
+
+
+@SpringBootApplication
+@EnableAutoConfiguration
+
+
+/** This class is responsible for loading configuration from properties file.
+ * @author David Giaretta
+ *
+ */
+public class OaisIfConfig {
+	/**
+	 * Load the properties from the named properties file in the classpath.
+	 * 
+	 * @param prop The name of the properties file
+	 * @return the Properties object with the entries from the properties file.
+	 */
+	public Properties getProperties(String prop) {
+		Properties appProps = new Properties();
+		InputStream input = null;
+		String filename = prop;
+		System.out.println("OaisifConfig Props filename:"+filename);
+		try { 
+			input = Thread.currentThread().getContextClassLoader().getResourceAsStream(filename);
+
+			System.out.println("OaisifConfig Props file resource:"+input);
+
+			if (input == null) {
+		        System.out.println("OaisifConfig Sorry, unable to find " + filename);
+		        return null;
+		    }
+
+			appProps.load(input);            
+		   
+			//System.out.println("My description   is:" + appProps.getProperty("MYDESCRIPTION"));
+		} catch (Exception ex) {
+		    ex.printStackTrace();
+		} finally {
+		    if (input != null) {
+		        try {
+		            input.close();
+		        } catch (IOException e) {
+		            e.printStackTrace();
+		        }
+		    }
+		}
+		return appProps;
+	}
+	
+	public String getJsonString(String propFile, String propKey, String qString)  {
+		
+		System.out.println("propFile: "+propFile+"\n"+"propKey: "+propKey+"\n"+"qString: "+qString);
+		Properties appProps = getProperties(propFile); //new OaisifConfig().getProperties(propFile);
+		  
+		String specUrl = appProps.getProperty(propKey);
+
+	    System.out.println(propKey +  " is: " + specUrl);
+		HttpHeaders headers = new HttpHeaders();
+	    headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+	    HttpEntity <String> entity = new HttpEntity<String>(headers);
+	    RestTemplate restTemplate = new RestTemplate();   
+
+	    System.out.println("^^^^^ OaisifConfig calling:" + specUrl + qString);
+	    String jsonString = restTemplate.exchange(specUrl +qString, HttpMethod.GET, entity, String.class).getBody();
+	    return jsonString;
+	}
+	
+	public String getJsonString(String specUrl, String qString)  {
+		
+		//System.out.println("propFile: "+propFile+"\n"+"propKey: "+propKey+"\n"+"qString: "+qString);
+		//Properties appProps = getProperties(propFile); //new OaisifConfig().getProperties(propFile);
+		  
+		
+
+	    System.out.println("specUrl  is: " + specUrl);
+		HttpHeaders headers = new HttpHeaders();
+	    headers.setAccept(Arrays.asList(MediaType.APPLICATION_JSON));
+	    HttpEntity <String> entity = new HttpEntity<String>(headers);
+	    RestTemplate restTemplate = new RestTemplate();   
+
+	    System.out.println("^^^^^ OaisifConfig calling:" + specUrl + qString);
+	    String jsonString = restTemplate.exchange(specUrl +qString, HttpMethod.GET, entity, String.class).getBody();
+	    return jsonString;
+	}
+}

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Import data')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <p class="breadcrumb"><a th:href="@{/entities}">&larr; Entities</a></p>
+    <h1>Import Turtle data</h1>
+    <p class="muted">
+        Paste complete, self-contained Turtle -- including its own <code>@prefix</code> lines; they
+        aren't inherited from anywhere else. The content of any of this project's own
+        <code>rdf/*.ttl</code> files (e.g. <code>sample-data-science.ttl</code>) pastes in directly.
+        Pasted content is parsed into a throwaway model first: if it doesn't parse, nothing touches
+        your actual data -- fix and resubmit.
+    </p>
+
+    <div class="callout" th:if="${error}">
+        <strong>Not imported.</strong> <span th:text="${error}">error</span>
+    </div>
+    <div class="callout" th:if="${success}" style="border-color:#8a4b2f;">
+        <strong>Done.</strong> <span th:text="${success}">success</span>
+        &mdash; <a th:href="@{/entities}">browse entities</a>
+    </div>
+
+    <form th:action="@{/entities/import}" method="post" class="form">
+        <label>
+            Turtle content
+            <textarea name="turtle" rows="20" class="import-textarea"
+                      placeholder="@prefix rico: &lt;https://www.ica.org/standards/RiC/ontology#&gt; .&#10;..."
+                      th:text="${turtle}"></textarea>
+        </label>
+        <button type="submit">Import</button>
+    </form>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

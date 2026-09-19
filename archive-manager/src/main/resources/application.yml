@@ -1,0 +1,53 @@
+server:
+  port: 9090
+  error:
+    include-stacktrace: always
+    include-message: always
+    include-binding-errors: always
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+  tomcat:
+    # A different, connector-level setting from server.servlet.encoding above --
+    # that one is applied by a Spring filter partway through request processing;
+    # this one controls how the embedded Tomcat connector itself decodes the
+    # request URI and (some Tomcat versions/configurations) multipart form
+    # field parsing before Spring's filter chain even runs. Setting both closes
+    # a gap the servlet-level setting alone doesn't necessarily cover.
+    uri-encoding: UTF-8
+
+spring:
+  application:
+    name: archive-manager
+  thymeleaf:
+    cache: false
+    encoding: UTF-8
+  servlet:
+    multipart:
+      # A real "bulk" Bulk Upload Spreadsheet CSV (rows of catalogue
+      # metadata, no digital objects themselves -- those go to Eternal
+      # separately, see README) can comfortably run to several thousand
+      # rows; Spring Boot's own default (1MB) is too small for that.
+      max-file-size: 25MB
+      max-request-size: 25MB
+
+logging:
+  level:
+    info.oais.archive.manager: INFO
+
+# Where the TDB2 triple store lives on disk. Relative paths are resolved
+# against the JVM's working directory at startup (logged at INFO level so
+# you can always see exactly where your data lives); use an absolute path
+# here if you want the location to be independent of how/where you launch
+# the app. This is a directory (TDB2 manages its own files inside it), not
+# a single file.
+archive:
+  tdb-location: data/tdb2
+  # The single shared password required to create/edit/delete data (browsing
+  # stays open without it). This is intentionally left set for deployment use,
+  # since the password must remain available when the application is run in a
+  # controlled environment. Keep it in the deployment config or environment,
+  # not in source control if you need a reusable secret outside this local setup.
+  edit-password: OAISisGreat14721

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:fragment="head(pageTitle)">
+    <meta charset="UTF-8"/>
+    <title th:text="${pageTitle} + ' - Archive Manager'">Archive Manager</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana&display=swap"/>
+    <link rel="stylesheet" th:href="@{/css/style.css}"/>
+</head>
+<body>
+<nav th:fragment="nav" class="topnav">
+    <a class="brand" th:href="@{/}">Archive Manager</a>
+    <a th:href="@{/catalogue}">Catalogue</a>
+    <a th:href="@{/accession-register}">Accession Register</a>
+    <a th:href="@{/records}">Records</a>
+    <a th:href="@{/agents}">Agents</a>
+    <a th:href="@{/activities}">Provenance events</a>
+    <a th:href="@{/mandates}">Mandates &amp; access rights</a>
+    <a th:href="@{/entities}">Entities</a>
+    <a th:href="@{/graph}">Graph</a>
+    <a th:href="@{/format-tools}">Format tools</a>
+    <a th:href="@{/statistics}">Statistics</a>
+    <a th:href="@{/sparql}">SPARQL console</a>
+    <a th:href="@{/help}">Help</a>
+    <span class="nav-spacer"></span>
+    <span class="lang-switcher">
+        <a th:each="entry : ${availableLanguages}"
+           th:href="@{/language/{lang}(lang=${entry.key})}"
+           th:text="${entry.key}"
+           th:classappend="${entry.key == currentLanguage} ? ' active' : ''"
+           class="lang-link">en</a>
+    </span>
+    <form th:if="${loggedIn}" th:action="@{/logout}" method="post" class="inline-form">
+        <button type="submit" class="nav-link-btn">Log out</button>
+    </form>
+    <a th:unless="${loggedIn}" th:href="@{/login}">Log in</a>
+</nav>
+
+<footer th:fragment="footer" class="footer">
+    <p>Built on RiC-O 1.1, the OAIS Information Model, and a custom bridging ontology connecting them.</p>
+</footer>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('New entity')}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <p class="breadcrumb"><a th:href="@{/entities}">&larr; Entities</a></p>
+    <h1>New entity</h1>
+    <p class="muted">
+        Pick any RiC-O or OAIS class. The entity is created with just that type; add its
+        properties and relationships on the next screen.
+    </p>
+
+    <form th:action="@{/entities}" method="post" class="form">
+        <label>
+            Class
+            <input type="text" class="select-filter" data-target="classIri-select" placeholder="Type to filter classes..."/>
+            <select name="classIri" id="classIri-select">
+                <option value="">-- choose --</option>
+                <optgroup label="OAIS">
+                    <option th:each="c : ${classes}" th:if="${c.source == 'oais'}"
+                            th:value="${c.iri}" th:text="'im:' + ${c.localName} + ' (' + ${c.label} + ')'">im:InformationObject</option>
+                </optgroup>
+                <optgroup label="RiC-O">
+                    <option th:each="c : ${classes}" th:if="${c.source == 'rico'}"
+                            th:value="${c.iri}" th:text="'rico:' + ${c.localName} + ' (' + ${c.label} + ')'">rico:Record</option>
+                </optgroup>
+            </select>
+        </label>
+
+        <label>
+            Or a custom class IRI / prefixed name (overrides the dropdown if filled)
+            <input type="text" name="customClass" placeholder="e.g. rico:MySubclass or a full http:// IRI"/>
+        </label>
+
+        <button type="submit">Create</button>
+    </form>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+
+<script src="/js/select-filter.js"></script>
+<script>
+    (function () {
+        var form = document.querySelector('form');
+        var dirty = false;
+        form.querySelectorAll('input[type="text"]:not(.select-filter), select').forEach(function (el) {
+            el.addEventListener('input', function () { dirty = true; });
+            el.addEventListener('change', function () { dirty = true; });
+        });
+        form.addEventListener('submit', function () { dirty = false; });
+        window.addEventListener('beforeunload', function (e) {
+            if (dirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+    })();
+</script>
+</body>
+</html>

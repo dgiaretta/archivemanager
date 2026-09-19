@@ -1,0 +1,54 @@
+# A small extension vocabulary for National Archives of Maldives (NAM) /
+# Eternal-specific fields that don't have a natural home in RiC-O, OAIS, or
+# Dublin Core. Kept deliberately minimal -- only what CatalogueImportService
+# actually needs to faithfully capture the Bulk Upload Spreadsheet and
+# Accession Register fields documented in NAM's Preservation Policy and
+# Implementation Plan / Records Management Plan.
+#
+# Namespace: https://oais.info/nam# -- a placeholder, same situation the
+# bridging ontology's own namespace started in (see oais-ric-bridge.ttl's
+# header). Replace with NAM's own domain before any real production use.
+
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix nam:  <https://oais.info/nam#> .
+
+# -- classes --
+
+nam:Accession a owl:Class ; rdfs:label "Accession" ;
+  rdfs:comment "A body of records transferred to NAM at one time from the same source (per TNA's definition, quoted in NAM's Records Management Plan). Modelled as a subclass of rico:Activity -- the event of receiving and taking custody of a batch of records -- so it's queryable through the same provenance machinery as any other RiC-O Activity, while still being distinguishable as specifically an accession." ;
+  rdfs:subClassOf <https://www.ica.org/standards/RiC/ontology#Activity> .
+
+# -- properties used on catalogue records (from the Bulk Upload Spreadsheet) --
+
+nam:recordNumber a owl:DatatypeProperty ; rdfs:label "Record number" ;
+  rdfs:comment "Bulk Upload Spreadsheet column 1, 'Record No' -- a running number assigned at upload time (e.g. R00001), distinct from rico:hasOrHadIdentifier (column 12, the pre-existing/external identifier)." .
+
+nam:transferredRecord a owl:DatatypeProperty ; rdfs:label "Transferred record" ;
+  rdfs:comment "Bulk Upload Spreadsheet column 26. 'Yes' if the object was transferred to NAM from elsewhere; 'No' if it was created by NAM itself (e.g. a scan NAM made of a transferred manuscript)." .
+
+nam:eternalUniqueId a owl:DatatypeProperty ; rdfs:label "Eternal unique ID" ;
+  rdfs:comment "The UUID Eternal itself assigns to the AIP once ingested, added to the Catalogue and Accession Register after upload (per the Records Management Plan's transfer workflow); not known at CSV-upload time." .
+
+# -- properties used on Accession individuals (from the Accession Register) --
+
+nam:depositor a owl:DatatypeProperty ; rdfs:label "Depositor" ;
+  rdfs:comment "Accession Register field: who deposited the material, when different from its creator (per TNA's accession register guidance, quoted in NAM's Records Management Plan)." .
+
+nam:quantityReceived a owl:DatatypeProperty ; rdfs:label "Quantity received" ;
+  rdfs:comment "Accession Register field: quantity received before any weeding of the collection, for space-management purposes." .
+
+nam:recordingArchivist a owl:DatatypeProperty ; rdfs:label "Recording archivist" ;
+  rdfs:comment "Accession Register field: name of the archivist who recorded the accession information." .
+
+# -- properties used on both (storage/handling facts the Bulk Upload Spreadsheet
+# captures per record, columns 18-20, with no natural RiC-O/OAIS/DC home) --
+
+nam:storageLocation a owl:DatatypeProperty ; rdfs:label "Storage location" ;
+  rdfs:comment "Bulk Upload Spreadsheet column 18, 'Location' -- where the physical/digital object is stored, not to be confused with rico:PhysicalLocation (a Place an Agent is associated with) or a subject-matter geographic Coverage." .
+
+nam:receivedDate a owl:DatatypeProperty ; rdfs:label "Received date" ;
+  rdfs:comment "Bulk Upload Spreadsheet column 19: the date NAM received the material, which may differ from the date it was formally accessioned (column 20, nam:accessionedDate)." .
+
+nam:accessionedDate a owl:DatatypeProperty ; rdfs:label "Accessioned date" ;
+  rdfs:comment "Bulk Upload Spreadsheet column 20: the date the material was formally accessioned (legal and physical custody taken), which may differ from when it was first received (nam:receivedDate)." .

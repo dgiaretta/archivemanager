@@ -1,0 +1,273 @@
+# OAIS Information Model instance data for the "point" worked example in
+# the oais-structure-adapters project (a Java library + demo that decodes a
+# binary "point" record two different ways -- once via a DFDL schema run
+# through Apache Daffodil, once via a Kaitai Struct .ksy definition run
+# through the Kaitai Struct runtime -- and displays the result through a
+# format-agnostic *-view.xml + OaisIf{Table,TimeSeries,Vector,Image} layer).
+#
+# This complements sample-data.ttl and sample-data-science.ttl by exercising
+# a part of the OAIS Information Model those two don't: a genuine
+# Representation Information Network. The DFDL schema and the Kaitai .ksy
+# definition are not just *described* as Representation Information in a
+# comment -- each is itself modelled as its own im:DataObject (a real file
+# with real bits), because each is a digital object in its own right that
+# itself needs Representation Information to be understood (its structure,
+# what its DFDL/Kaitai-specific syntax means, and the software that reads
+# it). That is exactly what im:StructureRepresentationInformation's
+# im:hasDataObject link (inherited from im:InformationObject, since
+# im:RepresentationInformation and its Structure/Semantic/Other subclasses
+# are all subclasses of im:InformationObject) is for.
+#
+# The recursion is deliberately terminated at one level: the DFDL schema's
+# and the .ksy file's own Representation Information is given as ordinary
+# format-specification documentation (rdfs:comment plus a URL) rather than
+# recursing again into, say, the XML 1.0 or YAML specifications' own byte
+# encodings. OAIS itself treats "well-known" Representation Information
+# (widely available, stable specifications) as a reasonable place to stop;
+# see oais_im_schema-sh-v5.ttl's own note on why the ontology bothers to
+# distinguish Structure/Semantic/Other at all.
+#
+# "This software" -- what the user's request calls oais-structure-adapters
+# itself -- appears wherever OAIS says a Data Object's Representation
+# Information needs a *processing* component and not just documentation:
+# im:OtherRepresentationInformation is the ontology's own home for that
+# (RepresentationInformation "cannot easily be classified as Structure or
+# Semantic" is a good description of executable software). One shared
+# osa:otherinfo-oais-structure-adapters individual is reused everywhere,
+# rather than minted per file, since it is the same codebase each time.
+#
+# SHA-256 fixity values below were computed directly from the actual files
+# in the oais-structure-adapters working tree at the time this was written
+# (`sha256sum <file>`), not invented -- except for the raw "point" bitstream
+# itself, which DemoMain generates at run time rather than reading from a
+# fixed file, so no single fixed checksum applies to it (see the comment on
+# osa:bit-point).
+#
+# Load this the same way as sample-data-science.ttl / sample-data-pds.ttl:
+# paste its full contents (including the @prefix lines below) into
+# /entities/import on an already-running instance. It is self-contained and
+# does not depend on rico-vocabulary.ttl, RiC-O_1-1.rdf, or nam-vocabulary.ttl.
+#
+# Namespace note: https://oais-structure-adapters.info/data# is a
+# placeholder, the same situation oais-ric-bridge.ttl's and nam-vocabulary.ttl's
+# own namespaces started in (see their headers) -- replace with wherever
+# oais-structure-adapters actually ends up published before any production use.
+
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix im:     <http://ontology.oais.org/im/> .
+@prefix osa:    <https://oais-structure-adapters.info/data#> .
+
+# ============================================================
+# 1. The raw "point" bitstream, read two different ways
+# ============================================================
+
+osa:dataobject-point
+  a im:DataObject , im:DigitalObject ;
+  rdfs:comment "The raw bytes of one 'point' record: a 4-byte big-endian signed int x, a 4-byte big-endian signed int y, a 1-byte unsigned length, and that many bytes of ASCII label -- the layout point.dfdl.xsd and point2d.ksy both describe, deliberately kept identical so either adapter can be pointed at the same bytes (see point2d.ksy's own doc comment)." ;
+  im:hasBit osa:bit-point ;
+  im:interpretedUsing osa:repinfo-point-dfdl , osa:repinfo-point-kaitai .
+
+osa:bit-point
+  a im:Bit ;
+  rdfs:comment "Bitstream of one instance of the point record. No single fixed checksum is recorded here: oais-structure-demo's DemoMain generates a fresh sample point at run time rather than reading a fixed file. A concrete archived instance (a real captured 'point.bin', say) would get its own SHA-256 here and its own im:FixityInformation in the enclosing package, following the pattern in sample-data.ttl's ex:bit-001 / sample-data-science.ttl's ex:bit-l2." .
+
+osa:infoobject-point-via-dfdl
+  a im:InformationObject ;
+  rdfs:comment "The point record considered as read by the DFDL adapter (oais-structure-dfdl, via Apache Daffodil)." ;
+  im:hasDataObject osa:dataobject-point ;
+  im:hasRepresentationInformation osa:repinfo-point-dfdl .
+
+osa:infoobject-point-via-kaitai
+  a im:InformationObject ;
+  rdfs:comment "The same point record considered as read by the Kaitai Struct adapter (oais-structure-kaitai) instead -- same bytes, same DataObject, a different Representation Information Network." ;
+  im:hasDataObject osa:dataobject-point ;
+  im:hasRepresentationInformation osa:repinfo-point-kaitai .
+
+# ------------------------------------------------------------
+# 1a. DFDL-reading branch
+# ------------------------------------------------------------
+
+osa:repinfo-point-dfdl
+  a im:RepresentationInformation ;
+  rdfs:comment "What is needed to interpret the point bitstream via its DFDL schema: the schema's own byte layout (Structure), the meaning of the decoded x/y/label fields (Semantic, shared with the Kaitai reading), and the software that does the decoding and rendering (Other)." ;
+  im:hasStructureRepresentationInformation osa:strinfo-point-dfdl ;
+  im:hasSemanticRepresentationInformation osa:seminfo-point-table ;
+  im:hasOtherRepresentationInformation osa:otherinfo-oais-structure-adapters .
+
+osa:strinfo-point-dfdl
+  a im:StructureRepresentationInformation ;
+  rdfs:comment "The point record's byte layout is given by the DFDL schema point.dfdl.xsd (oais-structure-dfdl/src/test/resources, also copied into oais-structure-demo/src/main/resources so the demo runs standalone), interpreted by Apache Daffodil." ;
+  im:hasDataObject osa:dataobject-dfdl-schema .
+
+osa:dataobject-dfdl-schema
+  a im:DataObject , im:DigitalObject ;
+  rdfs:comment "The DFDL schema file point.dfdl.xsd itself: an XML document, in the urn:oais:structure:demo:point target namespace, declaring the point element's four-field binary layout (x, y, labelLen, label) via dfdl: annotations on top of an ordinary XML Schema type, built on Daffodil's bundled GeneralFormat." ;
+  im:hasBit osa:bit-dfdl-schema ;
+  im:interpretedUsing osa:repinfo-dfdl-schema .
+
+osa:bit-dfdl-schema
+  a im:Bit ;
+  rdfs:comment "Bitstream of point.dfdl.xsd. SHA-256 79de94e563cad0617903f31fa5b9000e3c43bc6722bf0163a09d46e80267e9d6, computed directly from the file in the oais-structure-adapters working tree." .
+
+osa:repinfo-dfdl-schema
+  a im:RepresentationInformation ;
+  rdfs:comment "What is needed to interpret point.dfdl.xsd itself: the DFDL language specification that defines what its dfdl: annotations mean, that it is in turn an ordinary XML document, and the software that actually processes it." ;
+  im:hasStructureRepresentationInformation osa:strinfo-xml-generic ;
+  im:hasSemanticRepresentationInformation osa:seminfo-dfdl-spec ;
+  im:hasOtherRepresentationInformation osa:otherinfo-oais-structure-adapters .
+
+osa:seminfo-dfdl-spec
+  a im:SemanticRepresentationInformation ;
+  rdfs:comment "Data Format Description Language (DFDL) v1.0 Specification, Open Grid Forum GFD.207 (https://www.ogf.org/documents/GFD.207.pdf), which defines the meaning of the dfdl: namespace annotations (dfdl:length, dfdl:lengthKind, dfdl:sequenceKind, dfdl:defineFormat, etc.) used throughout point.dfdl.xsd." .
+
+# ------------------------------------------------------------
+# 1b. Kaitai Struct-reading branch (parallel structure)
+# ------------------------------------------------------------
+
+osa:repinfo-point-kaitai
+  a im:RepresentationInformation ;
+  rdfs:comment "What is needed to interpret the point bitstream via its Kaitai Struct definition: the .ksy file's own byte layout (Structure), the meaning of the decoded x/y/label fields (Semantic, the same osa:seminfo-point-table used by the DFDL reading, since the fields mean the same thing either way), and the software that does the decoding and rendering (Other)." ;
+  im:hasStructureRepresentationInformation osa:strinfo-point-kaitai ;
+  im:hasSemanticRepresentationInformation osa:seminfo-point-table ;
+  im:hasOtherRepresentationInformation osa:otherinfo-oais-structure-adapters .
+
+osa:strinfo-point-kaitai
+  a im:StructureRepresentationInformation ;
+  rdfs:comment "The point record's byte layout is given by the Kaitai Struct definition point2d.ksy (oais-structure-kaitai/src/main/ksy), interpreted by the Kaitai Struct compiler and Java runtime library." ;
+  im:hasDataObject osa:dataobject-kaitai-ksy .
+
+osa:dataobject-kaitai-ksy
+  a im:DataObject , im:DigitalObject ;
+  rdfs:comment "The Kaitai Struct definition file point2d.ksy itself: a YAML document declaring the same x/y/label_len/label sequence as point.dfdl.xsd, deliberately kept byte-layout-identical to it (see the file's own doc: block)." ;
+  im:hasBit osa:bit-kaitai-ksy ;
+  im:interpretedUsing osa:repinfo-kaitai-ksy .
+
+osa:bit-kaitai-ksy
+  a im:Bit ;
+  rdfs:comment "Bitstream of point2d.ksy. SHA-256 0a41447a7c4180179f56aef815485db523001bc08ffcb8f289d2a338e2ce1f52, computed directly from the file in the oais-structure-adapters working tree." .
+
+osa:repinfo-kaitai-ksy
+  a im:RepresentationInformation ;
+  rdfs:comment "What is needed to interpret point2d.ksy itself: the Kaitai Struct language reference that defines what its meta:/seq:/type: keys mean, that it is in turn an ordinary YAML document, and the software that actually processes it." ;
+  im:hasStructureRepresentationInformation osa:strinfo-yaml-generic ;
+  im:hasSemanticRepresentationInformation osa:seminfo-kaitai-spec ;
+  im:hasOtherRepresentationInformation osa:otherinfo-oais-structure-adapters .
+
+osa:seminfo-kaitai-spec
+  a im:SemanticRepresentationInformation ;
+  rdfs:comment "The Kaitai Struct language (KSY) reference (https://doc.kaitai.io/ksy_reference.html) and user guide (https://doc.kaitai.io/user_guide.html), which define the meaning of the seq:/type:/meta: keys, endianness declarations, and size expressions used throughout point2d.ksy." .
+
+# ------------------------------------------------------------
+# 1c. Semantic layer shared by both readings: the *-view.xml
+# ------------------------------------------------------------
+
+osa:seminfo-point-table
+  a im:SemanticRepresentationInformation ;
+  rdfs:comment "The meaning of the decoded point record's fields -- x and y as ordinate integers, label as a short ASCII string, displayed as a single-row table -- given declaratively by point-table-view.xml rather than hard-coded Java, and interpreted by oaisCore's info.oais.infomodel.structure.semantic.TableViewSpecificationReader / TableSemanticRepInfo layer. Identical regardless of whether the underlying tree came from the DFDL or the Kaitai Struct adapter, which is the point of keeping this Semantic layer separate from either Structure branch." ;
+  im:hasDataObject osa:dataobject-point-table-view .
+
+osa:dataobject-point-table-view
+  a im:DataObject , im:DigitalObject ;
+  rdfs:comment "The view specification file point-table-view.xml itself (oais-structure-demo/src/main/resources): a <tableView> with <rows select=\"self\"/> (a point is one record, not a repeated one) and three <column> declarations for x, y, label." ;
+  im:hasBit osa:bit-point-table-view ;
+  im:interpretedUsing osa:repinfo-point-table-view .
+
+osa:bit-point-table-view
+  a im:Bit ;
+  rdfs:comment "Bitstream of point-table-view.xml. SHA-256 b5bac713f61106c1f009078efb349871acf1dcb5c4ad544b5d73874cbc611964, computed directly from the file in the oais-structure-adapters working tree." .
+
+osa:repinfo-point-table-view
+  a im:RepresentationInformation ;
+  rdfs:comment "What is needed to interpret point-table-view.xml itself: that it is an ordinary XML document (Structure) and the software that reads its <tableView>/<rows>/<columns> elements and applies them (Other) -- its own syntax has no separate specification to cite beyond TableViewSpecificationReader's Javadoc, which is part of this software." ;
+  im:hasStructureRepresentationInformation osa:strinfo-xml-generic ;
+  im:hasOtherRepresentationInformation osa:otherinfo-oais-structure-adapters .
+
+# ============================================================
+# 2. Shared terminal / cross-cutting Representation Information
+# ============================================================
+
+osa:strinfo-xml-generic
+  a im:StructureRepresentationInformation ;
+  rdfs:comment "W3C Extensible Markup Language (XML) 1.0 and, where a schema document is involved, W3C XML Schema 1.0 -- the well-known, widely available specifications needed to parse any of this project's .xsd or *-view.xml files as XML in the first place, prior to any DFDL- or view-file-specific vocabulary layered on top. Reused across every XML-based DataObject in this file rather than restated per file." .
+
+osa:strinfo-yaml-generic
+  a im:StructureRepresentationInformation ;
+  rdfs:comment "YAML Ain't Markup Language (YAML) Version 1.1 (https://yaml.org/spec/1.1/) -- the well-known specification needed to parse a .ksy file as YAML in the first place, prior to the Kaitai-specific seq:/type:/meta: vocabulary layered on top." .
+
+osa:otherinfo-oais-structure-adapters
+  a im:OtherRepresentationInformation ;
+  rdfs:comment "The oais-structure-adapters software itself: a Java/Maven multi-module project comprising oaisCore (info.oais.infomodel -- the OAIS Information Model Java API: DataObject/InformationObject/RepresentationInformation and friends, plus the structural StructureNode tree and the OaisIfTable/OaisIfTimeSeries/OaisIfVector/OaisIfImage semantic views), oais-structure-api (the format-agnostic structural decoding abstraction), oais-structure-dfdl (the Apache Daffodil-backed DFDL adapter), oais-structure-kaitai (the Kaitai Struct-backed adapter), and oais-structure-demo (the Swing GUI demonstrating both adapters side by side, including DemoMain). This is executable software rather than Structure or Semantic documentation in the narrow sense, which is exactly what im:OtherRepresentationInformation is for. Used as the Other Representation Information for every DataObject in this file, since the same codebase is what makes every one of them interpretable in practice." .
+
+# ============================================================
+# 3. More, as invited: the *-view.xml family for the other three
+#    semantic views this project supports (TimeSeries, Vector, Image),
+#    each following the same pattern as point-table-view.xml above --
+#    a DataObject in its own right, its structure the shared generic
+#    XML Representation Information, its meaning given by its own
+#    ...ViewSpecificationReader, and this software as Other.
+# ============================================================
+
+osa:dataobject-timeseries-view
+  a im:DataObject , im:DigitalObject ;
+  rdfs:comment "timeseries-view.xml (oais-structure-demo/src/main/resources): a <timeSeriesView> describing DemoMain's hand-built 'series' tree as a repeated 'event' child per event, each an instantaneous eventStart (no eventEnd) plus a 'label' column." ;
+  im:hasBit osa:bit-timeseries-view ;
+  im:interpretedUsing osa:repinfo-timeseries-view .
+
+osa:bit-timeseries-view
+  a im:Bit ;
+  rdfs:comment "Bitstream of timeseries-view.xml. SHA-256 99e1bdfc81648af5afa2fa84ba0ee0110c34e68f6ce023c38bf6a753bad3a2db, computed directly from the file in the oais-structure-adapters working tree." .
+
+osa:repinfo-timeseries-view
+  a im:RepresentationInformation ;
+  rdfs:comment "What is needed to interpret timeseries-view.xml." ;
+  im:hasStructureRepresentationInformation osa:strinfo-xml-generic ;
+  im:hasSemanticRepresentationInformation osa:seminfo-timeseries-view ;
+  im:hasOtherRepresentationInformation osa:otherinfo-oais-structure-adapters .
+
+osa:seminfo-timeseries-view
+  a im:SemanticRepresentationInformation ;
+  rdfs:comment "The meaning of timeseries-view.xml's <timeSeriesView>/<rows>/<eventStart>/<eventEnd>/<columns> elements, interpreted by oaisCore's info.oais.infomodel.structure.semantic.TimeSeriesViewSpecificationReader." .
+
+osa:dataobject-vector-view
+  a im:DataObject , im:DigitalObject ;
+  rdfs:comment "vector-view.xml (oais-structure-demo/src/main/resources): a <vectorView> describing DemoMain's hand-built 'features' tree as a repeated 'feature' child, each a LINE_STRING geometry (repeated x/y 'vertex' children) plus a 'label' column." ;
+  im:hasBit osa:bit-vector-view ;
+  im:interpretedUsing osa:repinfo-vector-view .
+
+osa:bit-vector-view
+  a im:Bit ;
+  rdfs:comment "Bitstream of vector-view.xml. SHA-256 864afc2e197ba1a70b1353e8554699b8fd71affa08b9020459ad30a8a0ad1d52, computed directly from the file in the oais-structure-adapters working tree." .
+
+osa:repinfo-vector-view
+  a im:RepresentationInformation ;
+  rdfs:comment "What is needed to interpret vector-view.xml." ;
+  im:hasStructureRepresentationInformation osa:strinfo-xml-generic ;
+  im:hasSemanticRepresentationInformation osa:seminfo-vector-view ;
+  im:hasOtherRepresentationInformation osa:otherinfo-oais-structure-adapters .
+
+osa:seminfo-vector-view
+  a im:SemanticRepresentationInformation ;
+  rdfs:comment "The meaning of vector-view.xml's <vectorView>/<rows>/<geometry>/<coordinates>/<columns> elements, interpreted by oaisCore's info.oais.infomodel.structure.semantic.VectorViewSpecificationReader." .
+
+osa:dataobject-image-view
+  a im:DataObject , im:DigitalObject ;
+  rdfs:comment "image-view.xml (oais-structure-demo/src/main/resources): an <imageView> describing DemoMain's hand-built 'image' tree as a repeated 'row' child, each with repeated 'pixel' leaf children of type int." ;
+  im:hasBit osa:bit-image-view ;
+  im:interpretedUsing osa:repinfo-image-view .
+
+osa:bit-image-view
+  a im:Bit ;
+  rdfs:comment "Bitstream of image-view.xml. SHA-256 e9c0724392acc2da645b0feef62fe03725e8955b2de58dbd7c65e5f751437da7, computed directly from the file in the oais-structure-adapters working tree." .
+
+osa:repinfo-image-view
+  a im:RepresentationInformation ;
+  rdfs:comment "What is needed to interpret image-view.xml." ;
+  im:hasStructureRepresentationInformation osa:strinfo-xml-generic ;
+  im:hasSemanticRepresentationInformation osa:seminfo-image-view ;
+  im:hasOtherRepresentationInformation osa:otherinfo-oais-structure-adapters .
+
+osa:seminfo-image-view
+  a im:SemanticRepresentationInformation ;
+  rdfs:comment "The meaning of image-view.xml's <imageView>/<rows>/<pixels>/<pixelType> elements, interpreted by oaisCore's info.oais.infomodel.structure.semantic.ImageViewSpecificationReader." .

@@ -1,0 +1,154 @@
+# Example instance data illustrating RiC-O 1.1 and the OAIS Information
+# Model side by side, for a small, fictional local-archive holding: the
+# minute book of the Bridport Harbour Commissioners.
+#
+# The same holdings are described twice:
+#   1. natively, as a RiC-O archival description (rico: individuals)
+#   2. as an OAIS preservation description (im: individuals)
+# and the two descriptions are cross-linked, individual by individual,
+# using the bridge:hasOAISCounterpart / bridge:hasRiCDescription
+# properties defined in oais-ric-bridge.ttl -- demonstrating all eight
+# class-level correspondences declared there, including the one
+# deliberate gap (Representation Information).
+
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
+@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
+@prefix im:     <http://ontology.oais.org/im/> .
+@prefix bridge: <https://oais.info/bridge#> .
+@prefix ex:     <http://example.org/archive/> .
+
+# ============================================================
+# 1. RiC-O description
+# ============================================================
+
+ex:fonds-001
+  a rico:RecordSet ;
+  rico:name "Records of the Bridport Harbour Commissioners" ;
+  rico:generalDescription "Fonds comprising the surviving administrative records of the Harbour Commissioners for the port of Bridport, West Dorset." ;
+  rico:hasCreator ex:agent-harbour-commissioners ;
+  rico:hasOrHadConstituent ex:record-001 .
+
+ex:record-001
+  a rico:Record ;
+  rico:title "Minute book of the Harbour Commissioners" ;
+  rico:generalDescription "Minute book recording proceedings of the Harbour Commissioners' meetings, 1880-1895." ;
+  rico:hasCreator ex:agent-harbour-commissioners ;
+  rico:hasOrHadConstituent ex:recordpart-001 ;
+  rico:hasOrHadInstantiation ex:instantiation-001 ;
+  rico:isOrWasRegulatedBy ex:mandate-001 ;
+  rico:hasOrganicOrFunctionalProvenance ex:activity-accession-001 ;
+  bridge:hasOAISCounterpart ex:infoobject-001 .
+
+ex:recordpart-001
+  a rico:RecordPart ;
+  rico:title "Minutes of the meeting of 4 March 1887" ;
+  rico:generalDescription "A single set of minutes bound within the minute book, recording the Commissioners' resolution to repair the west quay." .
+
+ex:instantiation-001
+  a rico:Instantiation ;
+  rico:type "bound paper volume" ;
+  rico:conditionsOfAccess "Open access; production subject to standard reading-room conditions." ;
+  rico:hasOrHadHolder ex:agent-dorset-history-centre .
+
+ex:agent-harbour-commissioners
+  a rico:CorporateBody ;
+  rico:name "Bridport Harbour Commissioners" ;
+  rico:generalDescription "Statutory body responsible for the administration of Bridport Harbour under local Act of Parliament, dissolved 1895." .
+
+ex:agent-county-archivist
+  a rico:Person ;
+  rico:name "J. H. Symes" ;
+  rico:generalDescription "County Archivist for Dorset at the time the fonds was accessioned." .
+
+ex:agent-dorset-history-centre
+  a rico:CorporateBody ;
+  rico:name "Dorset History Centre" ;
+  rico:generalDescription "Repository currently holding and managing the fonds." .
+
+ex:date-1976
+  a rico:Date ;
+  rico:textualValue "1976" .
+
+ex:activity-accession-001
+  a rico:Activity ;
+  rico:generalDescription "Accession of the Harbour Commissioners' fonds into Dorset History Centre." ;
+  rico:hasOrHadParticipant ex:agent-county-archivist ;
+  rico:occurredAtDate ex:date-1976 .
+
+ex:mandate-001
+  a rico:Mandate ;
+  rico:name "Public Records Act 1958 access provisions" ;
+  rico:generalDescription "Statutory basis under which the fonds is made available for public inspection." .
+
+# A fully-formed n-ary Relation instance, illustrating the RiC-O
+# pattern of representing a relation as a first-class entity (rather
+# than only via the hasCreator shortcut property above) -- this is
+# the kind of individual the Relation <-> Context Information bridge
+# mapping refers to.
+ex:creationrelation-001
+  a rico:CreationRelation ;
+  rico:relationHasSource ex:record-001 ;
+  rico:relationHasTarget ex:agent-harbour-commissioners .
+
+# ============================================================
+# 2. OAIS description of the same holdings
+# ============================================================
+
+ex:aip-001
+  a im:ArchivalInformationPackage ;
+  rdfs:comment "Illustrative Archival Information Package wrapping the preservation description information for the digitised minute book." ;
+  im:hasPreservationDescriptiveInformation ex:pdi-001 .
+
+ex:infoobject-001
+  a im:InformationObject ;
+  rdfs:comment "OAIS Information Object counterpart of the RiC-O Record ex:record-001." ;
+  im:hasDataObject ex:dataobject-001 ;
+  im:hasRepresentationInformation ex:repinfo-001 ;
+  bridge:hasRiCDescription ex:record-001 .
+
+ex:dataobject-001
+  a im:DataObject , im:DigitalObject ;
+  rdfs:comment "Digital surrogate (TIFF page images) of the minute book, corresponding to ex:instantiation-001." ;
+  im:hasBit ex:bit-001 ;
+  bridge:hasRiCDescription ex:instantiation-001 .
+
+ex:bit-001
+  a im:Bit ;
+  rdfs:comment "Bitstream of the master TIFF files, SHA-256 9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08." .
+
+ex:repinfo-001
+  a im:RepresentationInformation ;
+  rdfs:comment "TIFF 6.0 image format specification and the digitisation project's scanning/rendering software profile, needed to interpret the page images. Deliberately left without a bridge:hasRiCDescription link: RiC-O 1.1 defines no class corresponding to Representation Information (see the bridge ontology's bridge:noCorrespondingClass note on im:RepresentationInformation)." .
+
+ex:pdi-001
+  a im:PreservationDescriptionInformation ;
+  im:hasProvenanceInformation ex:provinfo-001 ;
+  im:hasContextInformation ex:contextinfo-001 ;
+  im:hasFixityInformation ex:fixityinfo-001 ;
+  im:hasReferenceInformation ex:refinfo-001 ;
+  im:hasAccessRightsInformation ex:accessrights-001 .
+
+ex:provinfo-001
+  a im:ProvenanceInformation ;
+  rdfs:comment "Created by the Bridport Harbour Commissioners, 1880-1895; accessioned into Dorset History Centre by the County Archivist in 1976." ;
+  bridge:hasRiCDescription ex:activity-accession-001 , ex:agent-harbour-commissioners .
+
+ex:contextinfo-001
+  a im:ContextInformation ;
+  rdfs:comment "The minute book documents the day-to-day administration of Bridport Harbour under the Commissioners' statutory functions." ;
+  bridge:hasRiCDescription ex:creationrelation-001 .
+
+ex:fixityinfo-001
+  a im:FixityInformation ;
+  rdfs:comment "SHA-256 checksum recorded for each TIFF master at the point of digitisation. No RiC-O counterpart is asserted by the bridge; RiC-O has no class corresponding to Fixity Information either." .
+
+ex:refinfo-001
+  a im:ReferenceInformation ;
+  rdfs:comment "Archive reference code DHC/BHC/1/1." .
+
+ex:accessrights-001
+  a im:AccessRightsInformation ;
+  rdfs:comment "Open to public inspection under the Public Records Act 1958; no restriction beyond standard reading-room conditions." ;
+  bridge:hasRiCDescription ex:mandate-001 .
