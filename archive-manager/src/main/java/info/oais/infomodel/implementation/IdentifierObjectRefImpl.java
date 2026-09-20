@@ -62,7 +62,7 @@ public class IdentifierObjectRefImpl implements IdentifierObject {
 	/**
 	 * Set IdentifierObject name
 	 *
-	 * @param name String of the IdentifierObject
+	 * @param idStr String of the IdentifierObject
 	 *
 	 */
 	@JsonSetter("IdentifierString")

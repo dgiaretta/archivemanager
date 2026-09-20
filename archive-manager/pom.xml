@@ -129,8 +129,15 @@
         <artifactId>maven-javadoc-plugin</artifactId>
         <version>3.12.0</version>
         <configuration>
-          <failOnError>false</failOnError>
-          <doclint>none</doclint>
+          <!--
+            Real problems (malformed HTML, a broken @link, bad syntax) still fail the
+            build, per the comment above; this codebase just doesn't follow the
+            convention of a @param/@return/comment on every single method, so the
+            "missing" doclint group alone is turned off to silence that noise rather
+            than papering over every check by disabling doclint outright.
+          -->
+          <failOnError>true</failOnError>
+          <doclint>all,-missing</doclint>
         </configuration>
         <executions>
           <execution>

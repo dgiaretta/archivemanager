@@ -118,6 +118,22 @@ public class EditAuthInterceptor implements HandlerInterceptor {
         if (path.startsWith("/format-tools")) {
             return true;
         }
+        // The REST counterparts of the rules above (ArchiveApiController) -- same
+        // shared-path-with-an-open-GET-sibling situation as /entities and /records
+        // themselves, so the same explicit method-aware matching is needed here too.
+        if (path.equals("/api/records") && method.equals("POST")) {
+            return true;
+        }
+        if (path.equals("/api/entities") && method.equals("POST")) {
+            return true;
+        }
+        if (path.matches("^/api/entities/[^/]+$") && method.equals("DELETE")) {
+            return true;
+        }
+        if (path.matches("^/api/entities/[^/]+/(types|properties|relationships)$")
+                && (method.equals("POST") || method.equals("DELETE"))) {
+            return true;
+        }
         return false;
     }
 }

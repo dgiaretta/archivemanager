@@ -88,6 +88,7 @@ public class EntityController {
         model.addAttribute("datatypeProperties", datatypeProperties);
         model.addAttribute("objectProperties", objectProperties);
         model.addAttribute("allEntities", archive.listAllEntities());
+        model.addAttribute("propertyRangeTypes", ontology.propertyRangeTypeLocalNames());
 
         // Property-level bridge correspondences (e.g. rico:technicalCharacteristics
         // relatedMatch im:OtherRepresentationInformation), surfaced two ways:

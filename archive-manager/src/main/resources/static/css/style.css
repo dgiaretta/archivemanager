@@ -266,6 +266,8 @@ table.attrs td.rationale { color: var(--muted); font-size: 0.85rem; }
 }
 
 .oais-node-head { display: flex; align-items: center; gap: 0.5rem; }
+.oais-node-head .prop { color: var(--muted); font-size: 0.8rem; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.oais-node-head .prop.oais-incoming { font-style: italic; }
 .oais-comment { color: var(--muted); font-size: 0.9rem; margin: 0.35rem 0; }
 .oais-ric-links { font-size: 0.85rem; }
 .oais-ric-links ul { margin: 0.2rem 0; padding-left: 1.2rem; }

@@ -537,7 +537,8 @@ public class ArchiveService {
         return info.oais.archive.manager.rdf.IdCodec.decode(id);
     }
 
-    private ResourceSummary summarize(String iri) {
+    /** A resource's IRI, short display id, type(s), and title in one shot -- the shape every listing/picker in this app needs. */
+    public ResourceSummary summarize(String iri) {
         return new ResourceSummary(iri, encodeId(iri), String.join(", ", types(iri)), label(iri));
     }
 
@@ -773,10 +774,11 @@ public class ArchiveService {
      * links at each node, up to {@code maxDepth} levels.
      */
     public OaisNode oaisTree(String iri, int maxDepth) {
-        return oaisTree(iri, maxDepth, new LinkedHashSet<>());
+        return oaisTree(iri, maxDepth, new LinkedHashSet<>(), null, false);
     }
 
-    private OaisNode oaisTree(String iri, int depthRemaining, Set<String> visited) {
+    private OaisNode oaisTree(String iri, int depthRemaining, Set<String> visited,
+                               String connectingProperty, boolean incoming) {
         List<String> typeNames = types(iri);
         String typeLabel = typeNames.isEmpty() ? q.localName(iri) : String.join(" / ", resolveClassLabels(typeNames));
 
@@ -792,19 +794,38 @@ public class ArchiveService {
 
         List<OaisNode> children = new ArrayList<>();
         if (depthRemaining > 0 && visited.add(iri)) {
-            String childSparql = Ns.PREFIXES + """
+            // Outgoing im: edges (the has-* structural properties: this node "has" the child) --
+            // the original, and still the common, case.
+            String outgoingSparql = Ns.PREFIXES + """
                     SELECT ?p ?child WHERE {
                       <%s> ?p ?child .
                       FILTER(STRSTARTS(STR(?p), "%s"))
                       FILTER(isIRI(?child))
                     }
                     """.formatted(iri, Ns.IM);
-            for (Map<String, String> row : q.select(store.queryModel(), childSparql)) {
-                children.add(oaisTree(row.get("child"), depthRemaining - 1, visited));
+            for (Map<String, String> row : q.select(store.queryModel(), outgoingSparql)) {
+                children.add(oaisTree(row.get("child"), depthRemaining - 1, visited, q.localName(row.get("p")), false));
+            }
+
+            // Incoming im: edges -- a node that points AT this one rather than the other way
+            // around, e.g. an ArchivalInformationPackage reaches its Content Information via
+            // hasContentInformation, not the reverse (OAIS's own containment direction there is
+            // AIP-contains-ContentInformation); without this half, no AIP is ever reachable by
+            // walking forward from a record's counterpart, since nothing points from the content
+            // side back out to the package that holds it.
+            String incomingSparql = Ns.PREFIXES + """
+                    SELECT ?p ?parent WHERE {
+                      ?parent ?p <%s> .
+                      FILTER(STRSTARTS(STR(?p), "%s"))
+                      FILTER(isIRI(?parent))
+                    }
+                    """.formatted(iri, Ns.IM);
+            for (Map<String, String> row : q.select(store.queryModel(), incomingSparql)) {
+                children.add(oaisTree(row.get("parent"), depthRemaining - 1, visited, q.localName(row.get("p")), true));
             }
         }
 
-        return new OaisNode(iri, typeLabel, comment, ricLinks, children);
+        return new OaisNode(iri, typeLabel, comment, ricLinks, connectingProperty, incoming, children);
     }
 
     private List<String> resolveClassLabels(List<String> classLocalNames) {
@@ -836,6 +857,8 @@ public class ArchiveService {
                 node.typeLocalName(),
                 node.comment(),
                 node.ricDescriptionIris(),
+                node.connectingProperty(),
+                node.incoming(),
                 depth,
                 "margin-left:" + (depth * 28) + "px;"));
         for (OaisNode child : node.children()) {

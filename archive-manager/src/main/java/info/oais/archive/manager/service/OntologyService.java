@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -193,6 +194,52 @@ public class OntologyService {
             out.add(q.localName(iri));
         }
         return out;
+    }
+
+    /**
+     * For every object property that declares an {@code rdfs:range}, the local
+     * names of every class that satisfies it -- the declared range class(es)
+     * (a property may range over a union, e.g. {@code hasPreservationDescriptiveInformation}
+     * accepts either {@code PreservationDescriptionInformation} or
+     * {@code CompletePreservationDescriptionInformation}) plus every subclass of
+     * each, via {@link #subclassLocalNames}. Powers the entity editor's
+     * relationship-target picker: once a property is chosen, entities whose type
+     * is in this set for that property are the ones that could actually go there,
+     * so they're worth surfacing first rather than making the user hunt for them
+     * in an alphabetical list of everything.
+     *
+     * <p>RiC-O's bundled stub declares no {@code rdfs:range} at all (see its own
+     * header note), so this only ever has entries for OAIS ({@code im:}) properties
+     * -- picking a RiC-O property leaves the target list unfiltered, which is the
+     * correct degrade given there's no declared range to filter by.
+     */
+    public Map<String, Set<String>> propertyRangeTypeLocalNames() {
+        String sparql = Ns.PREFIXES + """
+                SELECT ?p ?rangeClass WHERE {
+                  ?p rdfs:range ?r .
+                  {
+                    ?r owl:unionOf ?list .
+                    ?list rdf:rest*/rdf:first ?rangeClass .
+                  } UNION {
+                    FILTER(isIRI(?r))
+                    BIND(?r AS ?rangeClass)
+                  }
+                }
+                """;
+        Map<String, Set<String>> rangeClassesByProperty = new LinkedHashMap<>();
+        for (Map<String, String> row : q.select(store.ontologyModel(), sparql)) {
+            rangeClassesByProperty.computeIfAbsent(row.get("p"), k -> new LinkedHashSet<>()).add(row.get("rangeClass"));
+        }
+
+        Map<String, Set<String>> allowedTypesByProperty = new LinkedHashMap<>();
+        for (Map.Entry<String, Set<String>> entry : rangeClassesByProperty.entrySet()) {
+            Set<String> allowed = new LinkedHashSet<>();
+            for (String rangeClass : entry.getValue()) {
+                allowed.addAll(subclassLocalNames(rangeClass));
+            }
+            allowedTypesByProperty.put(entry.getKey(), allowed);
+        }
+        return allowedTypesByProperty;
     }
 
     /**

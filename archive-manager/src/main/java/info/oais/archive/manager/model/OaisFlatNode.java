@@ -14,6 +14,8 @@ public record OaisFlatNode(
         String typeLabel,
         String comment,
         List<String> ricDescriptionIris,
+        String connectingProperty,
+        boolean incoming,
         int depth,
         String indentStyle) {
 }

@@ -31,6 +31,10 @@
     <div th:if="${oaisRows != null}">
         <div th:each="row : ${oaisRows}" class="oais-node" th:style="${row.indentStyle}">
             <div class="oais-node-head">
+                <span class="prop" th:if="${row.connectingProperty != null and !row.incoming}"
+                      th:text="'im:' + ${row.connectingProperty} + ' →'">im:hasBit &rarr;</span>
+                <span class="prop oais-incoming" th:if="${row.connectingProperty != null and row.incoming}"
+                      th:text="'← im:' + ${row.connectingProperty} + ' (referenced by)'">&larr; im:hasContentInformation (referenced by)</span>
                 <span class="pill pill-oais" th:text="${row.typeLabel}">Type</span>
                 <code th:text="${row.iri}">iri</code>
             </div>

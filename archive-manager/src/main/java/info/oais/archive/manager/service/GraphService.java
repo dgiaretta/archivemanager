@@ -292,13 +292,27 @@ public class GraphService {
                 }
             }
 
-            for (String[] t : triples) {
-                String s = t[0];
-                String p = t[1];
-                String o = t[2];
-                String propertyLocal = q.localName(p);
+            // Queried independently, scoped to every node in this payload -- not read
+            // back out of `triples` above, which (for a focused subgraph()) only holds
+            // what the BFS actually crawled, and a node sitting right at the requested
+            // depth boundary has its own outgoing edges deliberately never crawled (see
+            // the "remaining == 0" comment in subgraph()). An external-link property
+            // isn't a graph edge in the first place (a URI-valued reference is metadata
+            // on the node, not a hop to another node -- see the check above), so there's
+            // no reason its visibility should depend on how the BFS happened to reach
+            // this node from wherever the graph view is centred.
+            String externalLinkSparql = Ns.PREFIXES + """
+                    SELECT ?s ?p ?o WHERE {
+                      VALUES ?s { %s }
+                      ?s ?p ?o .
+                      FILTER(isIRI(?o))
+                    }
+                    """.formatted(values);
+            for (Map<String, String> row : q.select(store.dataModel(), externalLinkSparql)) {
+                String propertyLocal = q.localName(row.get("p"));
+                String o = row.get("o");
                 if (externalLinkPropertyNames.contains(propertyLocal) && (o.startsWith("http://") || o.startsWith("https://"))) {
-                    linksByNode.computeIfAbsent(s, k -> new ArrayList<>()).add(new GraphLink(propertyLocal, o));
+                    linksByNode.computeIfAbsent(row.get("s"), k -> new ArrayList<>()).add(new GraphLink(propertyLocal, o));
                 }
             }
         }
