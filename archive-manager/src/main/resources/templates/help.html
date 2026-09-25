@@ -27,11 +27,26 @@
     <section class="editor-section">
         <h2>2. See a record's OAIS mapping</h2>
         <p>
-            Open any record and follow its "OAIS mapping" link. The top half shows which OAIS
-            classes correspond to the record's RiC-O type(s), read live from the bridging
-            ontology; the bottom half, if the record has one, shows the actual linked OAIS
-            preservation-description structure (Information Object &rarr; Data Object &rarr; Bit,
-            and so on).
+            Records management and digital preservation ask different questions about the same
+            material. RiC-O (Records in Contexts) describes who created something, in what
+            context, and how to find it again &mdash; the concerns of archival description. OAIS
+            asks what has to be kept <em>alongside</em> the bits for that material to still make
+            sense decades from now: its Content Information, its Preservation Description
+            Information, and (see section 5 below) who it has to remain understandable to and by
+            what tests. The two vocabularies' classes don't line up one-to-one, so rather than
+            forcing a false equivalence, this app's bridging ontology connects them two ways: a
+            class-level correspondence using SKOS <code>closeMatch</code>/<code>broadMatch</code>/
+            <code>relatedMatch</code> (deliberately weaker than <code>owl:equivalentClass</code>
+            where the concepts genuinely don't coincide), and, where a specific record actually has
+            OAIS preservation structure built for it, an individual-level
+            <code>bridge:hasOAISCounterpart</code> link to that structure.
+        </p>
+        <p>
+            Open any record and follow its "OAIS mapping" link to see both halves in action. The
+            top half shows which OAIS classes correspond to the record's RiC-O type(s), read live
+            from the bridging ontology; the bottom half, if the record has one, shows the actual
+            linked OAIS preservation-description structure (Information Object &rarr; Data Object
+            &rarr; Bit, and so on).
         </p>
     </section>
 
@@ -40,12 +55,42 @@
         <p>
             <a th:href="@{/graph}">Graph</a> shows the whole archive as a network; "View in
             graph" on any record/agent/activity/mandate page shows a focused view around just
-            that one, with an adjustable depth. Double-click a node to open its detail page,
-            right-click for a menu of its links (its detail page, and any external URL-valued
-            property it has, like an <code>rdfs:seeAlso</code>). The checkboxes above the graph
-            highlight nodes/edges by entity type, property, or relationship type &mdash; whatever's
-            actually present in the currently-loaded graph.
+            that one instead, with an adjustable depth (1&ndash;4 hops) from the toolbar above
+            the graph. <a th:href="@{/statistics}">Statistics</a> links to the full graph too,
+            as a visual complement to its own aggregate counts.
         </p>
+        <ul>
+            <li><strong>Colour</strong> shows which ontology a node belongs to (blue = RiC-O,
+                brown = OAIS, grey = other, per the legend above the graph); a dashed red edge
+                is a cross-ontology link made via the bridging ontology, not a property either
+                vocabulary defines on its own.</li>
+            <li><strong>Mouse and keyboard:</strong> scroll to zoom, drag the background to pan,
+                drag a node to reposition it, double-click a node to open its detail page in the
+                same tab.</li>
+            <li><strong>Right-click a node</strong> for a menu instead of the browser's own:
+                "Open detail page" (opens in a new tab, so you don't lose your place in the
+                graph), plus a "Links" section listing every external URL-valued property that
+                node has &mdash; e.g. an <code>rdfs:seeAlso</code> &mdash; by property name, each
+                also opening in a new tab. This is also how you retrieve the actual bits, not just
+                metadata: a Data Object, Digital Object, or its RiC-O Instantiation may carry a
+                <code>bridge:hasStorageLocation</code> link to where the file itself lives (e.g. a
+                Dropbox or cloud storage URL); right-click that node and choose it to download or
+                open the file directly. Right-clicking empty background leaves the browser's
+                normal menu alone. The menu closes on Escape, on a click elsewhere, or as soon as
+                you drag or zoom.</li>
+            <li><strong>Highlighting</strong> &mdash; the checkboxes above the graph, grouped
+                into entity types, node properties, and relationship types &mdash; dims
+                everything that doesn't match what's checked; combining checkboxes from more
+                than one group narrows further rather than widening (e.g. an entity type plus a
+                relationship type shows only edges of that type touching a node of that type).
+                They're built from whatever's actually present in the currently-loaded graph,
+                not a fixed list, so what you see checked always matches what's on screen.
+                "Clear highlight" resets all three groups at once.</li>
+            <li>A very large neighbourhood (or the full archive) may be <strong>truncated</strong>
+                to stay responsive &mdash; a banner says so when it happens. Switch to a focused
+                view for the full graph, or a smaller depth for a focused view that's still too
+                big.</li>
+        </ul>
     </section>
 
     <section class="editor-section">
@@ -68,7 +113,24 @@
             <li><a th:href="@{/entities}">Entities</a> &mdash; the generic editor. Create an
                 individual of <em>any</em> RiC-O or OAIS class, then add its types, literal
                 properties, and relationships one at a time. <code>/entities/import</code>
-                (linked from that page) bulk-loads a pasted Turtle document instead.</li>
+                (linked from that page) bulk-loads a pasted Turtle document instead.
+                <p>
+                This is also how a complete Archival Information Package gets built: starting
+                from a Data Object or Information Object, attach its Content Information and
+                Preservation Description Information (Provenance, Context, Reference, Fixity, and
+                Access Rights Information, each in turn) &mdash; and, just as required, who it has
+                to remain understandable to and by what tests. Attach a Designated Community (the
+                audience the object must stay independently understandable to), which can be
+                linked to the Preservation Objective(s) it's tested against, and any Transformation
+                Information Property whose value needs checking after a Non-Reversible
+                Transformation such as a format migration. None of these three are defined
+                <em>by</em> the Designated Community itself, though &mdash; an Agent (normally the
+                archive doing the preserving) defines them, consulting the Designated Community and
+                other stakeholders as appropriate. Adding any of these relationships offers a
+                "+ Create new &hellip;" option in the target picker, so the component it points to
+                doesn't need to exist beforehand &mdash; it's created and linked in the same step.
+                </p>
+            </li>
             <li><a th:href="@{/catalogue/upload}">Bulk Upload Spreadsheet</a> (linked from the
                 Catalogue page) &mdash; import a CSV/XLSX of NAM-format records in one go.</li>
             <li><a th:href="@{/format-tools}">Format description tools</a> &mdash; a guided

@@ -177,6 +177,12 @@
                         th:attr="data-types=${e.typeLocalName}">target</option>
             </select>
             <input type="text" name="customTarget" placeholder="or paste a target IRI (needed beyond the first 200)"/>
+            <div id="createNewEntityBox" class="create-new-box" hidden>
+                <strong id="createNewEntityHint">Creating a new entity</strong> &mdash; clicking
+                "Add relationship" below will create it and link it here.
+                <input type="text" name="newEntityLabel" id="newEntityLabel-input"
+                       placeholder="Label for the new entity (optional, sets rdfs:label)"/>
+            </div>
             <button type="submit">Add relationship</button>
         </form>
 
@@ -187,22 +193,50 @@
             // OntologyService.propertyRangeTypeLocalNames(). RiC-O's bundled stub declares
             // no ranges, so a RiC-O property simply has no entry here.
             const propertyRangeTypes = /*[[${propertyRangeTypes}]]*/ {};
+            // The property's DIRECTLY declared range class(es) -- NOT subclass-expanded,
+            // unlike propertyRangeTypes above -- as {iri, localName, label, source}, keyed
+            // by property IRI. See OntologyService.propertyRangeClasses(). Powers the
+            // "+ Create new ..." options prepended to the target picker below, so a new
+            // entity of the right class can be created and linked in one submit instead of
+            // requiring a separate trip through /entities/new first.
+            const propertyRangeClasses = /*[[${propertyRangeClasses}]]*/ {};
+            const NEW_TARGET_PREFIX = 'new:';
 
             (function () {
                 const propertySelect = document.getElementById('relProperty-select');
                 const targetSelect = document.getElementById('relTarget-select');
                 const targetFilterInput = document.querySelector('.select-filter[data-target="relTarget-select"]');
+                const createNewEntityBox = document.getElementById('createNewEntityBox');
+                const createNewEntityHint = document.getElementById('createNewEntityHint');
+                // Keyed by "new:<classIri>" value (see rebuildTargetOptions below) so
+                // toggleNewEntityLabel can show which class is actually being created,
+                // not just a generic "creating a new entity" message.
+                const classLabelsByCreateValue = {};
                 // The original, unfiltered option list (skipping the placeholder) -- restored
                 // whenever the chosen property has no declared range to filter by.
                 const allTargetOptions = Array.from(targetSelect.querySelectorAll('option')).slice(1);
 
                 function rebuildTargetOptions() {
                     const allowedTypes = propertyRangeTypes[propertySelect.value];
+                    const rangeClasses = propertyRangeClasses[propertySelect.value];
                     targetSelect.innerHTML = '';
                     targetSelect.appendChild(new Option('-- choose a target entity (first 200) --', ''));
 
+                    if (rangeClasses && rangeClasses.length > 0) {
+                        const createGroup = document.createElement('optgroup');
+                        createGroup.label = 'Create new';
+                        rangeClasses.forEach(function (c) {
+                            const prefix = c.source === 'rico' ? 'rico:' : (c.source === 'oais' ? 'im:' : '');
+                            const value = NEW_TARGET_PREFIX + c.iri;
+                            classLabelsByCreateValue[value] = prefix + c.localName;
+                            createGroup.appendChild(new Option('+ Create new ' + prefix + c.localName, value));
+                        });
+                        targetSelect.appendChild(createGroup);
+                    }
+
                     if (!allowedTypes || allowedTypes.length === 0) {
                         allTargetOptions.forEach(function (o) { targetSelect.appendChild(o.cloneNode(true)); });
+                        toggleNewEntityLabel();
                         return;
                     }
 
@@ -232,9 +266,20 @@
                     if (targetFilterInput) {
                         targetFilterInput.dispatchEvent(new Event('input'));
                     }
+                    toggleNewEntityLabel();
+                }
+
+                function toggleNewEntityLabel() {
+                    const creating = targetSelect.value.startsWith(NEW_TARGET_PREFIX);
+                    createNewEntityBox.hidden = !creating;
+                    if (creating) {
+                        createNewEntityHint.textContent =
+                            'Creating a new ' + (classLabelsByCreateValue[targetSelect.value] || 'entity');
+                    }
                 }
 
                 propertySelect.addEventListener('change', rebuildTargetOptions);
+                targetSelect.addEventListener('change', toggleNewEntityLabel);
             })();
             /*]]>*/
         </script>

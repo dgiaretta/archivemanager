@@ -10,6 +10,7 @@ import info.oais.archive.manager.rdf.RdfStore;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -214,25 +215,8 @@ public class OntologyService {
      * correct degrade given there's no declared range to filter by.
      */
     public Map<String, Set<String>> propertyRangeTypeLocalNames() {
-        String sparql = Ns.PREFIXES + """
-                SELECT ?p ?rangeClass WHERE {
-                  ?p rdfs:range ?r .
-                  {
-                    ?r owl:unionOf ?list .
-                    ?list rdf:rest*/rdf:first ?rangeClass .
-                  } UNION {
-                    FILTER(isIRI(?r))
-                    BIND(?r AS ?rangeClass)
-                  }
-                }
-                """;
-        Map<String, Set<String>> rangeClassesByProperty = new LinkedHashMap<>();
-        for (Map<String, String> row : q.select(store.ontologyModel(), sparql)) {
-            rangeClassesByProperty.computeIfAbsent(row.get("p"), k -> new LinkedHashSet<>()).add(row.get("rangeClass"));
-        }
-
         Map<String, Set<String>> allowedTypesByProperty = new LinkedHashMap<>();
-        for (Map.Entry<String, Set<String>> entry : rangeClassesByProperty.entrySet()) {
+        for (Map.Entry<String, Set<String>> entry : rangeClassIrisByProperty().entrySet()) {
             Set<String> allowed = new LinkedHashSet<>();
             for (String rangeClass : entry.getValue()) {
                 allowed.addAll(subclassLocalNames(rangeClass));
@@ -240,6 +224,69 @@ public class OntologyService {
             allowedTypesByProperty.put(entry.getKey(), allowed);
         }
         return allowedTypesByProperty;
+    }
+
+    /**
+     * For every object property that declares an {@code rdfs:range}, the
+     * directly declared range class(es) as full {@link ClassOption}s (a
+     * union range, e.g. {@code hasPreservationDescriptiveInformation},
+     * yields more than one). Unlike {@link #propertyRangeTypeLocalNames},
+     * this does NOT expand to subclasses -- it powers "create a new entity
+     * of this type" in the relationship editor's target picker, where the
+     * declared class itself is what should get created, not an arbitrary
+     * subclass the user never chose.
+     */
+    public Map<String, List<ClassOption>> propertyRangeClasses() {
+        Map<String, ClassOption> classesByIri = new HashMap<>();
+        for (ClassOption c : listClasses()) {
+            classesByIri.put(c.iri(), c);
+        }
+        Map<String, List<ClassOption>> out = new LinkedHashMap<>();
+        for (Map.Entry<String, Set<String>> entry : rangeClassIrisByProperty().entrySet()) {
+            List<ClassOption> options = new ArrayList<>();
+            for (String classIri : entry.getValue()) {
+                ClassOption option = classesByIri.get(classIri);
+                if (option == null) {
+                    // Not declared `a owl:Class` in the loaded graph -- fall back to a
+                    // bare local-name option rather than dropping it silently.
+                    String local = q.localName(classIri);
+                    option = new ClassOption(classIri, local, local, sourceOf(classIri));
+                }
+                options.add(option);
+            }
+            out.put(entry.getKey(), options);
+        }
+        return out;
+    }
+
+    /**
+     * The declared {@code rdfs:range} class IRI(s) of every object property, before
+     * subclass expansion. {@code ?r} is bound by the OPTIONAL's outer {@code ?p rdfs:range
+     * ?r} pattern, not by anything inside the OPTIONAL itself, so the {@code BIND}/{@code
+     * FILTER} that resolve it must sit outside the OPTIONAL too -- placing them inside (as
+     * an earlier version of this query did, using a UNION with an empty-bodied second
+     * branch) evaluates them against that branch's own, otherwise-unbound ?r before the
+     * join with the outer pattern happens, per SPARQL's algebra for UNION/OPTIONAL group
+     * scoping. That silently dropped every property whose range is a plain class IRI
+     * rather than an {@code owl:unionOf} -- i.e. almost every OAIS object property.
+     */
+    private Map<String, Set<String>> rangeClassIrisByProperty() {
+        String sparql = Ns.PREFIXES + """
+                SELECT ?p ?rangeClass WHERE {
+                  ?p rdfs:range ?r .
+                  OPTIONAL {
+                    ?r owl:unionOf ?list .
+                    ?list rdf:rest*/rdf:first ?member .
+                  }
+                  BIND(COALESCE(?member, ?r) AS ?rangeClass)
+                  FILTER(isIRI(?rangeClass))
+                }
+                """;
+        Map<String, Set<String>> rangeClassesByProperty = new LinkedHashMap<>();
+        for (Map<String, String> row : q.select(store.ontologyModel(), sparql)) {
+            rangeClassesByProperty.computeIfAbsent(row.get("p"), k -> new LinkedHashSet<>()).add(row.get("rangeClass"));
+        }
+        return rangeClassesByProperty;
     }
 
     /**

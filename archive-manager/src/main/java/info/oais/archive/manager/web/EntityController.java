@@ -4,6 +4,7 @@ import info.oais.archive.manager.model.BridgeMapping;
 import info.oais.archive.manager.model.EditableProperty;
 import info.oais.archive.manager.model.EditableRelationship;
 import info.oais.archive.manager.model.PropertyOption;
+import info.oais.archive.manager.rdf.Ns;
 import info.oais.archive.manager.service.ArchiveService;
 import info.oais.archive.manager.service.EditService;
 import info.oais.archive.manager.service.OntologyService;
@@ -28,6 +29,16 @@ import java.util.Map;
 @Controller
 @RequestMapping("/entities")
 public class EntityController {
+
+    /**
+     * Prefix marking a relationship-target select option as "create a new
+     * entity of this class" rather than an existing entity's encoded id --
+     * followed immediately by the class IRI, e.g.
+     * {@code "new:http://ontology.oais.org/im/TransformationInformationProperty"}.
+     * Matched literally in {@link #addRelationship}; must stay in sync with
+     * the same prefix used in {@code entities/edit.html}'s JavaScript.
+     */
+    private static final String NEW_TARGET_PREFIX = "new:";
 
     private final ArchiveService archive;
     private final OntologyService ontology;
@@ -89,6 +100,7 @@ public class EntityController {
         model.addAttribute("objectProperties", objectProperties);
         model.addAttribute("allEntities", archive.listAllEntities());
         model.addAttribute("propertyRangeTypes", ontology.propertyRangeTypeLocalNames());
+        model.addAttribute("propertyRangeClasses", ontology.propertyRangeClasses());
 
         // Property-level bridge correspondences (e.g. rico:technicalCharacteristics
         // relatedMatch im:OtherRepresentationInformation), surfaced two ways:
@@ -199,18 +211,43 @@ public class EntityController {
                                    @RequestParam(required = false) String property,
                                    @RequestParam(required = false) String customProperty,
                                    @RequestParam(required = false) String targetId,
-                                   @RequestParam(required = false) String customTarget) {
+                                   @RequestParam(required = false) String customTarget,
+                                   @RequestParam(required = false) String newEntityLabel) {
         String iri = archive.decodeId(id);
         String resolvedProperty = (customProperty != null && !customProperty.isBlank())
                 ? ontology.resolveIri(customProperty)
                 : property;
-        String resolvedTarget = (customTarget != null && !customTarget.isBlank())
-                ? ontology.resolveIri(customTarget)
-                : (targetId != null && !targetId.isBlank() ? archive.decodeId(targetId) : null);
+        String resolvedTarget = resolveOrCreateTarget(targetId, customTarget, newEntityLabel);
         if (resolvedProperty != null && !resolvedProperty.isBlank() && resolvedTarget != null) {
             edit.addRelationship(iri, resolvedProperty, resolvedTarget);
         }
         return "redirect:/entities/" + id + "/edit";
+    }
+
+    /**
+     * Resolves the relationship-target select's value into an entity IRI --
+     * an existing entity's encoded id, a pasted IRI, or (when the picker's
+     * value carries {@link #NEW_TARGET_PREFIX}) a brand-new entity of the
+     * chosen range class, created on the spot so it can be linked in the
+     * same submit instead of requiring a separate trip through
+     * {@code /entities/new} first.
+     */
+    private String resolveOrCreateTarget(String targetId, String customTarget, String newEntityLabel) {
+        if (customTarget != null && !customTarget.isBlank()) {
+            return ontology.resolveIri(customTarget);
+        }
+        if (targetId == null || targetId.isBlank()) {
+            return null;
+        }
+        if (targetId.startsWith(NEW_TARGET_PREFIX)) {
+            String classIri = targetId.substring(NEW_TARGET_PREFIX.length());
+            String newIri = edit.createEntity(classIri);
+            if (newEntityLabel != null && !newEntityLabel.isBlank()) {
+                edit.addLiteral(newIri, Ns.RDFS + "label", newEntityLabel);
+            }
+            return newIri;
+        }
+        return archive.decodeId(targetId);
     }
 
     @PostMapping("/{id}/relationships/delete")

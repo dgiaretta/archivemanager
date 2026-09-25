@@ -306,17 +306,17 @@ wanted.
   deliberately a blunt "what IS this thing" filter rather than an
   ontology-aware one. Reachable directly by picking a type from the
   dropdown, or by clicking through from the Statistics page.
-- **Graph highlighting** (`/graph`, `/graph/{id}`) -- two checkbox panels,
+- **Graph highlighting** (`/graph`, `/graph/{id}`) -- three checkbox panels,
   populated from whatever's actually in the currently-loaded graph (not a
-  fixed list), for highlighting by entity type and by relationship type
-  independently. Selecting entity types dims every node whose type isn't
-  selected, and also dims edges where *neither* endpoint matches; selecting
-  relationship types dims edges whose property isn't selected, independent
-  of node type. Both apply at once when both have selections. Pure
-  client-side (`vis-network`'s own `DataSet.update`), no extra requests --
-  the type/property data was already being sent to the browser as JSON for
-  the graph itself, this just uses more of it (`GraphNode` gained a
-  `types` field for exactly this).
+  fixed list), for highlighting by entity type, node property, and by
+  relationship type independently. Selecting entity types or node properties
+  dims every node that doesn't match, and also dims edges where *neither*
+  endpoint matches; selecting relationship types dims edges whose property
+  isn't selected, independent of node type/property. All three apply at once
+  when more than one has selections. Pure client-side (`vis-network`'s own
+  `DataSet.update`), no extra requests -- the type/property data was already
+  being sent to the browser as JSON for the graph itself, this just uses more
+  of it (`GraphNode` gained a `types` field for exactly this).
 - **Home page downloads** -- direct links to download `oais-ric-bridge.ttl`
   and `oais_im_schema-sh-v5.ttl` (`/download/bridge-ontology`,
   `/download/oais-ontology`). These stream the exact classpath resource

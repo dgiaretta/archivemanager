@@ -577,6 +577,26 @@ main.container-narrow {
 }
 .inline-add-form input[type="text"] { flex: 1; min-width: 160px; }
 .inline-add-form input.select-filter { flex: 0 1 150px; min-width: 110px; font-style: italic; }
+/* Callout revealed when the relationship target picker's "+ Create new ..."
+   option is chosen -- flex-basis 100% drops it onto its own line so it reads
+   as a distinct step rather than one more indistinguishable box in the row
+   of plain text inputs above it. */
+.create-new-box {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.85rem;
+}
+.create-new-box input[type="text"] {
+  flex: 1;
+  min-width: 200px;
+}
 .inline-add-form button {
   background: var(--accent);
   color: white;

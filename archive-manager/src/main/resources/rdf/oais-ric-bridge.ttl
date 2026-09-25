@@ -171,6 +171,23 @@ rico:Agent
 im:ProvenanceInformation
   skos:relatedMatch rico:Event , rico:Agent .
 
+# im:Agent is a local extension added to the OAIS Information Model
+# export specifically so that definesDesignatedCommunity,
+# definesPreservationObjective, and identifiesTransformationInformationProperty
+# have a domain distinct from im:OAIS -- only an Agent performs those
+# actions, not the Archive-as-system. Unlike the functional relatedMatch
+# above (Agent as a participant documented within Provenance Information),
+# this is the same concept RiC-O already models in full via rico:Agent
+# and its Person/Group/CorporateBody/Family/Position/Mechanism hierarchy,
+# so closeMatch is warranted here.
+
+rico:Agent
+  skos:closeMatch im:Agent ;
+  bridge:mappingRationale "im:Agent is a minimal local-extension placeholder for exactly the actor concept rico:Agent already models in full; closeMatch reflects that both classes denote the same kind of thing (a person, organization, or automated system capable of acting), unlike the relatedMatch to im:ProvenanceInformation above, which is a different, functional correspondence (Agent-as-participant-in-recorded-history, not Agent-as-actor-in-general)."@en .
+
+im:Agent
+  skos:closeMatch rico:Agent .
+
 # ============================================================
 # 7. RiC Mandate <-> OAIS Access Rights Information
 # ============================================================

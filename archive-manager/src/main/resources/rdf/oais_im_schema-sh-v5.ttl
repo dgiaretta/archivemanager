@@ -56,6 +56,14 @@ oais:abstract
 
 # -- classes
 
+<http://ontology.oais.org/im/Agent>
+  a owl:Class ;
+  rdfs:label "Agent" ;
+  oais:identifier "c-0029" ;
+  oais:status "local-extension" ;
+  oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
+  rdfs:comment "Agent: A person, organization, or automated system capable of performing an action such as defining a Designated Community or Preservation Objective, or identifying a Transformation Information Property. LOCAL EXTENSION -- the OAIS Information Model does not itself model who performs such actions; that belongs to the Producer/Management/Consumer roles of the Functional Model, out of scope for this Information-Model-only export. See oais-ric-bridge.ttl for its correspondence to rico:Agent, which already models the full Person/Group/CorporateBody/Family/Position/Mechanism hierarchy." .
+
 <http://ontology.oais.org/im/AccessRightsInformation>
   a owl:Class ;
   rdfs:label "Access Rights Information" ;
@@ -220,6 +228,17 @@ oais:abstract
   rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
   rdfs:comment "Descriptive Information: An Information Object which is a set of information, consisting primarily of Package Descriptions, which is provided to Data Management to support the finding, ordering, and retrieving of OAIS information holdings by Consumers." .
 
+<http://ontology.oais.org/im/DesignatedCommunity>
+  a owl:Class ;
+  rdfs:label "Designated Community" ;
+  oais:identifier "c-0026" ;
+  oais:status "oais-core" ;
+  oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
+  oais:oaisConcept "Designated Community" ;
+  oais:sourceReference "glossary" ;
+  oais:sourceReference "section 2.4" ;
+  rdfs:comment "Designated Community: An identified group of potential Consumers who should be able to understand a particular set of information in ways exemplified by the Preservation Objectives. The Designated Community may be composed of multiple user communities. A Designated Community is defined by the Archive and this definition may change over time. Not diagrammed as a class in the OAIS figures." .
+
 <http://ontology.oais.org/im/DigitalObject>
   a owl:Class ;
   rdfs:label "Digital Object" ;
@@ -323,7 +342,7 @@ oais:abstract
   oais:oaisConcept "OAIS (Open Archival Information System)" ;
   oais:sourceReference "figure 2-1" ;
   oais:sourceReference "figure 2-4" ;
-  rdfs:comment "OAIS (Open Archival Information System): An Archive, consisting of an organization, which may be part of a larger organization, of people and systems, that has accepted the responsibility to preserve information and make it available for a Designated Community." .
+  rdfs:comment "OAIS (Open Archival Information System): An Archive, consisting of an organization, which may be part of a larger organization, of people and systems, that has accepted the responsibility to preserve information and make it available for a Designated Community. NOTE -- definesDesignatedCommunity, definesPreservationObjective, and identifiesTransformationInformationProperty are no longer asserted here as restrictions on OAIS: only an Agent (see im:Agent) performs those defining/identifying actions, not the Archive-as-system itself." .
 
 <http://ontology.oais.org/im/OtherRepresentationInformation>
   a owl:Class ;
@@ -433,6 +452,16 @@ oais:abstract
   ] ;
   rdfs:comment "Preservation Description Information: The information, which along with Representation Information, is necessary for adequate preservation of the Content Data Object and which can be categorized as Provenance Information, Context Information, Reference Information, Fixity Information, and Access Rights Information. It is a type of Information Object." .
 
+<http://ontology.oais.org/im/PreservationObjective>
+  a owl:Class ;
+  rdfs:label "Preservation Objective" ;
+  oais:identifier "c-0027" ;
+  oais:status "oais-core" ;
+  oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
+  oais:oaisConcept "Preservation Objective" ;
+  oais:sourceReference "section 2.4" ;
+  rdfs:comment "Preservation Objective: A specific achievable aim which can be carried out using the Information Object. Per section 2.4, an OAIS must define its Preservation Objectives, which should be Specific, Actionable, and Measurable, and which exemplify what it means for information to be Independently Understandable by the Designated Community." .
+
 <http://ontology.oais.org/im/ProvenanceInformation>
   a owl:Class ;
   rdfs:label "Provenance Information" ;
@@ -528,6 +557,23 @@ oais:abstract
   rdfs:subClassOf <http://ontology.oais.org/im/InformationPackage> ;
   rdfs:comment "Submission Information Package: An Information Package that is delivered by the Producer to the OAIS for use in the construction or update of one or more AIPs and/or the associated Descriptive Information." .
 
+<http://ontology.oais.org/im/TransformationInformationProperty>
+  a owl:Class ;
+  rdfs:label "Transformation Information Property" ;
+  skos:altLabel "Transformational Information Property" ;
+  oais:identifier "c-0028" ;
+  oais:status "oais-core" ;
+  oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
+  oais:oaisConcept "Transformation Information Property" ;
+  oais:sourceReference "glossary" ;
+  oais:sourceReference "section 2.5" ;
+  rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty <http://ontology.oais.org/im/dependsOnRepresentationInformation> ;
+    owl:minCardinality "1"^^xsd:nonNegativeInteger
+  ] ;
+  rdfs:comment "Transformation Information Property: An Information Property the preservation of the value of which is regarded as being necessary but not sufficient to verify that any Non-Reversible Transformation has adequately preserved information content. This could be important as contributing to evidence about Authenticity. Such an Information Property is dependent upon specific Representation Information, including Semantic Representation Information, to denote how it is encoded and what it means. NOTE -- sometimes referred to in the literature as a 'significant property'. Per section 2.5, checks of the values of Transformation Information Properties may be part of Provenance Information; not asserted here as a formal relation since OAIS states it as a possibility, not a requirement." .
+
 # -- compatibility with the deployed taxonomy IRIs.
 # Name-derived IRIs cannot survive a rename, which is why
 # decision OQ-2 minted opaque ones. The old IRIs are kept
@@ -620,6 +666,26 @@ oais:abstract
 
 # -- properties
 
+<http://ontology.oais.org/im/carriedOutUsing>
+  a owl:ObjectProperty ;
+  rdfs:label "carried out using" ;
+  oais:identifier "s-0036" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.org/im/PreservationObjective> ;
+  rdfs:range <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:comment "sources:section 2.4 ('A specific achievable aim which can be carried out using the Information Object')." .
+
+<http://ontology.oais.org/im/definesPreservationObjective>
+  a owl:ObjectProperty ;
+  rdfs:label "defines Preservation Objective" ;
+  oais:identifier "s-0037" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.org/im/Agent> ;
+  rdfs:range <http://ontology.oais.org/im/PreservationObjective> ;
+  rdfs:comment "sources:section 2.4 ('An OAIS must define Preservation Objectives'). Domain is Agent, not OAIS: it is a person, organization, or automated system acting on the Archive's behalf that performs the defining, not the Archive-as-system itself." .
+
 <http://ontology.oais.org/im/delimitedBy>
   a owl:ObjectProperty ;
   rdfs:label "delimited by" ;
@@ -629,6 +695,16 @@ oais:abstract
   rdfs:domain <http://ontology.oais.org/im/InformationPackage> ;
   rdfs:range <http://ontology.oais.org/im/PackagingInformation> ;
   rdfs:comment "sources:figure 4-15" .
+
+<http://ontology.oais.org/im/dependsOnRepresentationInformation>
+  a owl:ObjectProperty ;
+  rdfs:label "depends on Representation Information" ;
+  oais:identifier "s-0038" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.org/im/TransformationInformationProperty> ;
+  rdfs:range <http://ontology.oais.org/im/RepresentationInformation> ;
+  rdfs:comment "sources:glossary ('Such an Information Property is dependent upon specific Representation Information, including Semantic Representation Information, to denote how it is encoded and what it means')." .
 
 <http://ontology.oais.org/im/derivedFrom>
   a owl:ObjectProperty ;
@@ -728,6 +804,26 @@ oais:abstract
   rdfs:range <http://ontology.oais.org/im/DataObject> ;
   rdfs:comment "sources:figure 4-10" .
 
+<http://ontology.oais.org/im/hasDesignatedCommunity>
+  a owl:ObjectProperty ;
+  rdfs:label "has Designated Community" ;
+  oais:identifier "s-0042" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:range <http://ontology.oais.org/im/DesignatedCommunity> ;
+  rdfs:comment "sources:glossary. Relates a specific Information Object -- including an Information Package, since InformationPackage is a subclass of InformationObject, so this also covers a collection such as an AIP or DIP -- to the Designated Community(ies) for which it must be Independently Understandable. Distinct from definesDesignatedCommunity, which is the Archive's own archive-wide definition; an object may be relevant to several Designated Communities, so no cardinality restriction is asserted." .
+
+<http://ontology.oais.org/im/definesDesignatedCommunity>
+  a owl:ObjectProperty ;
+  rdfs:label "defines Designated Community" ;
+  oais:identifier "s-0039" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.org/im/Agent> ;
+  rdfs:range <http://ontology.oais.org/im/DesignatedCommunity> ;
+  rdfs:comment "sources:glossary ('A Designated Community is defined by the Archive and this definition may change over time'). Domain is Agent, not OAIS: it is a person, organization, or automated system acting on the Archive's behalf that performs the defining, not the Archive-as-system itself." .
+
 <http://ontology.oais.org/im/hasInformationPackage>
   a owl:ObjectProperty ;
   rdfs:label "has Information Package" ;
@@ -797,6 +893,16 @@ oais:abstract
   ] ;
   rdfs:comment "sources:figure 4-21; 4.3.3.4 -- all five PDI classes must be present in an AIP" .
 
+<http://ontology.oais.org/im/hasPreservationObjective>
+  a owl:ObjectProperty ;
+  rdfs:label "has Preservation Objective" ;
+  oais:identifier "s-0040" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.org/im/DesignatedCommunity> ;
+  rdfs:range <http://ontology.oais.org/im/PreservationObjective> ;
+  rdfs:comment "sources:glossary ('...should be able to understand a particular set of information in ways exemplified by the Preservation Objectives')." .
+
 <http://ontology.oais.org/im/hasProvenanceInformation>
   a owl:ObjectProperty ;
   rdfs:label "has Provenance Information" ;
@@ -859,6 +965,16 @@ oais:abstract
   rdfs:range <http://ontology.oais.org/im/StructureRepresentationInformation> ;
   rdfs:comment "sources:figure 4-21" .
 
+<http://ontology.oais.org/im/hasTransformationInformationProperty>
+  a owl:ObjectProperty ;
+  rdfs:label "has Transformation Information Property" ;
+  oais:identifier "s-0043" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:range <http://ontology.oais.org/im/TransformationInformationProperty> ;
+  rdfs:comment "sources:glossary; section 2.5. Relates a specific Information Object -- including an Information Package, since InformationPackage is a subclass of InformationObject, so this also covers a collection such as an AIP or DIP -- to the Transformation Information Property value(s) that must be checked to evidence adequate preservation of its content across a Non-Reversible Transformation. Distinct from identifiesTransformationInformationProperty, which is the Archive's own archive-wide designation; no cardinality restriction is asserted, since an object may have several." .
+
 <http://ontology.oais.org/im/hasDescriptiveInformation>
   a owl:ObjectProperty ;
   rdfs:label "has_Descriptive_Information" ;
@@ -877,6 +993,16 @@ oais:abstract
   rdfs:domain <http://ontology.oais.org/im/PackagingInformation> ;
   rdfs:range <http://ontology.oais.org/im/InformationPackage> ;
   rdfs:comment "sources:figure 4-15" .
+
+<http://ontology.oais.org/im/identifiesTransformationInformationProperty>
+  a owl:ObjectProperty ;
+  rdfs:label "identifies Transformation Information Property" ;
+  oais:identifier "s-0041" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.org/im/Agent> ;
+  rdfs:range <http://ontology.oais.org/im/TransformationInformationProperty> ;
+  rdfs:comment "sources:section 2.5 ('the following should also be preserved: Definition of the Designated Communities; Preservation Objectives; Transformational Information Properties'). Domain is Agent, not OAIS: it is a person, organization, or automated system acting on the Archive's behalf that performs the identifying, not the Archive-as-system itself." .
 
 <http://ontology.oais.org/im/interpretedUsing>
   a owl:ObjectProperty ;
