@@ -164,6 +164,43 @@
           -->
           <failOnError>true</failOnError>
           <doclint>all,-missing</doclint>
+          <!--
+            Also document the sibling reactor modules (see ../pom.xml), so the
+            Help page's API reference covers the OAIS core model and the
+            structure adapters, not just this app. Read straight from their
+            source folders rather than via this module's dependencies, so the
+            modules the app doesn't use at runtime (kaitai, drb, demo, topcat)
+            don't end up bundled into its jar. oais-structure-splat is left
+            out: it only builds with -Psplat, against locally built jars.
+          -->
+          <sourcepath>${project.basedir}/src/main/java;${project.basedir}/../oaiscore/src/main/java;${project.basedir}/../oais-structure-api/src/main/java;${project.basedir}/../oais-structure-dfdl/src/main/java;${project.basedir}/../oais-structure-kaitai/src/main/java;${project.basedir}/../oais-structure-drb/src/main/java;${project.basedir}/../oais-structure-demo/src/main/java;${project.basedir}/../oais-structure-topcat/src/main/java</sourcepath>
+          <!-- Libraries only those extra modules use, needed to resolve their types while documenting. -->
+          <additionalDependencies>
+            <additionalDependency>
+              <groupId>io.kaitai</groupId>
+              <artifactId>kaitai-struct-runtime</artifactId>
+              <version>0.11</version>
+            </additionalDependency>
+            <additionalDependency>
+              <groupId>uk.ac.starlink</groupId>
+              <artifactId>stil</artifactId>
+              <version>4.3.2</version>
+            </additionalDependency>
+          </additionalDependencies>
+          <groups>
+            <group>
+              <title>Archive Manager application</title>
+              <packages>info.oais.archive.manager*</packages>
+            </group>
+            <group>
+              <title>OAIS core model (oaiscore)</title>
+              <packages>info.oais.infomodel.config:info.oais.infomodel.implementation*:info.oais.infomodel.interfaces*:info.oais.infomodel.json:info.oais.infomodel.serialization</packages>
+            </group>
+            <group>
+              <title>OAIS structure adapters (oais-structure-*)</title>
+              <packages>info.oais.infomodel.structure*</packages>
+            </group>
+          </groups>
         </configuration>
         <executions>
           <execution>
