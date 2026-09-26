@@ -14,9 +14,17 @@
 # /diagnostics/encoding to check whether this is actually the cause on your
 # system rather than assuming.
 #
-# Usage: ./run.sh   (from the same folder as the built jar; chmod +x first)
-# Edit JAR_NAME below if your built jar has a different version number.
+# Usage: ./run.sh   (chmod +x first) -- from the project root, or from any
+# folder holding a copy of the jar next to this script (e.g. on a server).
+# Needs Java 17+; uses $JAVA_HOME/bin/java when JAVA_HOME is set.
+# Extra arguments are passed to the app, e.g. ./run.sh --server.port=8080
 
-JAR_NAME="target/archive-manager-0.1.0.jar"
+JAR_NAME="archive-manager-0.1.0.jar"
+DIR="$(cd "$(dirname "$0")" && pwd)"
+JAR_PATH="$DIR/$JAR_NAME"
+[ -f "$JAR_PATH" ] || JAR_PATH="$DIR/target/$JAR_NAME"
 
-java -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -jar "$JAR_NAME"
+JAVA_EXE="java"
+[ -n "$JAVA_HOME" ] && JAVA_EXE="$JAVA_HOME/bin/java"
+
+exec "$JAVA_EXE" -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -jar "$JAR_PATH" "$@"

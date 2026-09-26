@@ -17,6 +17,44 @@
         <h2>DFDL (.dfdl.xsd)</h2>
         <a class="button-link" th:href="@{/repinfo-tools/download/dfdl}">Download .dfdl.xsd &rarr;</a>
         <pre class="sparql" th:text="${dfdl}">...</pre>
+
+        <h3 id="dfdl-test">Test against a sample file</h3>
+        <p class="muted">
+            Runs the schema above through Apache Daffodil, via the
+            <code>oais-structure-dfdl</code> adapter, and shows the decoded structure &mdash; a
+            quick check that the description really matches your data before you save it. The
+            file is only used for this one request; nothing is stored.
+        </p>
+        <form th:action="@{/repinfo-tools/test-dfdl} + '#dfdl-test'" method="post" enctype="multipart/form-data" class="form">
+            <input type="file" name="sample" required/>
+            <button type="submit">Decode sample</button>
+        </form>
+
+        <div th:if="${dfdlTest != null}">
+            <p>
+                <strong th:text="${dfdlTestFileName}">sample.bin</strong>
+                (<span th:text="${dfdlTestFileSize}">0</span> bytes):
+                <span th:if="${dfdlTest.ok()}">decoded successfully.</span>
+                <span th:unless="${dfdlTest.ok()}">could not be decoded.</span>
+            </p>
+            <pre class="sparql" th:unless="${dfdlTest.ok()}" th:text="${dfdlTest.error()}">diagnostics</pre>
+            <table th:if="${dfdlTest.ok()}" class="listing">
+                <thead>
+                <tr><th>Element</th><th>Kind</th><th>Value</th><th th:if="${dfdlTest.hasPositions()}">Position</th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="row : ${dfdlTest.rows()}">
+                    <td th:style="'padding-left:' + (${row.depth()} * 1.25 + 0.5) + 'em'"><code th:text="${row.name()}">x</code></td>
+                    <td th:text="${row.kind()}">LEAF</td>
+                    <td th:text="${row.value()}">42</td>
+                    <td class="muted" th:if="${dfdlTest.hasPositions()}" th:text="${row.byteRange()}">bytes 0&ndash;3</td>
+                </tr>
+                </tbody>
+            </table>
+            <p class="muted" th:if="${dfdlTest.truncated()}">
+                Showing the first <span th:text="${dfdlTest.rows().size()}">2000</span> elements only.
+            </p>
+        </div>
     </section>
 
     <section class="editor-section" th:if="${kaitai == null and dfdl == null}">

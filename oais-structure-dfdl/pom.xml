@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>info.oais.infomodel</groupId>
+    <artifactId>oais-structure-adapters</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>oais-structure-dfdl</artifactId>
+  <name>oais-structure-dfdl</name>
+  <description>
+    ExecutableStructureRepInfo backed by Apache Daffodil, the reference
+    implementation of the OGF Data Format Description Language (DFDL).
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-api</artifactId>
+    </dependency>
+
+    <!-- Scala-suffixed on purpose: Daffodil publishes cross-built jars.
+         See the root README if you need a different Scala line. -->
+    <dependency>
+      <groupId>org.apache.daffodil</groupId>
+      <artifactId>daffodil-japi${daffodil.scala.suffix}</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-simple</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

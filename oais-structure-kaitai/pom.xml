@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>info.oais.infomodel</groupId>
+    <artifactId>oais-structure-adapters</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>oais-structure-kaitai</artifactId>
+  <name>oais-structure-kaitai</name>
+  <description>
+    ExecutableStructureRepInfo backed by a Kaitai-Struct-generated Java
+    parser class, bridged generically (via reflection over the generated
+    class's own getters) rather than per-format.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.kaitai</groupId>
+      <artifactId>kaitai-struct-runtime</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <!--
+    src/main/ksy/point2d.ksy is the source of truth for the demo format;
+    src/main/java/.../generated/Point2d.java is a hand-written stand-in for
+    what the "ksc" Kaitai Struct compiler generates from it, targeting Java
+    (see that file's Javadoc and the root README). To regenerate for real
+    once you have the Kaitai Struct compiler available, wire it in here,
+    e.g. with exec-maven-plugin invoking the io.kaitai:kaitai-struct-compiler
+    jar in generate-sources, outputting to target/generated-sources/kaitai
+    and adding that directory via build-helper-maven-plugin:add-source -
+    left out of this pom so the module does not depend on a toolchain step
+    this project could not verify from its own build environment.
+
+    Run the compiler with its debug-output mode turned on when you do wire
+    this in (check `ksc`'s own help text for the exact flag spelling, since
+    an XML comment cannot contain two adjacent hyphens to spell it out
+    here): that is what makes it emit each generated class's `_debug` map
+    (per-field byte offsets), which KaitaiReflectiveStructureNode's
+    getSourceRange() method reads by reflection to recover bit-level
+    provenance - see that class's Javadoc. Without debug mode, generated
+    classes simply have no `_debug` field and getSourceRange() reports
+    empty, same as before that support existed.
+  -->
+</project>

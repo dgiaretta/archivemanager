@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Describes how to view a decoded spectrum.csv (spectrum.dfdl.xsd) as an
+  OaisIfTable - see oais-structure-topcat's points-table-view.xml for the
+  general pattern this follows.
+-->
+<tableView>
+    <rows select="children" name="row"/>
+    <columns>
+        <column name="wavelength" type="double"/>
+        <column name="flux" type="double"/>
+    </columns>
+</tableView>

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<tableView>
+    <rows select="children" name="point"/>
+    <columns>
+        <column name="x" type="int"/>
+        <column name="y" type="int"/>
+    </columns>
+</tableView>

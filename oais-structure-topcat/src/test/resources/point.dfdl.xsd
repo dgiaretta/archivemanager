@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copy of oais-structure-dfdl's test schema, kept here so the demo module
+     is runnable standalone (java -cp ... DemoMain) without reaching into
+     another module's test resources. See that module for notes on this
+     schema's provenance.
+
+     Update: fixed the same schema-validity error as the oais-structure-dfdl
+     copy - dfdl:representation, dfdl:binaryNumberRep, dfdl:lengthKind and
+     dfdl:lengthUnits are not valid directly on xs:sequence (only
+     dfdl:sequenceKind is); they are now set once via a schema-wide
+     dfdl:defineFormat/dfdl:format default instead.
+
+     Update 2: also fixed the same schema-compilation error as the
+     oais-structure-dfdl copy - dfdl:leadingSkip and dfdl:initiatedContent
+     have no built-in default and must be set explicitly. Also corrected the
+     xs:appinfo source attribute to the value Daffodil reported as expected
+     ("http://www.ogf.org/dfdl/" rather than ".../dfdl-1.0/").
+
+     Update 3: fixed the same next-round errors as the oais-structure-dfdl
+     copy (dfdl:trailingSkip, dfdl:alignmentUnits also have no default), by
+     switching to the standard Daffodil idiom of including the built-in
+     GeneralFormat (org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd,
+     resolved from daffodil-lib's classpath) instead of continuing to
+     enumerate this no-default property family one at a time; the
+     binary-specific properties below still override what GeneralFormat
+     assumes (it defaults to text).
+
+     Update 4: fixed the same next-round bug as the oais-structure-dfdl copy
+     - the dfdl:length expression on `label`, "{ xs:int(../labelLen) }",
+     referenced labelLen with no namespace prefix, which resolves to nothing
+     under elementFormDefault="qualified" (every element, including
+     labelLen, is in the target namespace). Fixed by qualifying the step as
+     ../tns:labelLen.
+
+     Update 5: fixed the same next-round bug as the oais-structure-dfdl copy
+     - "Property length is not defined" for the `point` element itself,
+     because the schema-wide binaryDefaults format sets
+     dfdl:lengthKind="explicit" for everything, which is right for the four
+     fixed/derived-length leaf fields but not for `point` itself: it's a
+     composite element with no outer wrapper length of its own, so its
+     length should be implied by the total of its children. Fixed by
+     overriding dfdl:lengthKind="implicit" directly on the `point` element
+     declaration. Not yet re-verified against a running Daffodil instance
+     from this environment - please confirm with `mvn verify` and update
+     this note. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+           xmlns:tns="urn:oais:structure:demo:point"
+           targetNamespace="urn:oais:structure:demo:point"
+           elementFormDefault="qualified">
+
+  <xs:include schemaLocation="/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd"/>
+
+  <xs:annotation>
+    <xs:appinfo source="http://www.ogf.org/dfdl/">
+      <dfdl:defineFormat name="binaryDefaults">
+        <dfdl:format ref="tns:GeneralFormat"
+                     representation="binary"
+                     byteOrder="bigEndian"
+                     binaryNumberRep="binary"
+                     lengthKind="explicit"
+                     lengthUnits="bytes"
+                     encoding="US-ASCII" />
+      </dfdl:defineFormat>
+      <dfdl:format ref="tns:binaryDefaults" />
+    </xs:appinfo>
+  </xs:annotation>
+
+  <xs:element name="point" dfdl:lengthKind="implicit">
+    <xs:complexType>
+      <xs:sequence dfdl:sequenceKind="ordered">
+        <xs:element name="x" type="xs:int" dfdl:length="4"/>
+        <xs:element name="y" type="xs:int" dfdl:length="4"/>
+        <xs:element name="labelLen" type="xs:unsignedByte" dfdl:length="1"/>
+        <xs:element name="label" type="xs:string"
+                     dfdl:length="{ xs:int(../tns:labelLen) }"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

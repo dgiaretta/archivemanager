@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Describes how to view DemoMain's hand-built "series" tree as an
+  OaisIfTimeSeries: a repeated "event" child per event, each with a "when"
+  (epoch milliseconds) leaf and a "label" leaf. See
+  info.oais.infomodel.structure.semantic.TimeSeriesViewSpecificationReader's
+  Javadoc for the file format.
+
+  This demo's events are instantaneous, so there is no <eventEnd> - only
+  <eventStart>, which becomes column zero per OaisIfTimeSeries's documented
+  contract.
+-->
+<timeSeriesView>
+    <rows select="children" name="event"/>
+    <eventStart name="when"/>
+    <columns>
+        <column name="label" type="string"/>
+    </columns>
+</timeSeriesView>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vectorView>
+    <rows select="children" name="feature"/>
+    <geometry name="shape" kind="POINT" dimension="2">
+        <coordinates select="self">
+            <ordinate child="x"/>
+            <ordinate child="y"/>
+        </coordinates>
+    </geometry>
+</vectorView>

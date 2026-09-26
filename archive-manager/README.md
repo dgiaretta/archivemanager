@@ -107,7 +107,13 @@ sample data.
 Requires JDK 17+ and Maven (or use the wrapper if you generate one with
 `mvn -N wrapper:wrapper`).
 
+This app is one module of a larger Maven reactor (see `../README.md`): it
+depends on the sibling `oaiscore` and `oais-structure-dfdl` modules (the
+OAIS core model, and the DFDL adapter used by RepInfo Tools), so install
+those once from the repository root before running this module on its own:
+
 ```
+cd .. && mvn install -DskipTests && cd archive-manager
 mvn spring-boot:run
 ```
 
@@ -496,7 +502,23 @@ wanted.
     per-format schema language the way Kaitai/DFDL do -- both generated files
     say so themselves, and are explicitly a starting scaffold rather than a
     verified driver. Only `definition` feeds their `doc:`/`documentation`
-    comments; `semanticName`/`units` are RDF-only (see below).
+    comments; `semanticName`/`units` are RDF-only (see below). The generated
+    DFDL includes Daffodil's built-in `GeneralFormat` (the same idiom as
+    `oais-structure-dfdl`'s own test schemas): Daffodil refuses to compile a
+    schema that leaves properties like `leadingSkip`/`initiatedContent`
+    unset, which an earlier version of this generator did.
+  - **Test against a sample file** (`POST /repinfo-tools/test-dfdl`,
+    `DfdlSampleRunner`) -- on the preview page, upload a sample data file and
+    the generated DFDL is run against it by real Apache Daffodil, through the
+    sibling `oais-structure-dfdl` module's `DfdlStructureRepInfo` (an
+    executable Structure Representation Information), showing the decoded
+    element tree or Daffodil's diagnostics. The sample is only held for that
+    one request. DFDL only: Daffodil compiles a `.dfdl.xsd` at runtime,
+    whereas `oais-structure-kaitai` needs a class generated ahead of time by
+    the Kaitai Struct compiler, and `oais-structure-drb` needs the
+    non-Maven-Central DRB library. `DfdlSampleRunnerTest` round-trips the
+    generator's output through Daffodil, including the built-in FITS
+    template against a real FITS header.
   - **Saving** (`FormatDescriptionRdfService`) writes real OAIS structure via
     `EditService`'s existing primitives only: one overall
     `im:SemanticRepresentationInformation` per save, plus one

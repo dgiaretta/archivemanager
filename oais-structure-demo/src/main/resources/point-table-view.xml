@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Describes how to view a decoded "point" record - whether produced by the
+  Kaitai Struct or the DFDL adapter, see DemoMain - as an OaisIfTable,
+  without any Java code needing to hard-code column names, types, or how to
+  read a cell's value. See
+  info.oais.infomodel.structure.semantic.TableViewSpecificationReader's
+  Javadoc for the file format.
+
+  A "point" record here is a single record, not a repeated one, so its one
+  row is the record itself (select="self"). For a tree that represents a
+  repeated element as several same-named siblings instead, use
+  <rows select="children" name="..."/>.
+-->
+<tableView>
+    <rows select="self"/>
+    <columns>
+        <column name="x" type="int"/>
+        <column name="y" type="int"/>
+        <column name="label" type="string"/>
+    </columns>
+</tableView>

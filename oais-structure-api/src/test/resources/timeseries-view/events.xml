@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<timeSeriesView>
+    <rows select="children" name="event"/>
+    <eventStart name="when"/>
+    <columns>
+        <column name="label" type="string"/>
+    </columns>
+</timeSeriesView>

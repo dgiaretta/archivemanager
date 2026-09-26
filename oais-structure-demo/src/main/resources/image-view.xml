@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Describes how to view DemoMain's hand-built "image" tree as an
+  OaisIfImage: a repeated "row" child per image row, each with repeated
+  "pixel" leaf children holding the row's int pixel values. See
+  info.oais.infomodel.structure.semantic.ImageViewSpecificationReader's
+  Javadoc for the file format.
+-->
+<imageView>
+    <rows select="children" name="row"/>
+    <pixels select="children" name="pixel"/>
+    <pixelType type="int"/>
+</imageView>

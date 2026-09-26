@@ -1,0 +1,39 @@
+# Maven
+/target/
+**/target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# VS Code
+.vscode/
+
+# Java
+*.class
+*.log
+hs_err_pid*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated sources / local build artifacts
+**/generated-sources/
+**/generated-test-sources/
+
+# Keep local environment-specific files out
+*.local
+*.env
+
+# Third-party app jars downloaded locally for manual testing (e.g. TOPCAT's
+# own standalone distribution, used to smoke-test oais-structure-topcat) --
+# not this project's own build output, too large to commit, and not
+# something every checkout needs.
+/topcat-full.jar

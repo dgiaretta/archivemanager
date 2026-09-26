@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>info.oais.infomodel</groupId>
+    <artifactId>oais-structure-adapters</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>oaiscore</artifactId>
+  <name>oaiscore</name>
+  <description>
+    OAIS core library - the StructureRepInfo / SemanticRepInfo /
+    RepresentationInformation model interfaces and reference implementations
+    this project's adapters bridge concrete binary-parsing engines onto.
+    Vendored in as its own reactor module (copied from the separate
+    dgiaretta/OAISIFBBCandidiate repository's oaisCore project,
+    https://github.com/dgiaretta/OAISIFBBCandidiate/tree/master/oaisCore) so
+    the whole project - including the aggregated Javadoc - builds in one
+    `mvn install` from the root, without a separate clone-and-install step.
+
+    Its original pom.xml depended on the full spring-boot-starter-parent
+    BOM (Spring Boot, Spring Web, Jackson XML, JAXB), but grepping every
+    import in its actual source shows only two real external dependencies:
+    Jackson's ObjectMapper/Module classes (json/, serialization/ and the
+    Json2Java utility) and, in one class (config/JacksonConfig), Spring's
+    plain @Configuration/@Bean annotations - so this pom declares just
+    those, at the versions Spring Boot 3.0.1's BOM pinned them to, rather
+    than pulling in Spring Boot itself. implementation/utility/OaisIfConfig.txt
+    is carried over unchanged, including its .txt extension: it is real
+    Java source for a Spring Web/Spring Boot autoconfiguration class, kept
+    out of the build the same way it already was (Maven only compiles
+    .java files under src/main/java) rather than newly excluded here.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>2.14.1</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-context</artifactId>
+      <version>6.0.2</version>
+    </dependency>
+  </dependencies>
+</project>

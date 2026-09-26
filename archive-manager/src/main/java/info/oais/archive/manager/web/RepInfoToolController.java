@@ -11,6 +11,7 @@ import info.oais.archive.manager.model.format.Hdf5Node;
 import info.oais.archive.manager.model.format.Hdf5NodeKind;
 import info.oais.archive.manager.service.ArchiveService;
 import info.oais.archive.manager.service.format.DfdlGenerator;
+import info.oais.archive.manager.service.format.DfdlSampleRunner;
 import info.oais.archive.manager.service.format.DrbGenerator;
 import info.oais.archive.manager.service.format.FormatDescriptionRdfService;
 import info.oais.archive.manager.service.format.FormatTemplates;
@@ -26,7 +27,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -53,14 +56,17 @@ public class RepInfoToolController {
     private final DfdlGenerator dfdlGenerator;
     private final DrbGenerator drbGenerator;
     private final FormatDescriptionRdfService rdfService;
+    private final DfdlSampleRunner dfdlSampleRunner;
 
     public RepInfoToolController(ArchiveService archive, KaitaiGenerator kaitaiGenerator, DfdlGenerator dfdlGenerator,
-                                  DrbGenerator drbGenerator, FormatDescriptionRdfService rdfService) {
+                                  DrbGenerator drbGenerator, FormatDescriptionRdfService rdfService,
+                                  DfdlSampleRunner dfdlSampleRunner) {
         this.archive = archive;
         this.kaitaiGenerator = kaitaiGenerator;
         this.dfdlGenerator = dfdlGenerator;
         this.drbGenerator = drbGenerator;
         this.rdfService = rdfService;
+        this.dfdlSampleRunner = dfdlSampleRunner;
     }
 
     @GetMapping
@@ -194,13 +200,44 @@ public class RepInfoToolController {
         if (def == null) {
             return "redirect:/repinfo-tools";
         }
+        populatePreview(def, model);
+        return "repinfo-tools/preview";
+    }
+
+    /**
+     * Runs the draft's generated DFDL schema against an uploaded sample file
+     * (see {@link DfdlSampleRunner}) and re-renders the preview with the
+     * decoded tree, or Daffodil's diagnostics, under the DFDL section. The
+     * sample is only held for this request -- nothing is stored.
+     */
+    @PostMapping("/test-dfdl")
+    public String testDfdl(@RequestParam("sample") MultipartFile sample, HttpSession session, Model model)
+            throws IOException {
+        FormatDefinition def = draft(session);
+        if (def == null) {
+            return "redirect:/repinfo-tools";
+        }
+        populatePreview(def, model);
+        String dfdl = (String) model.getAttribute("dfdl");
+        if (dfdl == null) {
+            return "redirect:/repinfo-tools/preview";
+        }
+        DfdlSampleRunner.Result result = sample.isEmpty()
+                ? new DfdlSampleRunner.Result(List.of(), false, "Choose a non-empty sample file to test against.")
+                : dfdlSampleRunner.run(dfdl, sample.getBytes());
+        model.addAttribute("dfdlTest", result);
+        model.addAttribute("dfdlTestFileName", sample.getOriginalFilename());
+        model.addAttribute("dfdlTestFileSize", sample.getSize());
+        return "repinfo-tools/preview";
+    }
+
+    private void populatePreview(FormatDefinition def, Model model) {
         model.addAttribute("def", def);
         model.addAttribute("kaitai", kaitaiGenerator.generate(def));
         model.addAttribute("dfdl", dfdlGenerator.generate(def));
         model.addAttribute("drbPython", drbGenerator.generate(def, DrbTarget.PYTHON));
         model.addAttribute("drbJava", drbGenerator.generate(def, DrbTarget.JAVA));
         model.addAttribute("allEntities", archive.listAllEntities());
-        return "repinfo-tools/preview";
     }
 
     @GetMapping("/download/{format}")

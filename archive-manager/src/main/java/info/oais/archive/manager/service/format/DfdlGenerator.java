@@ -15,6 +15,13 @@ import org.springframework.stereotype.Component;
  * {@link FormatDefinitionKind#BYTE_LAYOUT}, for the same reason
  * {@link KaitaiGenerator} is byte-layout-only.
  *
+ * <p>Pulls in Daffodil's built-in {@code GeneralFormat} (resolved from
+ * daffodil-lib's jar) rather than listing every DFDL property by hand:
+ * several low-level properties ({@code leadingSkip}, {@code initiatedContent},
+ * {@code textBidi}, ...) have no default, and Daffodil refuses to compile a
+ * schema that leaves any of them unset. {@code DfdlSampleRunnerTest} compiles
+ * this output with a real Daffodil to keep that honest.
+ *
  * <p>Hand-built text (a Java text block per field, {@code .formatted()}),
  * not a DOM-building/Transformer approach -- matches this codebase's existing
  * convention of building structured text directly rather than through a
@@ -53,16 +60,22 @@ public class DfdlGenerator {
                            xmlns:tns="%s"
                            elementFormDefault="qualified">
 
+                  <xs:include schemaLocation="/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd"/>
+
                   <xs:annotation>
-                    <xs:appinfo source="http://www.ogf.org/dfdl/dfdl-1.0/">
-                      <dfdl:format representation="binary" byteOrder="%s" binaryNumberRep="binary"
-                                   lengthUnits="bytes" lengthKind="explicit" encoding="ASCII"/>
+                    <xs:appinfo source="http://www.ogf.org/dfdl/">
+                      <dfdl:defineFormat name="binaryDefaults">
+                        <dfdl:format ref="tns:GeneralFormat" representation="binary" byteOrder="%s"
+                                     binaryNumberRep="binary" lengthUnits="bytes" lengthKind="explicit"
+                                     encoding="US-ASCII"/>
+                      </dfdl:defineFormat>
+                      <dfdl:format ref="tns:binaryDefaults"/>
                     </xs:appinfo>
                   </xs:annotation>
                 %s
-                  <xs:element name="%s">
+                  <xs:element name="%s" dfdl:lengthKind="implicit">
                     <xs:complexType>
-                      <xs:sequence>
+                      <xs:sequence dfdl:sequenceKind="ordered">
                 %s      </xs:sequence>
                     </xs:complexType>
                   </xs:element>
@@ -89,7 +102,7 @@ public class DfdlGenerator {
             case FLOAT64 -> { xsType = "xs:double"; lengthAttr = " dfdl:length=\"8\""; }
             case ASCII_STRING -> {
                 xsType = "xs:string";
-                lengthAttr = " dfdl:length=\"" + (field.lengthBytes() == null ? 1 : field.lengthBytes()) + "\" dfdl:encoding=\"ASCII\" dfdl:representation=\"text\"";
+                lengthAttr = " dfdl:length=\"" + (field.lengthBytes() == null ? 1 : field.lengthBytes()) + "\" dfdl:encoding=\"US-ASCII\" dfdl:representation=\"text\"";
             }
             default -> {
                 xsType = "xs:hexBinary";

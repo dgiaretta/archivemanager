@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>info.oais.infomodel</groupId>
+    <artifactId>oais-structure-adapters</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>oais-structure-topcat</artifactId>
+  <name>oais-structure-topcat</name>
+  <description>
+    A uk.ac.starlink.table.TableBuilder plugin for TOPCAT/STIL that opens
+    data described by a DFDL schema, a Kaitai Struct generated class, or a
+    DRB descriptor -- reusing oais-structure-api's existing
+    StructureInterpreterFactory / TableSemanticRepInfo pipeline rather than
+    parsing anything itself. See this module's own README section (in the
+    project root README) for the sidecar-file convention this builder looks
+    for and the -Dstartable.readers launch flag needed to register it with
+    TOPCAT.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>uk.ac.starlink</groupId>
+      <artifactId>stil</artifactId>
+    </dependency>
+
+    <!-- Compile-scope, not test-only: OaisStructureTableBuilder constructs
+         each engine's own FormatSpecification subclass directly (that's the
+         only per-engine-specific code this module has, see its Javadoc), so
+         it depends on all three adapters, the same way oais-structure-demo
+         does. kaitai-struct-runtime comes transitively via
+         oais-structure-kaitai; there's no equivalent for DRB since
+         oais-structure-drb deliberately has no compile-time DRB dependency
+         of its own (reflection-based, see that module's own README). -->
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-dfdl</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-kaitai</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-drb</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

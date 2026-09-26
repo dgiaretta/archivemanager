@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>info.oais.infomodel</groupId>
+    <artifactId>oais-structure-adapters</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>oais-structure-drb</artifactId>
+  <name>oais-structure-drb</name>
+  <description>
+    ExecutableStructureRepInfo backed by CNES/GAEL's DRB (Data Request
+    Broker), bridged entirely by reflection so that this module has no
+    compile-time dependency on DRB's jars, which are not published to Maven
+    Central. See README-DRB.md before relying on this module.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-api</artifactId>
+    </dependency>
+
+    <!--
+      Deliberately no dependency here on fr.gael.drb / fr.gael.drb.cortex:
+      GAEL does not publish DRB to Maven Central, so any coordinate we put
+      here would either fail to resolve for most people or silently pin a
+      version we could not verify against. Add whichever DRB/DRB-Cortex jar
+      you are licensed to use to your own build (a `system`-scope dependency
+      pointing at a local jar, or your organisation's own repository
+      manager), matching the artifact this module resolves purely by class
+      name at runtime - see README-DRB.md.
+    -->
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

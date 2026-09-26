@@ -10,10 +10,18 @@ REM substitutes "?" for characters it can't represent. See README's
 REM internationalisation section and /diagnostics/encoding for how to confirm
 REM this is (or isn't) the cause on your machine.
 REM
-REM Usage: run.bat  (from the project root)
-REM The jar is produced by Maven under target/, not in the project root.
+REM Usage: run.bat  (from the project root, or from any folder holding a copy
+REM of the jar next to this script -- e.g. on a deployment server)
+REM Needs Java 17+. Uses %JAVA_HOME%\bin\java.exe when JAVA_HOME is set, since
+REM the "java" first on PATH is often an older Java 8 (Oracle's java8path shim).
 REM Set ARCHIVE_EDIT_PASSWORD before launching if you want a real edit password.
 
-set JAR_NAME=target\archive-manager-0.1.0.jar
+setlocal
+set JAR_NAME=archive-manager-0.1.0.jar
+set JAR_PATH=%~dp0%JAR_NAME%
+if not exist "%JAR_PATH%" set JAR_PATH=%~dp0target\%JAR_NAME%
 
-java -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -jar "%JAR_NAME%"
+set JAVA_EXE=java
+if defined JAVA_HOME set JAVA_EXE=%JAVA_HOME%\bin\java.exe
+
+"%JAVA_EXE%" -Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8 -jar "%JAR_PATH%" %*

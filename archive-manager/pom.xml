@@ -30,6 +30,10 @@
       anyway since it costs nothing and is good hygiene regardless.
     -->
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- Version of the sibling oaiscore / oais-structure-* reactor modules
+         (see ../pom.xml). This module isn't their child, so it can't
+         inherit their dependencyManagement. -->
+    <oais.structure.version>0.0.1-SNAPSHOT</oais.structure.version>
   </properties>
 
   <dependencies>
@@ -97,6 +101,28 @@
       <groupId>org.apache.poi</groupId>
       <artifactId>poi-ooxml</artifactId>
       <version>5.2.5</version>
+    </dependency>
+
+    <!-- OAIS core model (info.oais.infomodel.*) - previously a copy lived
+         directly in this module's src tree - plus the DFDL adapter, which
+         RepInfo Tools uses to run a generated .dfdl.xsd against an uploaded
+         sample file. -->
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oaiscore</artifactId>
+      <version>${oais.structure.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-dfdl</artifactId>
+      <version>${oais.structure.version}</version>
+      <exclusions>
+        <!-- Spring Boot already provides Logback as the SLF4J binding. -->
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-simple</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
 

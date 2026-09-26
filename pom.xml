@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>info.oais.infomodel</groupId>
+  <artifactId>oais-structure-adapters</artifactId>
+  <version>0.0.1-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>OAIS Structure RepInfo Adapters</name>
+  <description>
+    Reactor root for archive-manager plus the OAIS structure adapters merged
+    in from https://github.com/dgiaretta/oaisrepinfo. Also the parent POM of
+    the adapter modules - bridging the oaisCore StructureRepInfo /
+    RepresentationInformation interfaces (the oaiscore module, vendored in
+    from the separate https://github.com/dgiaretta/OAISIFBBCandidiate
+    repository - see that module's own pom.xml for why) onto concrete
+    binary-parsing engines: DRB, Kaitai Struct and Apache Daffodil (DFDL).
+    Its groupId/artifactId are kept unchanged from oaisrepinfo so the
+    adapter modules' own POMs stay identical to upstream.
+
+    archive-manager is aggregated here but is not a child of this POM: it
+    keeps spring-boot-starter-parent as its parent, and depends on oaiscore
+    and the adapter modules as ordinary artifacts.
+  </description>
+
+  <modules>
+    <module>oaiscore</module>
+    <module>oais-structure-api</module>
+    <module>oais-structure-dfdl</module>
+    <module>oais-structure-kaitai</module>
+    <module>oais-structure-drb</module>
+    <module>oais-structure-demo</module>
+    <module>oais-structure-topcat</module>
+    <module>archive-manager</module>
+  </modules>
+
+  <profiles>
+    <!-- oais-structure-splat depends on splat.jar and ~30 sibling starjava
+         jars that are not published anywhere; they must first be built from
+         source and installed into the local Maven repo (see README, "SPLAT
+         example description"). Opt in with `mvn -Psplat ...` once that's
+         done, so a plain `mvn install` works on a fresh checkout. -->
+    <profile>
+      <id>splat</id>
+      <modules>
+        <module>oais-structure-splat</module>
+      </modules>
+    </profile>
+  </profiles>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <java.version>17</java.version>
+    <maven.compiler.source>${java.version}</maven.compiler.source>
+    <maven.compiler.target>${java.version}</maven.compiler.target>
+
+    <junit.version>5.10.2</junit.version>
+    <slf4j.version>1.7.36</slf4j.version>
+    <daffodil.version>3.11.0</daffodil.version>
+    <daffodil.scala.suffix>_2.13</daffodil.scala.suffix>
+    <kaitai.runtime.version>0.11</kaitai.runtime.version>
+    <!-- STIL: Starlink Tables Infrastructure Library, the library behind the
+         TOPCAT table viewer (github.com/Starlink/starjava), a real published
+         Maven Central artifact, not something needing a source build. -->
+    <stil.version>4.3.2</stil.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oaiscore</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-dfdl</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-kaitai</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-drb</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-topcat</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-splat</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>uk.ac.starlink</groupId>
+        <artifactId>stil</artifactId>
+        <version>${stil.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.daffodil</groupId>
+        <artifactId>daffodil-japi${daffodil.scala.suffix}</artifactId>
+        <version>${daffodil.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.kaitai</groupId>
+        <artifactId>kaitai-struct-runtime</artifactId>
+        <version>${kaitai.runtime.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-simple</artifactId>
+        <version>${slf4j.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.junit</groupId>
+        <artifactId>junit-bom</artifactId>
+        <version>${junit.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+  <build>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-compiler-plugin</artifactId>
+          <version>3.13.0</version>
+          <configuration>
+            <release>${java.version}</release>
+          </configuration>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.2.5</version>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+</project>

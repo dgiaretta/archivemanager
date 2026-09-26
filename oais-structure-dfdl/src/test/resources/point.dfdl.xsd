@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Demo-only DFDL schema for a tiny binary "point" format used by
+  DfdlStructureRepInfoTest, and deliberately kept as close as possible to the
+  format that oais-structure-kaitai's point2d.ksy describes, so the two
+  adapters can be compared side by side on the same bytes:
+
+    4-byte big-endian signed int   x
+    4-byte big-endian signed int   y
+    1-byte unsigned int            labelLen
+    labelLen bytes, US-ASCII       label
+
+  This schema has not been validated against a running Daffodil instance in
+  the environment this project was authored in (no outbound access to a DFDL
+  processor was available); validate it with `daffodil parse`/`daffodil
+  test` (or the equivalent JAPI call) before relying on it, per the root
+  README.
+
+  Update: a first real `mvn verify` run against an actual Daffodil install
+  caught one schema-validity error, now fixed below - dfdl:representation,
+  dfdl:binaryNumberRep, dfdl:lengthKind and dfdl:lengthUnits are not valid
+  directly on xs:sequence (only dfdl:sequenceKind is); they need to be set
+  either on each xs:element or, as here, once via a schema-wide
+  dfdl:defineFormat/dfdl:format default.
+
+  Update 2: the next `mvn verify` run got past schema *validation* but failed
+  DFDL schema *compilation*, because two low-level format properties have no
+  built-in default and must be set explicitly somewhere in scope:
+  dfdl:leadingSkip and dfdl:initiatedContent. Also corrected the xs:appinfo
+  source attribute to the value Daffodil itself reported as expected
+  ("http://www.ogf.org/dfdl/" rather than ".../dfdl-1.0/") - this was only a
+  warning, not a build failure, but Daffodil named the fix directly.
+
+  Update 3: the next `mvn verify` run surfaced two more no-default
+  properties in the same family (dfdl:trailingSkip, dfdl:alignmentUnits).
+  Rather than keep discovering this property-by-property, switched to the
+  standard Daffodil idiom for this: include Daffodil's own built-in
+  "GeneralFormat" (shipped inside daffodil-lib's jar at
+  org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd and resolved from the
+  classpath), which sets every property in this no-default cluster - the
+  ones already hit here (leadingSkip, initiatedContent, trailingSkip,
+  alignmentUnits) and any others in the same family (e.g. alignment,
+  textBidi, floating, encodingErrorPolicy) - to sensible defaults in one
+  step; the binary-specific properties below still override what
+  GeneralFormat assumes (it defaults to text). This is the pattern used by
+  Daffodil's own tutorial/example schemas, but has not been re-run against a
+  real Daffodil instance from this environment - please verify with
+  `mvn verify`. If the classpath include does not resolve in your Daffodil
+  version, fall back to declaring each missing property explicitly, as in
+  Update 2, and tell me which property Daffodil next reports missing.
+
+  Update 4: the GeneralFormat include resolved fine (no more "property not
+  defined" errors) and the next `mvn verify` run got past compiling the
+  no-default-property cluster entirely, surfacing a real bug instead: the
+  dfdl:length expression on `label`, "{ xs:int(../labelLen) }", referenced
+  `labelLen` with no namespace prefix. Because this schema uses
+  elementFormDefault="qualified", every element (including `labelLen`) is in
+  the target namespace, so the unprefixed step resolved to nothing and
+  Daffodil listed tns:labelLen as one of the elements it *could* have meant.
+  Fixed by qualifying the step as ../tns:labelLen.
+
+  Update 5: the next `mvn verify` run surfaced "Property length is not
+  defined" for the `point` element itself (not one of its children). Cause:
+  the schema-wide binaryDefaults format sets dfdl:lengthKind="explicit" for
+  everything, which is right for the four fixed/derived-length leaf fields
+  but not for `point` itself - `point` is a composite element (a sequence of
+  fields) with no outer wrapper length of its own; its length should be
+  implied by the total of its children, not stated explicitly. Fixed by
+  overriding dfdl:lengthKind="implicit" directly on the `point` element
+  declaration. Not yet re-verified against a running Daffodil instance from
+  this environment - please confirm with `mvn verify` and update this note.
+-->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+           xmlns:tns="urn:oais:structure:demo:point"
+           targetNamespace="urn:oais:structure:demo:point"
+           elementFormDefault="qualified">
+
+  <xs:include schemaLocation="/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd"/>
+
+  <xs:annotation>
+    <xs:appinfo source="http://www.ogf.org/dfdl/">
+      <dfdl:defineFormat name="binaryDefaults">
+        <dfdl:format ref="tns:GeneralFormat"
+                     representation="binary"
+                     byteOrder="bigEndian"
+                     binaryNumberRep="binary"
+                     lengthKind="explicit"
+                     lengthUnits="bytes"
+                     encoding="US-ASCII" />
+      </dfdl:defineFormat>
+      <dfdl:format ref="tns:binaryDefaults" />
+    </xs:appinfo>
+  </xs:annotation>
+
+  <xs:element name="point" dfdl:lengthKind="implicit">
+    <xs:complexType>
+      <xs:sequence dfdl:sequenceKind="ordered">
+        <xs:element name="x" type="xs:int" dfdl:length="4"/>
+        <xs:element name="y" type="xs:int" dfdl:length="4"/>
+        <xs:element name="labelLen" type="xs:unsignedByte" dfdl:length="1"/>
+        <xs:element name="label" type="xs:string"
+                     dfdl:length="{ xs:int(../tns:labelLen) }"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

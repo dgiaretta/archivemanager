@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Copy of oais-structure-dfdl's test schema, kept here so the demo module
+     is runnable standalone without reaching into another module's test
+     resources - see point.dfdl.xsd's copy of this same note.
+
+     DFDL schema for a variable number of repeated, comma-delimited
+     "x,y,label" text records - unlike point.dfdl.xsd's single fixed-width
+     binary record, this exercises DFDL's native strength for delimited text.
+
+     Row repetition ("rows") and column repetition (each "row") both use an
+     *infix* dfdl:separator ("%NL;" and "," respectively), not a *terminator*:
+     a terminator would be required after every row/column including the
+     last, which a real CSV file's optional trailing newline (or its last
+     row's lack of a trailing comma) would then violate. dfdl:occursCountKind
+     ="implicit" on "row" (from textDefaults) makes maxOccurs="unbounded" mean
+     "keep matching rows for as long as the input has more, then stop" -
+     verified against a running Daffodil to tolerate a trailing newline
+     without producing a spurious empty extra row; see
+     CsvPointsDfdlStructureRepInfoTest in oais-structure-dfdl. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+           xmlns:tns="urn:oais:structure:demo:csvpoints"
+           targetNamespace="urn:oais:structure:demo:csvpoints"
+           elementFormDefault="qualified">
+
+  <xs:include schemaLocation="/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd"/>
+
+  <xs:annotation>
+    <xs:appinfo source="http://www.ogf.org/dfdl/">
+      <dfdl:defineFormat name="textDefaults">
+        <dfdl:format ref="tns:GeneralFormat"
+                     representation="text"
+                     encoding="US-ASCII"
+                     lengthKind="delimited"
+                     occursCountKind="implicit"
+                     textNumberRep="standard"
+                     textTrimKind="none" />
+      </dfdl:defineFormat>
+      <dfdl:format ref="tns:textDefaults" />
+    </xs:appinfo>
+  </xs:annotation>
+
+  <xs:element name="rows" dfdl:lengthKind="implicit">
+    <xs:complexType>
+      <xs:sequence dfdl:separator="%NL;" dfdl:separatorPosition="infix">
+        <xs:element name="row" maxOccurs="unbounded" dfdl:occursCountKind="implicit">
+          <xs:complexType>
+            <xs:sequence dfdl:separator="," dfdl:separatorPosition="infix">
+              <xs:element name="x" type="xs:int"/>
+              <xs:element name="y" type="xs:int"/>
+              <xs:element name="label" type="xs:string"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

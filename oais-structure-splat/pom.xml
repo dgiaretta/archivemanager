@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>info.oais.infomodel</groupId>
+    <artifactId>oais-structure-adapters</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>oais-structure-splat</artifactId>
+  <name>oais-structure-splat</name>
+  <description>
+    Opens data described by a DFDL schema, a Kaitai Struct generated class, or
+    a DRB descriptor as a spectrum in SPLAT (Starlink's spectral analysis
+    tool), by reusing oais-structure-topcat's OaisStructureTableBuilder to
+    build a uk.ac.starlink.table.StarTable, then wrapping it as a SpecData via
+    SpecDataFactory and handing it to a live SplatBrowser. See this module's
+    own README section (in the project root README) for how splat.jar and its
+    dependency closure were obtained: unlike stil, splat is not published on
+    Maven Central, so it was built from the starjava source tree and
+    installed into the local Maven repo under the synthetic groupId below.
+  </description>
+
+  <properties>
+    <!-- splat.jar and everything its own MANIFEST.MF Class-Path names,
+         installed locally from a from-source starjava build (see the root
+         README's "SPLAT example description" section). Not a real,
+         independently-versioned upstream release, hence "-local". -->
+    <starjava.local.version>0.0.1-local</starjava.local.version>
+
+    <!-- jniast's native library (used by SPLAT's AST/WCS support, loaded as
+         soon as any SpecData is built - see uk.ac.starlink.ast.AstObject)
+         has no Maven Central presence and, unlike splat.jar itself, was
+         never copied into the "installed" starjava/lib tree by "ant
+         install" either - it only exists under the source checkout's own
+         jniast/lib/<arch> (see the root README's "SPLAT example
+         description" section). Point this at that directory; override with
+         -Djniast.native.dir=... if your starjava checkout lives elsewhere. -->
+    <jniast.native.dir>C:\Users\david\starjava\source\jniast\lib\amd64</jniast.native.dir>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-topcat</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>uk.ac.starlink</groupId>
+      <artifactId>stil</artifactId>
+    </dependency>
+
+    <!-- splat.jar itself, plus its full MANIFEST.MF Class-Path closure
+         (locally installed, see the properties comment above). Declared
+         flat rather than via oais-structure-adapters' shared
+         dependencyManagement since every one of these is specific to this
+         one module. -->
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>splat</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>splat_lines</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>bsh-1.2b7</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>splat_colt</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>jdom</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>splat_help</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>splat_examples</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>jsci_core</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>jsci_wavelet</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>jargs</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>toolbar</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>epsgraphics</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>astgui</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>ndx</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>hdx</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>array</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>tamfits</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>jniast</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>soapserver</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>fits</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>hds</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>pal</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>diva</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>help</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <!-- Not in splat.jar's own MANIFEST.MF Class-Path: it's a transitive
+         dependency of help.jar above (JavaHelp, javax.help.*), needed as
+         soon as SplatBrowser builds its Help menu. -->
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>jhall</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>table</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>votable</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>jsky</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>datanode</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>vo</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>ttools</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>jsamp</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>jaxb2-basics-runtime-0.5.3</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>xsams-1.0</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>xsams-io-12.07</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>mappings-12.07</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>registry-client-light-12.07</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel.starjava.local</groupId>
+      <artifactId>Dictionaries-12.07</artifactId>
+      <version>${starjava.local.version}</version>
+    </dependency>
+
+    <!-- splat.jar itself needs javax.xml.bind (JAXB, removed from the JDK
+         since Java 11) and javax.activation for its VAMDC support code,
+         same fix applied to the from-source build, needed again here since
+         this module compiles against splat's public API directly. -->
+    <dependency>
+      <groupId>jakarta.xml.bind</groupId>
+      <artifactId>jakarta.xml.bind-api</artifactId>
+      <version>2.3.3</version>
+    </dependency>
+    <dependency>
+      <groupId>org.glassfish.jaxb</groupId>
+      <artifactId>jaxb-runtime</artifactId>
+      <version>2.3.9</version>
+    </dependency>
+    <dependency>
+      <groupId>com.sun.activation</groupId>
+      <artifactId>javax.activation</artifactId>
+      <version>1.2.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>-Djava.library.path=${jniast.native.dir}</argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

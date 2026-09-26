@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DFDL schema for a variable number of repeated, comma-delimited
+     "wavelength,flux" text records - a copy of oais-structure-topcat's
+     points.dfdl.xsd pattern, trimmed to two numeric fields only. SPLAT's
+     SpecDataFactory needs every column in the resulting StarTable to be a
+     primitive numeric type (a spectrum is X/Y data, not an arbitrary table),
+     which is why this fixture drops the "label" string column points.dfdl.xsd
+     has: TableSpecDataImpl.readCell rejects any non-primitive/non-numeric
+     column with "Vector table cell format not primitive". -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+           xmlns:tns="urn:oais:structure:splat:spectrum"
+           targetNamespace="urn:oais:structure:splat:spectrum"
+           elementFormDefault="qualified">
+
+  <xs:include schemaLocation="/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd"/>
+
+  <xs:annotation>
+    <xs:appinfo source="http://www.ogf.org/dfdl/">
+      <dfdl:defineFormat name="textDefaults">
+        <dfdl:format ref="tns:GeneralFormat"
+                     representation="text"
+                     encoding="US-ASCII"
+                     lengthKind="delimited"
+                     occursCountKind="implicit"
+                     textNumberRep="standard"
+                     textTrimKind="none" />
+      </dfdl:defineFormat>
+      <dfdl:format ref="tns:textDefaults" />
+    </xs:appinfo>
+  </xs:annotation>
+
+  <xs:element name="rows" dfdl:lengthKind="implicit">
+    <xs:complexType>
+      <xs:sequence dfdl:separator="%NL;" dfdl:separatorPosition="infix">
+        <xs:element name="row" maxOccurs="unbounded" dfdl:occursCountKind="implicit">
+          <xs:complexType>
+            <xs:sequence dfdl:separator="," dfdl:separatorPosition="infix">
+              <xs:element name="wavelength" type="xs:double"/>
+              <xs:element name="flux" type="xs:double"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+
+</xs:schema>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<imageView>
+    <rows select="children" name="row"/>
+    <pixels select="children" name="pixel"/>
+    <pixelType type="int"/>
+</imageView>

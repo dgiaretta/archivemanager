@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Describes how to view DemoMain's hand-built "features" tree as an
+  OaisIfVector: a repeated "feature" child per feature, each with a "label"
+  leaf and repeated "vertex" children (each an "x"/"y" leaf pair) describing
+  a LINE_STRING geometry. See
+  info.oais.infomodel.structure.semantic.VectorViewSpecificationReader's
+  Javadoc for the file format.
+-->
+<vectorView>
+    <rows select="children" name="feature"/>
+    <geometry name="shape" kind="LINE_STRING" dimension="2">
+        <coordinates select="children" name="vertex">
+            <ordinate child="x"/>
+            <ordinate child="y"/>
+        </coordinates>
+    </geometry>
+    <columns>
+        <column name="label" type="string"/>
+    </columns>
+</vectorView>

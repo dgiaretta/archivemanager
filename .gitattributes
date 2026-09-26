@@ -1,0 +1,6 @@
+# Data fixtures are parsed byte-for-byte by DFDL/Kaitai/DRB descriptions, so
+# they must never get line-ending conversion (core.autocrlf would otherwise
+# turn a CSV fixture's LF into CRLF on Windows checkouts and change the data).
+*.csv  -text
+*.bin  binary
+*.fits binary

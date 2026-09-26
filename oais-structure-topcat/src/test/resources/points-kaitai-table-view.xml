@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Describes how to view a decoded points.csv (csv_points.ksy, via the Kaitai
+  Struct adapter) as an OaisIfTable. Kaitai Struct's repeat: eos produces a
+  single "rows" field holding an ARRAY of row elements, indexed rather than
+  named (see StructureNodeKind's Javadoc on ARRAY vs. repeated COMPOSITE
+  siblings) - select="array" reads a table's rows out of one; see
+  TableViewSpecificationReader's Javadoc. DFDL and DRB instead surface this
+  same points.csv as repeated same-named "row" siblings - see
+  points-table-view.xml.
+-->
+<tableView>
+    <rows select="array" name="rows"/>
+    <columns>
+        <column name="x" type="int"/>
+        <column name="y" type="int"/>
+        <column name="label" type="string"/>
+    </columns>
+</tableView>

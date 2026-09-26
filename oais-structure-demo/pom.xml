@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>info.oais.infomodel</groupId>
+    <artifactId>oais-structure-adapters</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>oais-structure-demo</artifactId>
+  <name>oais-structure-demo</name>
+  <description>
+    Runnable example: the same little binary "point" record, wrapped as an
+    oaisCore InformationObject, decoded two different ways (Kaitai Struct
+    and DFDL/Daffodil) through the common ExecutableStructureRepInfo /
+    StructureNode API, plus StructureInterpreterFactory service discovery.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-dfdl</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-kaitai</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-drb</artifactId>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.2.0</version>
+        <configuration>
+          <mainClass>info.oais.infomodel.structure.demo.DemoMain</mainClass>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+</project>

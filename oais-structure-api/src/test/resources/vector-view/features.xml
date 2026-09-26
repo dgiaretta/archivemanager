@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vectorView>
+    <rows select="children" name="feature"/>
+    <geometry name="shape" kind="LINE_STRING" dimension="2">
+        <coordinates select="children" name="vertex">
+            <ordinate child="x"/>
+            <ordinate child="y"/>
+        </coordinates>
+    </geometry>
+    <columns>
+        <column name="label" type="string"/>
+    </columns>
+</vectorView>

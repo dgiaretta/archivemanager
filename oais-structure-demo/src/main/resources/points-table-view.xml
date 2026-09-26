@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Describes how to view a decoded points.csv - whether produced by the DFDL
+  adapter (csv-points.dfdl.xsd) or the DRB adapter - as an OaisIfTable. Both
+  engines surface a repeated element as several same-named "row" siblings
+  under the root (the DFDL/DRB convention - see StructureNodeKind's Javadoc
+  on ARRAY vs. repeated COMPOSITE siblings), so both can share this one file,
+  the same interoperability payoff point-table-view.xml demonstrates for a
+  single record. Kaitai Struct's adapter instead produces an ARRAY node - see
+  points-table-view-kaitai.xml.
+-->
+<tableView>
+    <rows select="children" name="row"/>
+    <columns>
+        <column name="x" type="int"/>
+        <column name="y" type="int"/>
+        <column name="label" type="string"/>
+    </columns>
+</tableView>
