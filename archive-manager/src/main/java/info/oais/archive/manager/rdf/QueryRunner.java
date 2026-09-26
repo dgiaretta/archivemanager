@@ -12,8 +12,10 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Thin wrapper around Jena ARQ for running SPARQL SELECT queries and
@@ -56,6 +58,40 @@ public class QueryRunner {
             return node.asResource().getURI();
         }
         return node.toString();
+    }
+
+    /**
+     * Every distinct value bound to any variable in a SELECT query's results that
+     * is itself a URI resource (not a literal, and not a blank node) -- e.g. every
+     * {@code ?s ?p ?o} triple's subject/object across all rows, but not a literal
+     * that merely happens to look like a URL. Re-runs the query rather than
+     * reusing {@link #select}'s already-rendered string rows, since those have
+     * already lost the URI-vs-literal distinction (see {@link #render}) -- fine
+     * for the SPARQL console's occasional, human-triggered queries, where running
+     * the query twice is cheap next to the cost of getting this wrong.
+     *
+     * <p>Powers the SPARQL console's "view as graph" button: every resource any
+     * column of the results actually refers to, regardless of which variable name
+     * the user's own query happened to bind it to.
+     */
+    public Set<String> uriResourcesIn(Model model, String sparql) {
+        Query query = QueryFactory.create(sparql);
+        Set<String> uris = new LinkedHashSet<>();
+        try (QueryExecution qexec = QueryExecutionFactory.create(query, model)) {
+            ResultSet rs = qexec.execSelect();
+            while (rs.hasNext()) {
+                QuerySolution sol = rs.next();
+                for (String var : rs.getResultVars()) {
+                    if (sol.contains(var)) {
+                        RDFNode node = sol.get(var);
+                        if (node.isURIResource()) {
+                            uris.add(node.asResource().getURI());
+                        }
+                    }
+                }
+            }
+        }
+        return uris;
     }
 
     /** The local name (final path segment / fragment) of an IRI, for compact display. */

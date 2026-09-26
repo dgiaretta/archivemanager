@@ -12,13 +12,22 @@ import java.util.List;
  * doubles as display order; a row's indentation when rendered is inferred
  * from how many {@code /} segments its path has.
  *
- * @param dtype       for DATASET/ATTRIBUTE only (e.g. "float64", "int32"); null for GROUP.
- * @param shape       for DATASET only; the dimensions in order (e.g. [100, 200] for a
- *                    100x200 array); null for GROUP/ATTRIBUTE (an attribute is scalar-ish
- *                    by convention here -- a multi-valued attribute can still be described
- *                    in {@code description}).
+ * @param dtype        for DATASET/ATTRIBUTE only (e.g. "float64", "int32"); null for GROUP.
+ * @param shape        for DATASET only; the dimensions in order (e.g. [100, 200] for a
+ *                     100x200 array); null for GROUP/ATTRIBUTE (an attribute is scalar-ish
+ *                     by convention here -- a multi-valued attribute can still be described
+ *                     in {@code definition}).
+ * @param semanticName the concept this node represents (e.g. "Temperature"), distinct from
+ *                      the structural {@link #name()} derived from its path; null falls back
+ *                      to {@link #name()} wherever a semantic label is needed, such as
+ *                      {@code rdfs:label} on this node's Semantic Representation Information
+ *                      individual (see {@code FormatDescriptionRdfService}).
+ * @param definition   what this node's value means, in prose.
+ * @param units        this node's physical unit, if it's a measurement (e.g. "K"); typically
+ *                     only meaningful for DATASET/ATTRIBUTE, not GROUP.
  */
-public record Hdf5Node(Hdf5NodeKind kind, String path, String dtype, List<Integer> shape, String description) {
+public record Hdf5Node(Hdf5NodeKind kind, String path, String dtype, List<Integer> shape,
+                        String semanticName, String definition, String units) {
 
     /** This node's own name -- the path's final segment, on either side of an {@code @}. */
     public String name() {

@@ -24,9 +24,9 @@ class KaitaiGeneratorTest {
         def.setName("point record");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setDefaultByteOrder(ByteOrder.BIG_ENDIAN);
-        def.addField(new FormatField("x", FieldType.INT32, null, null, "x ordinate", null));
-        def.addField(new FormatField("y", FieldType.INT32, null, null, "y ordinate", null));
-        def.addField(new FormatField("label", FieldType.ASCII_STRING, 20, null, "short label", null));
+        def.addField(new FormatField("x", FieldType.INT32, null, null, null, "x ordinate", null));
+        def.addField(new FormatField("y", FieldType.INT32, null, null, null, "y ordinate", null));
+        def.addField(new FormatField("label", FieldType.ASCII_STRING, 20, null, null, "short label", null));
 
         String ksy = generator.generate(def);
 

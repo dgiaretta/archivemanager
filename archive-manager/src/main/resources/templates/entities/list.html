@@ -9,6 +9,7 @@
     <p>
         <a class="button" th:href="@{/entities/new}">+ New entity</a>
         <a class="button button-secondary" th:href="@{/entities/import}">Import Turtle data</a>
+        <span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span>
     </p>
 
     <form th:action="@{/entities}" method="get" class="inline-add-form">

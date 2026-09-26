@@ -38,8 +38,8 @@ public class KaitaiGenerator {
         for (FormatField field : def.getFields()) {
             sb.append("  - id: ").append(FormatIdentifiers.snakeCase(field.name())).append('\n');
             appendTypeAndSize(sb, field, def.getDefaultByteOrder());
-            if (field.description() != null && !field.description().isBlank()) {
-                sb.append("    doc: ").append(yamlQuote(field.description())).append('\n');
+            if (field.definition() != null && !field.definition().isBlank()) {
+                sb.append("    doc: ").append(yamlQuote(field.definition())).append('\n');
             }
         }
         return sb.toString();

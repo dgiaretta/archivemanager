@@ -57,7 +57,18 @@
             graph" on any record/agent/activity/mandate page shows a focused view around just
             that one instead, with an adjustable depth (1&ndash;4 hops) from the toolbar above
             the graph. <a th:href="@{/statistics}">Statistics</a> links to the full graph too,
-            as a visual complement to its own aggregate counts.
+            as a visual complement to its own aggregate counts. Every listing page &mdash;
+            <a th:href="@{/entities}">Entities</a>, <a th:href="@{/agents}">Agents</a>,
+            <a th:href="@{/records}">Records</a>, <a th:href="@{/activities}">Provenance events</a>,
+            <a th:href="@{/mandates}">Mandates</a>, <a th:href="@{/accession-register}">Accession
+            Register</a>, <a th:href="@{/catalogue}">Catalogue</a> search/explore, and the
+            <a th:href="@{/sparql}">SPARQL console</a>'s own results &mdash; also has a "View this
+            page as a graph" button: it graphs exactly the items currently on screen (one page of
+            results, not the whole list), starting at depth 1, so a long list stays as quick to
+            graph as a single record. On the SPARQL console specifically, this graphs every
+            distinct resource any column of the results actually refers to, regardless of which
+            variable name your query bound it to; it's only offered when at least one result cell
+            is a real resource rather than a literal.
         </p>
         <ul>
             <li><strong>Colour</strong> shows which ontology a node belongs to (blue = RiC-O,
@@ -133,10 +144,16 @@
             </li>
             <li><a th:href="@{/catalogue/upload}">Bulk Upload Spreadsheet</a> (linked from the
                 Catalogue page) &mdash; import a CSV/XLSX of NAM-format records in one go.</li>
-            <li><a th:href="@{/format-tools}">Format description tools</a> &mdash; a guided
-                editor for building Kaitai Struct, DFDL, and/or DRB descriptions of a binary or
-                self-describing data format (built-in FITS and HDF5 starting points), saved into
-                the archive as real Structure/Semantic Representation Information.</li>
+            <li><a th:href="@{/repinfo-tools}">RepInfo Tools</a> &mdash; a guided editor for
+                building Kaitai Struct, DFDL, and/or DRB descriptions of a binary or
+                self-describing data format (built-in FITS and HDF5 starting points). Beyond the
+                structural layout, give any field or tree row a semantic name, a definition, and
+                units, and saving turns those into real Semantic Representation Information: one
+                individual per field (name as its <code>rdfs:label</code>, definition as its
+                <code>skos:definition</code>, units linked via
+                <code>rico:hasUnitOfMeasurement</code>), gathered under one overall Semantic
+                Representation Information alongside the Structure Representation Information for
+                whichever generated description(s) you keep.</li>
         </ul>
     </section>
 

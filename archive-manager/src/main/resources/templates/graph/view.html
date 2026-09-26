@@ -25,6 +25,14 @@
                th:classappend="${depth != null and depth == d} ? 'active' : ''"
                class="depth-link">1</a>
         </span>
+        <span th:if="${focusIds != null and !focusIds.isEmpty()}">
+            depth:
+            <a th:each="d : ${#numbers.sequence(1, 4)}"
+               th:href="@{/graph/multi(id=${focusIds}, depth=${d})}"
+               th:text="${d}"
+               th:classappend="${depth != null and depth == d} ? 'active' : ''"
+               class="depth-link">1</a>
+        </span>
         <a th:href="@{/graph}" class="button-link">View full graph</a>
     </div>
 
@@ -52,7 +60,7 @@
     </p>
     <div class="callout" id="truncated-notice" style="display:none;">
         <strong>This view is truncated.</strong>
-        <span th:if="${focusId == null}">
+        <span th:if="${focusId == null and (focusIds == null or focusIds.isEmpty())}">
             The full graph has more resource-to-resource triples than this view renders at once. Try a
             focused view from a specific record/agent/etc. instead ("View in graph" on its page), which
             supports adjustable depth and stays responsive at any archive size.
@@ -60,6 +68,11 @@
         <span th:if="${focusId != null}">
             This resource's neighbourhood has more connected nodes than this view renders at once. Try a
             smaller depth from the toolbar above.
+        </span>
+        <span th:if="${focusIds != null and !focusIds.isEmpty()}">
+            This selection's combined neighbourhood has more connected nodes than this view renders at
+            once. Try a smaller depth from the toolbar above, or graph fewer items at once (e.g. one page
+            of results instead of a larger listing).
         </span>
     </div>
 </main>

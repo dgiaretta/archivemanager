@@ -17,6 +17,7 @@
         <a th:if="${query != null and !query.isEmpty()}" th:href="@{/catalogue}" class="page-link">Clear search</a>
     </form>
 
+    <p><span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span></p>
     <table class="listing">
         <thead>
         <tr><th>Type</th><th>Title</th></tr>

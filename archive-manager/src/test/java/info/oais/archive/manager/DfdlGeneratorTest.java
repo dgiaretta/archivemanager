@@ -26,9 +26,9 @@ class DfdlGeneratorTest {
         def.setName("point record");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setDefaultByteOrder(ByteOrder.LITTLE_ENDIAN);
-        def.addField(new FormatField("x", FieldType.INT32, null, null, "x ordinate", null));
-        def.addField(new FormatField("labelLen", FieldType.UINT8, null, null, "length of label", null));
-        def.addField(new FormatField("label", FieldType.ASCII_STRING, 20, ByteOrder.BIG_ENDIAN, "short label", null));
+        def.addField(new FormatField("x", FieldType.INT32, null, null, null, "x ordinate", null));
+        def.addField(new FormatField("labelLen", FieldType.UINT8, null, null, null, "length of label", null));
+        def.addField(new FormatField("label", FieldType.ASCII_STRING, 20, ByteOrder.BIG_ENDIAN, null, "short label", null));
 
         String xsd = generator.generate(def);
 

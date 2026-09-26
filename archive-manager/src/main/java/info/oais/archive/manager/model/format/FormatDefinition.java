@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * A format description being built up interactively, held in the HTTP
- * session for the duration of one editing pass (see {@code FormatToolController})
+ * session for the duration of one editing pass (see {@code RepInfoToolController})
  * and never written to the archive until the user explicitly saves it --
  * mirrors {@code ImportController}'s "build in a throwaway place first,
  * commit only on success" approach, just applied to something assembled

@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @RestController
 public class GraphApiController {
 
@@ -30,5 +32,16 @@ public class GraphApiController {
     public GraphData subgraph(@PathVariable String id, @RequestParam(defaultValue = "2") int depth) {
         String iri = archive.decodeId(id);
         return graphService.subgraph(iri, Math.min(Math.max(depth, 1), 5));
+    }
+
+    /**
+     * Union subgraph reachable from any of several resources within {@code depth}
+     * hops (default 1) -- backs the "view as graph" button on the various listing
+     * pages, one {@code id} per item currently on screen.
+     */
+    @GetMapping("/api/graph/multi")
+    public GraphData multiSubgraph(@RequestParam("id") List<String> ids, @RequestParam(defaultValue = "1") int depth) {
+        List<String> iris = ids.stream().map(archive::decodeId).toList();
+        return graphService.subgraph(iris, Math.min(Math.max(depth, 1), 5));
     }
 }

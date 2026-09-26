@@ -34,17 +34,19 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Guided editor for building a Kaitai/DFDL/DRB format description (see
- * {@code FormatDescriptionRdfService}'s doc comment for how the result is
- * modeled as OAIS Representation Information). The definition being built is
- * held in the HTTP session, not the archive, until "Save to archive" is
- * submitted -- see {@link FormatDefinition}'s own doc comment for why.
+ * Guided editor for building a Kaitai/DFDL/DRB format description AND, for
+ * each field or tree row, the semantic name/definition/units that become its
+ * Semantic Representation Information (see {@code FormatDescriptionRdfService}'s
+ * doc comment for how the result is modeled as OAIS Representation
+ * Information). The definition being built is held in the HTTP session, not
+ * the archive, until "Save to archive" is submitted -- see
+ * {@link FormatDefinition}'s own doc comment for why.
  */
 @Controller
-@RequestMapping("/format-tools")
-public class FormatToolController {
+@RequestMapping("/repinfo-tools")
+public class RepInfoToolController {
 
-    private static final String SESSION_KEY = "formatToolDraft";
+    private static final String SESSION_KEY = "repInfoToolDraft";
 
     private final ArchiveService archive;
     private final KaitaiGenerator kaitaiGenerator;
@@ -52,8 +54,8 @@ public class FormatToolController {
     private final DrbGenerator drbGenerator;
     private final FormatDescriptionRdfService rdfService;
 
-    public FormatToolController(ArchiveService archive, KaitaiGenerator kaitaiGenerator, DfdlGenerator dfdlGenerator,
-                                 DrbGenerator drbGenerator, FormatDescriptionRdfService rdfService) {
+    public RepInfoToolController(ArchiveService archive, KaitaiGenerator kaitaiGenerator, DfdlGenerator dfdlGenerator,
+                                  DrbGenerator drbGenerator, FormatDescriptionRdfService rdfService) {
         this.archive = archive;
         this.kaitaiGenerator = kaitaiGenerator;
         this.dfdlGenerator = dfdlGenerator;
@@ -64,7 +66,7 @@ public class FormatToolController {
     @GetMapping
     public String start(HttpSession session, Model model) {
         model.addAttribute("hasDraft", draft(session) != null);
-        return "format-tools/start";
+        return "repinfo-tools/start";
     }
 
     @PostMapping("/start")
@@ -86,26 +88,26 @@ public class FormatToolController {
             }
         };
         session.setAttribute(SESSION_KEY, def);
-        return "redirect:/format-tools/edit";
+        return "redirect:/repinfo-tools/edit";
     }
 
     @PostMapping("/discard")
     public String discard(HttpSession session) {
         session.removeAttribute(SESSION_KEY);
-        return "redirect:/format-tools";
+        return "redirect:/repinfo-tools";
     }
 
     @GetMapping("/edit")
     public String edit(HttpSession session, Model model) {
         FormatDefinition def = draft(session);
         if (def == null) {
-            return "redirect:/format-tools";
+            return "redirect:/repinfo-tools";
         }
         model.addAttribute("def", def);
         model.addAttribute("fieldTypes", FieldType.values());
         model.addAttribute("byteOrders", ByteOrder.values());
         model.addAttribute("nodeKinds", Hdf5NodeKind.values());
-        return "format-tools/edit";
+        return "repinfo-tools/edit";
     }
 
     @PostMapping("/details")
@@ -117,21 +119,22 @@ public class FormatToolController {
             def.setNotes(notes);
             def.setDefaultByteOrder(defaultByteOrder);
         }
-        return "redirect:/format-tools/edit";
+        return "redirect:/repinfo-tools/edit";
     }
 
     @PostMapping("/fields")
     public String addField(@RequestParam String name, @RequestParam FieldType type,
                             @RequestParam(required = false) Integer lengthBytes,
                             @RequestParam(required = false) ByteOrder byteOrder,
-                            @RequestParam(required = false) String description,
+                            @RequestParam(required = false) String semanticName,
+                            @RequestParam(required = false) String definition,
                             @RequestParam(required = false) String units,
                             HttpSession session) {
         FormatDefinition def = draft(session);
         if (def != null && !name.isBlank()) {
-            def.addField(new FormatField(name, type, lengthBytes, byteOrder, description, units));
+            def.addField(new FormatField(name, type, lengthBytes, byteOrder, semanticName, definition, units));
         }
-        return "redirect:/format-tools/edit";
+        return "redirect:/repinfo-tools/edit";
     }
 
     @PostMapping("/fields/{index}/delete")
@@ -140,7 +143,7 @@ public class FormatToolController {
         if (def != null) {
             def.removeField(index);
         }
-        return "redirect:/format-tools/edit";
+        return "redirect:/repinfo-tools/edit";
     }
 
     @PostMapping("/fields/{index}/move")
@@ -149,20 +152,22 @@ public class FormatToolController {
         if (def != null) {
             def.moveField(index, delta);
         }
-        return "redirect:/format-tools/edit";
+        return "redirect:/repinfo-tools/edit";
     }
 
     @PostMapping("/nodes")
     public String addNode(@RequestParam Hdf5NodeKind kind, @RequestParam String path,
                            @RequestParam(required = false) String dtype,
                            @RequestParam(required = false) String shape,
-                           @RequestParam(required = false) String description,
+                           @RequestParam(required = false) String semanticName,
+                           @RequestParam(required = false) String definition,
+                           @RequestParam(required = false) String units,
                            HttpSession session) {
         FormatDefinition def = draft(session);
         if (def != null && !path.isBlank()) {
-            def.addNode(new Hdf5Node(kind, path, dtype, parseShape(shape), description));
+            def.addNode(new Hdf5Node(kind, path, dtype, parseShape(shape), semanticName, definition, units));
         }
-        return "redirect:/format-tools/edit";
+        return "redirect:/repinfo-tools/edit";
     }
 
     @PostMapping("/nodes/{index}/delete")
@@ -171,7 +176,7 @@ public class FormatToolController {
         if (def != null) {
             def.removeNode(index);
         }
-        return "redirect:/format-tools/edit";
+        return "redirect:/repinfo-tools/edit";
     }
 
     @PostMapping("/nodes/{index}/move")
@@ -180,14 +185,14 @@ public class FormatToolController {
         if (def != null) {
             def.moveNode(index, delta);
         }
-        return "redirect:/format-tools/edit";
+        return "redirect:/repinfo-tools/edit";
     }
 
     @GetMapping("/preview")
     public String preview(HttpSession session, Model model) {
         FormatDefinition def = draft(session);
         if (def == null) {
-            return "redirect:/format-tools";
+            return "redirect:/repinfo-tools";
         }
         model.addAttribute("def", def);
         model.addAttribute("kaitai", kaitaiGenerator.generate(def));
@@ -195,7 +200,7 @@ public class FormatToolController {
         model.addAttribute("drbPython", drbGenerator.generate(def, DrbTarget.PYTHON));
         model.addAttribute("drbJava", drbGenerator.generate(def, DrbTarget.JAVA));
         model.addAttribute("allEntities", archive.listAllEntities());
-        return "format-tools/preview";
+        return "repinfo-tools/preview";
     }
 
     @GetMapping("/download/{format}")
@@ -248,7 +253,7 @@ public class FormatToolController {
                         HttpSession session) {
         FormatDefinition def = draft(session);
         if (def == null) {
-            return "redirect:/format-tools";
+            return "redirect:/repinfo-tools";
         }
         Map<String, String> generated = new LinkedHashMap<>();
         if (formats != null) {

@@ -6,6 +6,7 @@
 <main class="container">
     <h1>Provenance events / activities</h1>
     <p>rico:Event / rico:Activity individuals are what the bridge maps to OAIS Provenance Information &mdash; open a record's "OAIS mapping" view to see it applied.</p>
+    <p><span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span></p>
     <table class="listing">
         <thead><tr><th>Type</th><th>Description</th></tr></thead>
         <tbody>

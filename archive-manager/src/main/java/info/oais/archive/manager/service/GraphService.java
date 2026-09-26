@@ -176,12 +176,28 @@ public class GraphService {
 
     /** The subgraph reachable from {@code focusIri} within {@code depth} hops, in either direction. */
     public GraphData subgraph(String focusIri, int depth) {
+        return subgraph(List.of(focusIri), depth);
+    }
+
+    /**
+     * The union of the subgraphs reachable from each of {@code focusIris} within
+     * {@code depth} hops, in either direction -- a single BFS seeded from every
+     * given IRI at once rather than one call per IRI unioned afterward, so a node
+     * reachable from more than one focus (or a focus reachable from another) is
+     * still capped by the one shared {@link #MAX_NODES} budget instead of by a
+     * separate one per call. Powers the "view as graph" button on the various
+     * listing pages (entities/agents/records/...), graphing exactly the page of
+     * results shown rather than the whole archive.
+     */
+    public GraphData subgraph(Collection<String> focusIris, int depth) {
         Map<String, String[]> triples = new LinkedHashMap<>(); // key: s|p|o
         Set<String> visited = new LinkedHashSet<>();
         Deque<String> queue = new ArrayDeque<>();
         Deque<Integer> depths = new ArrayDeque<>();
-        queue.add(focusIri);
-        depths.add(Math.max(depth, 0));
+        for (String focusIri : focusIris) {
+            queue.add(focusIri);
+            depths.add(Math.max(depth, 0));
+        }
 
         while (!queue.isEmpty() && visited.size() < MAX_NODES) {
             String current = queue.poll();

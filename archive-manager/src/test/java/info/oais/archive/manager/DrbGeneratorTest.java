@@ -22,7 +22,7 @@ class DrbGeneratorTest {
         def.setName("point record");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setDefaultByteOrder(ByteOrder.BIG_ENDIAN);
-        def.addField(new FormatField("x", FieldType.INT32, null, null, "x ordinate", null));
+        def.addField(new FormatField("x", FieldType.INT32, null, null, null, "x ordinate", null));
 
         String py = generator.generate(def, DrbTarget.PYTHON);
 
@@ -44,7 +44,7 @@ class DrbGeneratorTest {
         def.setName("point record");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setDefaultByteOrder(ByteOrder.BIG_ENDIAN);
-        def.addField(new FormatField("x", FieldType.INT32, null, null, "x ordinate", null));
+        def.addField(new FormatField("x", FieldType.INT32, null, null, null, "x ordinate", null));
 
         String java = generator.generate(def, DrbTarget.JAVA);
 

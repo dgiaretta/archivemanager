@@ -5,6 +5,7 @@ import org.apache.jena.query.QueryFactory;
 import info.oais.archive.manager.rdf.Ns;
 import info.oais.archive.manager.rdf.QueryRunner;
 import info.oais.archive.manager.rdf.RdfStore;
+import info.oais.archive.manager.service.ArchiveService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,10 +30,12 @@ public class SparqlController {
 
     private final RdfStore store;
     private final QueryRunner queryRunner;
+    private final ArchiveService archive;
 
-    public SparqlController(RdfStore store, QueryRunner queryRunner) {
+    public SparqlController(RdfStore store, QueryRunner queryRunner, ArchiveService archive) {
         this.store = store;
         this.queryRunner = queryRunner;
+        this.archive = archive;
     }
 
     @GetMapping
@@ -53,6 +56,10 @@ public class SparqlController {
             List<Map<String, String>> rows = queryRunner.select(store.queryModel(), queryText);
             model.addAttribute("columns", query.getResultVars());
             model.addAttribute("rows", rows);
+            List<String> resourceIds = queryRunner.uriResourcesIn(store.queryModel(), queryText).stream()
+                    .map(archive::encodeId)
+                    .toList();
+            model.addAttribute("resourceIds", resourceIds);
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
         }

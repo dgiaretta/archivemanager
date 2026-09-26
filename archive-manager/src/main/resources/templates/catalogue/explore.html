@@ -62,6 +62,7 @@
 
     <div class="editor-section" th:if="${anyFilter}">
         <h2>Results</h2>
+        <p><span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span></p>
         <table class="listing">
             <thead>
             <tr><th>Type</th><th>Title</th></tr>

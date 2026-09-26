@@ -10,7 +10,10 @@
         listed here, open to everyone with no login needed. Each entry links through to its full
         detail -- attributes, who was involved, and every record it covers.
     </p>
-    <p><a class="button button-secondary" th:href="@{/catalogue/upload}">Bulk upload (creates a new accession) &rarr;</a></p>
+    <p>
+        <a class="button button-secondary" th:href="@{/catalogue/upload}">Bulk upload (creates a new accession) &rarr;</a>
+        <span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span>
+    </p>
 
     <table class="listing">
         <thead>

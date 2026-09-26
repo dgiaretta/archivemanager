@@ -7,6 +7,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @Controller
 public class GraphPageController {
 
@@ -21,6 +24,7 @@ public class GraphPageController {
         model.addAttribute("pageTitle", "Full relationship graph");
         model.addAttribute("apiUrl", "/api/graph");
         model.addAttribute("focusId", null);
+        model.addAttribute("focusIds", null);
         model.addAttribute("depth", null);
         return "graph/view";
     }
@@ -33,6 +37,25 @@ public class GraphPageController {
         model.addAttribute("pageTitle", "Graph: " + archive.label(iri));
         model.addAttribute("apiUrl", "/api/graph/" + id + "?depth=" + depth);
         model.addAttribute("focusId", id);
+        model.addAttribute("focusIds", null);
+        model.addAttribute("depth", depth);
+        return "graph/view";
+    }
+
+    /**
+     * Focused view around several resources at once -- one {@code id} per item on
+     * whichever listing page's "view as graph" button sent us here, so the graph
+     * shown is exactly that page of results, not the whole archive.
+     */
+    @GetMapping("/graph/multi")
+    public String multi(@RequestParam("id") List<String> ids,
+                         @RequestParam(defaultValue = "1") int depth,
+                         Model model) {
+        String apiIds = ids.stream().map(id -> "id=" + id).collect(Collectors.joining("&"));
+        model.addAttribute("pageTitle", "Graph: " + ids.size() + " selected resource" + (ids.size() == 1 ? "" : "s"));
+        model.addAttribute("apiUrl", "/api/graph/multi?" + apiIds + "&depth=" + depth);
+        model.addAttribute("focusId", null);
+        model.addAttribute("focusIds", ids);
         model.addAttribute("depth", depth);
         return "graph/view";
     }

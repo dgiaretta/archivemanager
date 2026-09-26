@@ -6,6 +6,7 @@
 <main class="container">
     <h1>Mandates</h1>
     <p>rico:Mandate individuals &mdash; the bridge maps these to OAIS Access Rights Information.</p>
+    <p><span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span></p>
     <table class="listing">
         <thead><tr><th>Name</th></tr></thead>
         <tbody>

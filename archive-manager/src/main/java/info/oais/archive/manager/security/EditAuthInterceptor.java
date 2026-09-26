@@ -110,12 +110,12 @@ public class EditAuthInterceptor implements HandlerInterceptor {
             return true;
         }
         // Unlike every other rule above, this is a plain prefix match rather than a
-        // single path/regex: every /format-tools/... route (GET and POST alike) is
+        // single path/regex: every /repinfo-tools/... route (GET and POST alike) is
         // part of the same create-a-description-and-save-it-to-the-archive flow, with
         // no open, read-only sibling sharing a path the way e.g. GET /entities does --
         // so there's nothing here that needs the method-level disambiguation the other
         // rules exist for.
-        if (path.startsWith("/format-tools")) {
+        if (path.startsWith("/repinfo-tools")) {
             return true;
         }
         // The REST counterparts of the rules above (ArchiveApiController) -- same

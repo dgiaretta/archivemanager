@@ -317,6 +317,28 @@ wanted.
   `DataSet.update`), no extra requests -- the type/property data was already
   being sent to the browser as JSON for the graph itself, this just uses more
   of it (`GraphNode` gained a `types` field for exactly this).
+- **"View this page as a graph"** (`/graph/multi`, `GraphService.subgraph(Collection<String>, int)`)
+  -- every listing page (`/entities`, `/agents`, `/records`, `/activities`,
+  `/mandates`, `/accession-register`, `/catalogue` search/explore, and the
+  SPARQL console's own results) has a button that graphs exactly the items
+  currently on screen, one `id` per row, at depth 1 by default. A single BFS
+  seeded from every given IRI at once (not one `subgraph()` call per id
+  unioned afterward), so a node reachable from more than one focus still
+  counts once against the shared `MAX_NODES` budget; `subgraph(String, int)`
+  is now a one-element-collection convenience call over the same method. The
+  listing templates need no controller changes to get this -- a shared
+  `graph-button.html` fragment (`viewAsGraph(ids)`) takes the page's own
+  `resultPage.items.![id]` projection directly, a plain Thymeleaf GET form
+  (hidden `id` input per item, `depth=1`) rather than a hand-built link, since
+  the id list is exactly what a page of listing rows already is. The SPARQL
+  console is the one exception that *does* need a controller-side change,
+  since its results are arbitrary `Map<String,String>` rows with no `.id`
+  field at all: `QueryRunner.uriResourcesIn(Model, String)` re-runs the query
+  to collect every distinct `RDFNode` that `isURIResource()` across all
+  variables (the already-rendered display rows have lost that distinction --
+  see `QueryRunner.render()` -- so reusing them isn't an option), and
+  `SparqlController` encodes each into an id the same way every other page
+  does.
 - **Home page downloads** -- direct links to download `oais-ric-bridge.ttl`
   and `oais_im_schema-sh-v5.ttl` (`/download/bridge-ontology`,
   `/download/oais-ontology`). These stream the exact classpath resource
@@ -434,24 +456,33 @@ wanted.
     anything), and as a small inline note under any property/relationship
     the entity already has, if that property happens to have a documented
     correspondence.
-- **Format description tools** (`/format-tools`, admin-gated like every other
-  create/edit flow) -- a guided editor for building Kaitai Struct (`.ksy`),
-  DFDL (`.dfdl.xsd`), and/or DRB descriptions for a binary/self-describing
-  data format, with field-by-field semantics, saved into the archive as real
-  `im:RepresentationInformation`.
+- **RepInfo Tools** (`/repinfo-tools`, admin-gated like every other
+  create/edit flow; formerly "Format description tools" -- renamed since
+  building Representation Information, not just a format description, is the
+  point) -- a guided editor for building Kaitai Struct (`.ksy`), DFDL
+  (`.dfdl.xsd`), and/or DRB descriptions for a binary/self-describing data
+  format, with field-by-field semantic name/definition/units, saved into the
+  archive as real `im:RepresentationInformation`.
   - Two starting shapes: **byte-layout** (a sequential binary format, like
-    FITS -- fields in file order, each with a type/length/byte order/meaning)
-    or **logical-tree** (a self-describing container's group/dataset/attribute
-    schema, like HDF5 -- Kaitai/DFDL don't apply here, see below). Built-in
-    templates: FITS's primary header required keyword cards with their real
-    FITS Standard meanings (`FormatTemplates.fits()`), and a worked-example
-    HDF5 group/dataset/attribute tree (`FormatTemplates.hdf5()`) -- HDF5 has
-    no fixed universal schema to template byte-for-byte, so this is a
-    starting shape to replace, not a standard.
+    FITS -- fields in file order, each with a type/length/byte order/semantic
+    name/definition/units) or **logical-tree** (a self-describing container's
+    group/dataset/attribute schema, like HDF5 -- Kaitai/DFDL don't apply here,
+    see below). Built-in templates: FITS's primary header required keyword
+    cards with their real FITS Standard meanings (`FormatTemplates.fits()`),
+    and a worked-example HDF5 group/dataset/attribute tree
+    (`FormatTemplates.hdf5()`) -- HDF5 has no fixed universal schema to
+    template byte-for-byte, so this is a starting shape to replace, not a
+    standard.
   - The definition being built lives in the HTTP session
-    (`FormatToolController`, a session-scoped `FormatDefinition`), not the
+    (`RepInfoToolController`, a session-scoped `FormatDefinition`), not the
     archive, until you explicitly save it -- add/edit/delete/reorder fields
-    one small POST at a time, the same pattern as `/entities/{id}/edit`.
+    one small POST at a time, the same pattern as `/entities/{id}/edit`. Each
+    `FormatField`/`Hdf5Node` carries a structural `name` (what the generators
+    below emit as an identifier) separately from `semanticName` (what a human
+    calls the concept, e.g. "Temperature" for a field named `t`) -- the
+    latter, plus `definition` and `units`, is what becomes Semantic
+    Representation Information on save, not the generated Kaitai/DFDL/DRB
+    text.
   - **Generators** (`KaitaiGenerator`/`DfdlGenerator`/`DrbGenerator`, package
     `service.format`) hand-build their output text the same way every SPARQL
     query elsewhere in this app is built, rather than through a generic
@@ -464,18 +495,29 @@ wanted.
     different libraries with different APIs, and neither has a declarative
     per-format schema language the way Kaitai/DFDL do -- both generated files
     say so themselves, and are explicitly a starting scaffold rather than a
-    verified driver.
+    verified driver. Only `definition` feeds their `doc:`/`documentation`
+    comments; `semanticName`/`units` are RDF-only (see below).
   - **Saving** (`FormatDescriptionRdfService`) writes real OAIS structure via
-    `EditService`'s existing primitives only: one shared
-    `im:SemanticRepresentationInformation` (field meanings don't change
-    depending on which tool reads the bytes) plus one
+    `EditService`'s existing primitives only: one overall
+    `im:SemanticRepresentationInformation` per save, plus one
     `im:RepresentationInformation`/`im:StructureRepresentationInformation`
     pair per format you chose to keep (that class caps Structure/Semantic RI
     at one each, so two formats means two RepresentationInformation
-    individuals sharing the one Semantic RI) -- linked to an existing or
-    newly-created `im:DigitalObject` via `interpretedUsing`. Mirrors exactly
-    how `oais-structure-adapters-data.ttl`'s bundled demo data models the same
-    DFDL-vs-Kaitai situation by hand.
+    individuals sharing the one overall Semantic RI) -- linked to an existing
+    or newly-created `im:DigitalObject` via `interpretedUsing`. Underneath
+    that one overall Semantic RI, every field/row with a semantic
+    name/definition/units gets its **own** `im:SemanticRepresentationInformation`
+    individual (`rdfs:label` for the name, falling back to the structural
+    name/path; `skos:definition` for the definition; `rico:hasUnitOfMeasurement`
+    to a `rico:UnitOfMeasurement` individual shared across fields with the
+    same unit string), linked from the overall one via
+    `im:interpretedUsingRecurse` -- the Information Model's own property for
+    one Representation Information needing further Representation
+    Information to interpret it (figure 4-10), reused here rather than
+    inventing a new one. The overall Semantic RI's `rdfs:comment` still
+    carries a plain-text summary of every field, for a one-glance read
+    without following the per-field links. See
+    `FormatDescriptionRdfServiceTest` for the exact shape this produces.
 - **SPARQL console** (`/sparql`) -- run arbitrary SELECT queries against the
   union of the data graph and the ontology graph. Try, for instance:
 
@@ -988,7 +1030,7 @@ what "the data can be in Dhivehi and renders/searches correctly" required.
   needs internet access in the browser. If you're running somewhere offline,
   download `vis-network.min.js` and change the `<script src="...">` in
   `templates/graph/view.html` to point at a local copy under `static/js/`.
-- **Format description tools fields are fixed-length only.** `FormatField`
+- **RepInfo Tools fields are fixed-length only.** `FormatField`
   has no way to express "this field's length is given by an earlier field's
   decoded value" (e.g. a length-prefixed string), which real formats commonly
   need -- `oais-structure-adapters`' own `point2d.ksy` example does exactly

@@ -5,6 +5,7 @@
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
     <h1>Agents</h1>
+    <p><span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span></p>
     <table class="listing">
         <thead><tr><th>Type</th><th>Name</th></tr></thead>
         <tbody>

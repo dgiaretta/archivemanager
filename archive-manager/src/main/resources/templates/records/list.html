@@ -5,7 +5,10 @@
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
     <h1>Records, Record Parts &amp; Record Sets</h1>
-    <p><a class="button" th:href="@{/records/new}">+ New record</a></p>
+    <p>
+        <a class="button" th:href="@{/records/new}">+ New record</a>
+        <span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span>
+    </p>
     <table class="listing">
         <thead>
         <tr><th>Type</th><th>Title</th></tr>

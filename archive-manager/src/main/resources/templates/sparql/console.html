@@ -24,6 +24,7 @@
         <strong>Error:</strong> <span th:text="${error}">error</span>
     </div>
 
+    <p th:if="${rows != null}"><span th:replace="~{graph-button :: viewAsGraph(${resourceIds})}"></span></p>
     <table class="listing" th:if="${rows != null}">
         <thead>
         <tr><th th:each="c : ${columns}" th:text="${c}">col</th></tr>
@@ -35,6 +36,10 @@
         </tbody>
     </table>
     <p th:if="${rows != null and rows.isEmpty()}" class="muted">No results.</p>
+    <p th:if="${rows != null and !rows.isEmpty() and (resourceIds == null or resourceIds.isEmpty())}" class="muted">
+        No graphable resources in these results (no column bound to a URI resource) &mdash; the "view as
+        graph" button above only appears when at least one does.
+    </p>
 </main>
 <div th:replace="~{fragments :: footer}"></div>
 </body>

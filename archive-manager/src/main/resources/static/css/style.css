@@ -197,13 +197,13 @@ table.attrs td.rationale { color: var(--muted); font-size: 0.85rem; }
 .card .count { font-size: 2rem; font-weight: 700; color: var(--accent); }
 .card .label { color: var(--muted); font-size: 0.85rem; }
 
-.format-template-grid {
+.repinfo-template-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 1rem;
   margin: 1rem 0 2rem;
 }
-.format-template-card {
+.repinfo-template-card {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -213,8 +213,8 @@ table.attrs td.rationale { color: var(--muted); font-size: 0.85rem; }
   border-radius: 10px;
   padding: 1.25rem;
 }
-.format-template-card h3 { margin: 0; }
-.format-template-card p { margin: 0; }
+.repinfo-template-card h3 { margin: 0; }
+.repinfo-template-card p { margin: 0; }
 
 .report-panel {
   background: white;

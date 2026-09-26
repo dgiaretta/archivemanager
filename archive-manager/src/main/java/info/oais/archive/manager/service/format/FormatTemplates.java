@@ -67,7 +67,7 @@ public final class FormatTemplates {
     }
 
     private static FormatField card(String keyword, String meaning) {
-        return new FormatField(keyword, FieldType.ASCII_STRING, 80, null, meaning, null);
+        return new FormatField(keyword, FieldType.ASCII_STRING, 80, null, null, meaning, null);
     }
 
     /**
@@ -89,11 +89,11 @@ public final class FormatTemplates {
                 describe a dataset's own raw array layout as a separate byte-layout definition \
                 if you specifically need one.""");
         def.addNode(new Hdf5Node(Hdf5NodeKind.GROUP, "/observations", null, null,
-                "Top-level group holding one instrument's observations."));
+                "Observations", "Top-level group holding one instrument's observations.", null));
         def.addNode(new Hdf5Node(Hdf5NodeKind.DATASET, "/observations/temperature", "float64", java.util.List.of(100, 200),
-                "Measured temperature, one value per (time, sensor) cell."));
+                "Temperature", "Measured temperature, one value per (time, sensor) cell.", "K"));
         def.addNode(new Hdf5Node(Hdf5NodeKind.ATTRIBUTE, "/observations/temperature@units", "string", null,
-                "Physical units of the temperature dataset's values, e.g. 'K'."));
+                "Units attribute", "Physical units of the temperature dataset's values, e.g. 'K'.", null));
         return def;
     }
 }

@@ -96,11 +96,11 @@ public class DfdlGenerator {
                 lengthAttr = " dfdl:length=\"" + (field.lengthBytes() == null ? 1 : field.lengthBytes()) + "\"";
             }
         }
-        String doc = field.description() == null || field.description().isBlank() ? "" : """
+        String doc = field.definition() == null || field.definition().isBlank() ? "" : """
                           <xs:annotation>
                             <xs:documentation>%s</xs:documentation>
                           </xs:annotation>
-                """.formatted(xmlEscape(field.description()));
+                """.formatted(xmlEscape(field.definition()));
         return """
                         <xs:element name="%s" type="%s"%s%s>
                 %s        </xs:element>

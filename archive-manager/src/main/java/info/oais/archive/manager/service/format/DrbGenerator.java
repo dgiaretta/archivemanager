@@ -52,7 +52,7 @@ public class DrbGenerator {
                     def %s(self):
                         \"\"\"%s\"\"\"
                         return self._read_field("%s")
-                    """.formatted(pyName, pyDocstring(field.description()), pyName));
+                    """.formatted(pyName, pyDocstring(field.definition()), pyName));
         }
 
         return """
@@ -124,8 +124,8 @@ public class DrbGenerator {
         if (node.shape() != null && !node.shape().isEmpty()) {
             row.append(", \"shape\": %s".formatted(node.shape()));
         }
-        if (node.description() != null && !node.description().isBlank()) {
-            row.append(", \"description\": \"%s\"".formatted(pyEscape(node.description())));
+        if (node.definition() != null && !node.definition().isBlank()) {
+            row.append(", \"description\": \"%s\"".formatted(pyEscape(node.definition())));
         }
         row.append("},\n");
         return row.toString();
@@ -147,9 +147,9 @@ public class DrbGenerator {
         StringBuilder fieldConstants = new StringBuilder();
         for (FormatField field : def.getFields()) {
             String javaName = toScreamingSnakeCase(field.name());
-            fieldDocs.append(" *   - %s: %s\n".formatted(field.name(), javaDocLine(field.description())));
+            fieldDocs.append(" *   - %s: %s\n".formatted(field.name(), javaDocLine(field.definition())));
             fieldConstants.append("    /** %s */\n    public static final String %s = \"%s\";\n"
-                    .formatted(javaDocLine(field.description()), javaName, javaStringEscape(field.name())));
+                    .formatted(javaDocLine(field.definition()), javaName, javaStringEscape(field.name())));
         }
 
         return """
@@ -197,7 +197,7 @@ public class DrbGenerator {
             schemaDocs.append(" *   - %s (%s)%s: %s\n".formatted(
                     node.path(), node.kind().name().toLowerCase(),
                     node.dtype() != null ? " [" + node.dtype() + "]" : "",
-                    javaDocLine(node.description())));
+                    javaDocLine(node.definition())));
         }
 
         return """
