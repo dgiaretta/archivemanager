@@ -4,3 +4,8 @@
 *.csv  -text
 *.bin  binary
 *.fits binary
+
+# The in-project Maven repository is served byte-for-byte: its .sha1 files are
+# checksums of the exact bytes, so no line-ending conversion of the .pom (or
+# anything else) on checkout.
+third-party/maven-repo/** binary
