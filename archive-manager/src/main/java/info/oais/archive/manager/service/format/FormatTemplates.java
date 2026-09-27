@@ -30,6 +30,7 @@ public final class FormatTemplates {
         def.setName("FITS primary header + data unit");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setDefaultByteOrder(ByteOrder.BIG_ENDIAN);
+        def.setFileExtensions("fits, fit, fts");
         def.setNotes("""
                 Every FITS header keyword record ("card") is exactly 80 ASCII bytes, \
                 padded with spaces; the header ends at an END card and the whole header \
@@ -80,6 +81,7 @@ public final class FormatTemplates {
         FormatDefinition def = new FormatDefinition();
         def.setName("HDF5 logical schema (example)");
         def.setKind(FormatDefinitionKind.LOGICAL_TREE);
+        def.setFileExtensions("h5, hdf5");
         def.setNotes("""
                 HDF5 is a self-describing container format -- there is no fixed universal \
                 schema to template against the way there is for FITS's primary header. \

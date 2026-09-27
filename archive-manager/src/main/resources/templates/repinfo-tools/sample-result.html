@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Shared by the DFDL and drb-python "Test against a sample file" sections of preview.html. -->
+<div th:fragment="sampleResult(result)">
+    <p>
+        <strong th:text="${sampleFileName}">sample.bin</strong>
+        (<span th:text="${sampleFileSize}">0</span> bytes):
+        <span th:if="${result.ok()}">decoded successfully.</span>
+        <span th:unless="${result.ok()}">could not be decoded.</span>
+    </p>
+    <pre class="sparql" th:unless="${result.ok()}" th:text="${result.error()}">diagnostics</pre>
+    <table th:if="${result.ok()}" class="listing">
+        <thead>
+        <tr><th>Element</th><th>Kind</th><th>Value</th><th th:if="${result.hasPositions()}">Position</th></tr>
+        </thead>
+        <tbody>
+        <tr th:each="row : ${result.rows()}">
+            <td th:style="'padding-left:' + (${row.depth()} * 1.25 + 0.5) + 'em'"><code th:text="${row.name()}">x</code></td>
+            <td th:text="${row.kind()}">LEAF</td>
+            <td th:text="${row.value()}">42</td>
+            <td class="muted" th:if="${result.hasPositions()}" th:text="${row.byteRange()}">bytes 0&ndash;3</td>
+        </tr>
+        </tbody>
+    </table>
+    <p class="muted" th:if="${result.truncated()}">
+        Showing the first <span th:text="${result.rows().size()}">2000</span> elements only.
+    </p>
+</div>
+</body>
+</html>

@@ -30,31 +30,7 @@
             <button type="submit">Decode sample</button>
         </form>
 
-        <div th:if="${dfdlTest != null}">
-            <p>
-                <strong th:text="${dfdlTestFileName}">sample.bin</strong>
-                (<span th:text="${dfdlTestFileSize}">0</span> bytes):
-                <span th:if="${dfdlTest.ok()}">decoded successfully.</span>
-                <span th:unless="${dfdlTest.ok()}">could not be decoded.</span>
-            </p>
-            <pre class="sparql" th:unless="${dfdlTest.ok()}" th:text="${dfdlTest.error()}">diagnostics</pre>
-            <table th:if="${dfdlTest.ok()}" class="listing">
-                <thead>
-                <tr><th>Element</th><th>Kind</th><th>Value</th><th th:if="${dfdlTest.hasPositions()}">Position</th></tr>
-                </thead>
-                <tbody>
-                <tr th:each="row : ${dfdlTest.rows()}">
-                    <td th:style="'padding-left:' + (${row.depth()} * 1.25 + 0.5) + 'em'"><code th:text="${row.name()}">x</code></td>
-                    <td th:text="${row.kind()}">LEAF</td>
-                    <td th:text="${row.value()}">42</td>
-                    <td class="muted" th:if="${dfdlTest.hasPositions()}" th:text="${row.byteRange()}">bytes 0&ndash;3</td>
-                </tr>
-                </tbody>
-            </table>
-            <p class="muted" th:if="${dfdlTest.truncated()}">
-                Showing the first <span th:text="${dfdlTest.rows().size()}">2000</span> elements only.
-            </p>
-        </div>
+        <th:block th:if="${dfdlTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${dfdlTest})}"></div></th:block>
     </section>
 
     <section class="editor-section" th:if="${kaitai == null and dfdl == null}">
@@ -67,14 +43,47 @@
 
     <section class="editor-section" th:if="${drbPython != null}">
         <h2>DRB &mdash; Python (drb-python)</h2>
-        <p class="muted">
-            A starting scaffold, not a verified driver &mdash; see the module docstring in the
-            generated file for what to check against your installed drb-python version. This
-            targets <a href="https://gitlab.com/drb-python" target="_blank" rel="noopener noreferrer">drb-python</a>,
-            not the Java DRB library below &mdash; they're different implementations.
-        </p>
-        <a class="button-link" th:href="@{/repinfo-tools/download/drb-python}">Download .py &rarr;</a>
+        <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
+            <p class="muted">
+                A complete <a href="https://gitlab.com/drb-python" target="_blank" rel="noopener noreferrer">drb-python</a>
+                driver for this layout: the download is an installable package
+                &mdash; install it with <code th:text="'pip install ' + ${drbPythonPackage} + '.zip'">pip install drb-driver-am-format.zip</code>
+                &mdash; whose topic signature lets drb pick it automatically for
+                <span th:if="${def.fileExtensions.isEmpty()}">files you open with it explicitly (no file
+                    extensions are set in the details above)</span><span th:unless="${def.fileExtensions.isEmpty()}">files
+                    ending in <code th:text="${#strings.listJoin(def.fileExtensions, ', ')}">fits</code></span>.
+                Each field becomes a child node carrying its byte offset/length and its semantic
+                name, definition and units. The driver module is shown below.
+            </p>
+            <a class="button-link" th:href="@{/repinfo-tools/download/drb-python}">Download driver package (.zip) &rarr;</a>
+        </th:block>
+        <th:block th:unless="${def.kind.name() == 'BYTE_LAYOUT'}">
+            <p class="muted">
+                A documented schema for reference, not a driver &mdash; no HDF5 driver for
+                <a href="https://gitlab.com/drb-python" target="_blank" rel="noopener noreferrer">drb-python</a>
+                is published on PyPI.
+            </p>
+            <a class="button-link" th:href="@{/repinfo-tools/download/drb-python}">Download .py &rarr;</a>
+        </th:block>
         <pre class="sparql" th:text="${drbPython}">...</pre>
+
+        <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
+            <h3 id="drb-python-test">Test against a sample file</h3>
+            <p class="muted" th:if="${drbPythonVersion != null}">
+                Runs the driver above with drb-python <span th:text="${drbPythonVersion}">2.11</span>
+                on this server and shows the decoded node tree. The file is only used for this one
+                request; nothing is stored.
+            </p>
+            <p class="muted" th:if="${drbPythonVersion == null}" th:text="${drbPythonUnavailable}">
+                drb-python is not installed on this server.
+            </p>
+            <form th:if="${drbPythonVersion != null}" th:action="@{/repinfo-tools/test-drb-python} + '#drb-python-test'"
+                  method="post" enctype="multipart/form-data" class="form">
+                <input type="file" name="sample" required/>
+                <button type="submit">Decode sample</button>
+            </form>
+            <th:block th:if="${drbPythonTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${drbPythonTest})}"></div></th:block>
+        </th:block>
     </section>
 
     <section class="editor-section" th:if="${drbJava != null}">

@@ -13,9 +13,11 @@ import info.oais.archive.manager.service.ArchiveService;
 import info.oais.archive.manager.service.format.DfdlGenerator;
 import info.oais.archive.manager.service.format.DfdlSampleRunner;
 import info.oais.archive.manager.service.format.DrbGenerator;
+import info.oais.archive.manager.service.format.DrbPythonSampleRunner;
 import info.oais.archive.manager.service.format.FormatDescriptionRdfService;
 import info.oais.archive.manager.service.format.FormatTemplates;
 import info.oais.archive.manager.service.format.KaitaiGenerator;
+import info.oais.archive.manager.service.format.SampleDecodeResult;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -29,12 +31,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 /**
  * Guided editor for building a Kaitai/DFDL/DRB format description AND, for
@@ -57,16 +63,18 @@ public class RepInfoToolController {
     private final DrbGenerator drbGenerator;
     private final FormatDescriptionRdfService rdfService;
     private final DfdlSampleRunner dfdlSampleRunner;
+    private final DrbPythonSampleRunner drbPythonSampleRunner;
 
     public RepInfoToolController(ArchiveService archive, KaitaiGenerator kaitaiGenerator, DfdlGenerator dfdlGenerator,
                                   DrbGenerator drbGenerator, FormatDescriptionRdfService rdfService,
-                                  DfdlSampleRunner dfdlSampleRunner) {
+                                  DfdlSampleRunner dfdlSampleRunner, DrbPythonSampleRunner drbPythonSampleRunner) {
         this.archive = archive;
         this.kaitaiGenerator = kaitaiGenerator;
         this.dfdlGenerator = dfdlGenerator;
         this.drbGenerator = drbGenerator;
         this.rdfService = rdfService;
         this.dfdlSampleRunner = dfdlSampleRunner;
+        this.drbPythonSampleRunner = drbPythonSampleRunner;
     }
 
     @GetMapping
@@ -118,11 +126,13 @@ public class RepInfoToolController {
 
     @PostMapping("/details")
     public String updateDetails(@RequestParam String name, @RequestParam(required = false) String notes,
+                                 @RequestParam(required = false) String fileExtensions,
                                  @RequestParam ByteOrder defaultByteOrder, HttpSession session) {
         FormatDefinition def = draft(session);
         if (def != null) {
             def.setName(name);
             def.setNotes(notes);
+            def.setFileExtensions(fileExtensions);
             def.setDefaultByteOrder(defaultByteOrder);
         }
         return "redirect:/repinfo-tools/edit";
@@ -222,13 +232,43 @@ public class RepInfoToolController {
         if (dfdl == null) {
             return "redirect:/repinfo-tools/preview";
         }
-        DfdlSampleRunner.Result result = sample.isEmpty()
-                ? new DfdlSampleRunner.Result(List.of(), false, "Choose a non-empty sample file to test against.")
+        SampleDecodeResult result = sample.isEmpty()
+                ? SampleDecodeResult.failure(EMPTY_SAMPLE)
                 : dfdlSampleRunner.run(dfdl, sample.getBytes());
-        model.addAttribute("dfdlTest", result);
-        model.addAttribute("dfdlTestFileName", sample.getOriginalFilename());
-        model.addAttribute("dfdlTestFileSize", sample.getSize());
+        addSampleResult(model, "dfdlTest", result, sample);
         return "repinfo-tools/preview";
+    }
+
+    /**
+     * Same as {@link #testDfdl}, but runs the draft's generated drb-python
+     * driver in a Python process (see {@link DrbPythonSampleRunner}); needs
+     * drb-python installed on the machine running this app.
+     */
+    @PostMapping("/test-drb-python")
+    public String testDrbPython(@RequestParam("sample") MultipartFile sample, HttpSession session, Model model)
+            throws IOException {
+        FormatDefinition def = draft(session);
+        if (def == null) {
+            return "redirect:/repinfo-tools";
+        }
+        if (def.getKind() != FormatDefinitionKind.BYTE_LAYOUT) {
+            return "redirect:/repinfo-tools/preview";
+        }
+        populatePreview(def, model);
+        SampleDecodeResult result = sample.isEmpty()
+                ? SampleDecodeResult.failure(EMPTY_SAMPLE)
+                : drbPythonSampleRunner.run(drbGenerator.generate(def, DrbTarget.PYTHON),
+                        drbGenerator.pythonFactoryClassName(def), sample.getBytes(), sample.getOriginalFilename());
+        addSampleResult(model, "drbPythonTest", result, sample);
+        return "repinfo-tools/preview";
+    }
+
+    private static final String EMPTY_SAMPLE = "Choose a non-empty sample file to test against.";
+
+    private void addSampleResult(Model model, String attribute, SampleDecodeResult result, MultipartFile sample) {
+        model.addAttribute(attribute, result);
+        model.addAttribute("sampleFileName", sample.getOriginalFilename());
+        model.addAttribute("sampleFileSize", sample.getSize());
     }
 
     private void populatePreview(FormatDefinition def, Model model) {
@@ -236,6 +276,9 @@ public class RepInfoToolController {
         model.addAttribute("kaitai", kaitaiGenerator.generate(def));
         model.addAttribute("dfdl", dfdlGenerator.generate(def));
         model.addAttribute("drbPython", drbGenerator.generate(def, DrbTarget.PYTHON));
+        model.addAttribute("drbPythonPackage", drbGenerator.pythonDistributionName(def));
+        model.addAttribute("drbPythonVersion", drbPythonSampleRunner.drbVersion().orElse(null));
+        model.addAttribute("drbPythonUnavailable", drbPythonSampleRunner.notAvailableMessage());
         model.addAttribute("drbJava", drbGenerator.generate(def, DrbTarget.JAVA));
         model.addAttribute("allEntities", archive.listAllEntities());
     }
@@ -261,6 +304,15 @@ public class RepInfoToolController {
                 mediaType = MediaType.APPLICATION_XML;
             }
             case "drb-python" -> {
+                Map<String, String> pkg = drbGenerator.pythonDriverPackage(def);
+                if (pkg != null) {
+                    // A byte layout gets a whole installable driver package, not just the module.
+                    String root = drbGenerator.pythonDistributionName(def);
+                    return ResponseEntity.ok()
+                            .contentType(MediaType.parseMediaType("application/zip"))
+                            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + root + ".zip\"")
+                            .body(new ByteArrayResource(zip(root, pkg)));
+                }
                 text = drbGenerator.generate(def, DrbTarget.PYTHON);
                 filename = safeFileName(def.getName()) + ".py";
                 mediaType = MediaType.TEXT_PLAIN;
@@ -331,6 +383,21 @@ public class RepInfoToolController {
             }
         }
         return dims.isEmpty() ? null : dims;
+    }
+
+    /** Zips {@code files} (relative path -> text) under one top-level {@code root} folder. */
+    private static byte[] zip(String root, Map<String, String> files) {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        try (ZipOutputStream zip = new ZipOutputStream(bytes)) {
+            for (Map.Entry<String, String> file : files.entrySet()) {
+                zip.putNextEntry(new ZipEntry(root + "/" + file.getKey()));
+                zip.write(file.getValue().getBytes(StandardCharsets.UTF_8));
+                zip.closeEntry();
+            }
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return bytes.toByteArray();
     }
 
     private String safeFileName(String name) {

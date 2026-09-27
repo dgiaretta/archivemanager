@@ -8,6 +8,7 @@ import info.oais.archive.manager.model.format.FormatField;
 import info.oais.archive.manager.service.format.DfdlGenerator;
 import info.oais.archive.manager.service.format.DfdlSampleRunner;
 import info.oais.archive.manager.service.format.FormatTemplates;
+import info.oais.archive.manager.service.format.SampleDecodeResult;
 import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
@@ -40,7 +41,7 @@ class DfdlSampleRunnerTest {
         byte[] bytes = ByteBuffer.allocate(12).order(java.nio.ByteOrder.LITTLE_ENDIAN)
                 .putInt(42).putInt(-7).put("abcd".getBytes(StandardCharsets.US_ASCII)).array();
 
-        DfdlSampleRunner.Result result = runner.run(generator.generate(def), bytes);
+        SampleDecodeResult result = runner.run(generator.generate(def), bytes);
 
         assertThat(result.error()).isNull();
         assertThat(leafValues(result)).containsExactly("x=42", "y=-7", "label=abcd");
@@ -56,7 +57,7 @@ class DfdlSampleRunnerTest {
             header.writeBytes(String.format("%-80s", card).getBytes(StandardCharsets.US_ASCII));
         }
 
-        DfdlSampleRunner.Result result = runner.run(generator.generate(FormatTemplates.fits()), header.toByteArray());
+        SampleDecodeResult result = runner.run(generator.generate(FormatTemplates.fits()), header.toByteArray());
 
         assertThat(result.error()).isNull();
         assertThat(leafValues(result)).hasSize(10);
@@ -65,14 +66,14 @@ class DfdlSampleRunnerTest {
 
     @Test
     void reportsDaffodilDiagnosticsWhenTheSampleIsTooShort() {
-        DfdlSampleRunner.Result result = runner.run(generator.generate(FormatTemplates.fits()), new byte[10]);
+        SampleDecodeResult result = runner.run(generator.generate(FormatTemplates.fits()), new byte[10]);
 
         assertThat(result.ok()).isFalse();
         assertThat(result.rows()).isEmpty();
         assertThat(result.error()).isNotBlank();
     }
 
-    private static List<String> leafValues(DfdlSampleRunner.Result result) {
+    private static List<String> leafValues(SampleDecodeResult result) {
         return result.rows().stream()
                 .filter(r -> r.kind().equals("LEAF"))
                 .map(r -> r.name() + "=" + r.value().strip())

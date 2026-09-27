@@ -22,6 +22,7 @@ public class FormatDefinition implements Serializable {
     private String notes = "";
     private FormatDefinitionKind kind = FormatDefinitionKind.BYTE_LAYOUT;
     private ByteOrder defaultByteOrder = ByteOrder.BIG_ENDIAN;
+    private List<String> fileExtensions = new ArrayList<>();
     private final List<FormatField> fields = new ArrayList<>();
     private final List<Hdf5Node> nodes = new ArrayList<>();
 
@@ -55,6 +56,30 @@ public class FormatDefinition implements Serializable {
 
     public void setDefaultByteOrder(ByteOrder defaultByteOrder) {
         this.defaultByteOrder = defaultByteOrder;
+    }
+
+    /**
+     * File name extensions this format's files usually carry, lower-case and
+     * without the leading dot (e.g. {@code fits}, {@code fit}). Optional; used
+     * where a target needs to recognise the format's files by name, such as the
+     * generated drb-python driver's topic signature.
+     */
+    public List<String> getFileExtensions() {
+        return fileExtensions;
+    }
+
+    /** @param extensions comma- or space-separated, with or without leading dots, e.g. {@code ".fits, fit"} */
+    public void setFileExtensions(String extensions) {
+        List<String> parsed = new ArrayList<>();
+        if (extensions != null) {
+            for (String part : extensions.split("[,\\s]+")) {
+                String ext = part.strip().replaceFirst("^\\.+", "").toLowerCase();
+                if (ext.matches("[a-z0-9_+-]+") && !parsed.contains(ext)) {
+                    parsed.add(ext);
+                }
+            }
+        }
+        this.fileExtensions = parsed;
     }
 
     /** Byte-layout fields, in file order. Meaningful only when {@code kind == BYTE_LAYOUT}. */

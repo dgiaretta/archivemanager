@@ -18,6 +18,11 @@
                 Notes (padding rules, variable-length conventions, anything a reader needs before the field list)
                 <textarea name="notes" rows="4" th:text="${def.notes}"></textarea>
             </label>
+            <label>
+                File extensions (optional, comma-separated, e.g. <code>fits, fit</code> &mdash; lets the
+                generated drb-python driver recognise these files automatically)
+                <input type="text" name="fileExtensions" th:value="${#strings.listJoin(def.fileExtensions, ', ')}"/>
+            </label>
             <label th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
                 Default byte order
                 <select name="defaultByteOrder">

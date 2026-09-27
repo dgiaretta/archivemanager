@@ -10,6 +10,8 @@ import info.oais.archive.manager.service.format.DrbGenerator;
 import info.oais.archive.manager.service.format.FormatTemplates;
 import org.junit.jupiter.api.Test;
 
+import java.util.Map;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class DrbGeneratorTest {
@@ -26,8 +28,30 @@ class DrbGeneratorTest {
 
         String py = generator.generate(def, DrbTarget.PYTHON);
 
-        assertThat(py).contains("class PointRecordNode").contains("FIELDS = [").contains("def x(self)")
-                .contains("drb-python").contains("STARTING SCAFFOLD");
+        assertThat(py).contains("class PointRecordNode(WrappedNode)").contains("class PointRecordFactory(DrbFactory)")
+                .contains("(\"x\", \"int32\", 4, \"big\", None, \"x ordinate\", None),");
+    }
+
+    @Test
+    void packagesAByteLayoutAsAnInstallableDriverMatchingItsFileExtensions() {
+        Map<String, String> pkg = generator.pythonDriverPackage(FormatTemplates.fits());
+
+        assertThat(pkg).containsOnlyKeys("pyproject.toml", "README.md",
+                "drb/drivers/am_fits_primary_header/__init__.py",
+                "drb/topics/am_fits_primary_header/__init__.py",
+                "drb/topics/am_fits_primary_header/cortex.ttl");
+        assertThat(pkg.get("pyproject.toml"))
+                .contains("name = \"drb-driver-am-fits-primary-header\"")
+                .contains("am_fits_primary_header = \"drb.drivers.am_fits_primary_header:FitsPrimaryHeaderDataUnitFactory\"");
+        assertThat(pkg.get("drb/topics/am_fits_primary_header/cortex.ttl"))
+                .contains("drb:nameMatch \"(?i).+[.](fits|fit|fts)$\"");
+        assertThat(generator.pythonDriverPackage(FormatTemplates.hdf5())).isNull();
+    }
+
+    @Test
+    void escapesUserTextAsPlainAsciiLiterals() {
+        assertThat(DrbGenerator.quotedLiteral("a\"b\\c\ndé😀"))
+                .isEqualTo("\"a\\\"b\\\\c\\nd\\u00e9\\U0001f600\"");
     }
 
     @Test
@@ -35,7 +59,7 @@ class DrbGeneratorTest {
         String py = generator.generate(FormatTemplates.hdf5(), DrbTarget.PYTHON);
 
         assertThat(py).contains("SCHEMA = [").contains("\"kind\": \"group\"").contains("\"kind\": \"dataset\"")
-                .contains("drb-driver-hdf5");
+                .contains("no HDF5 driver for drb-python is published");
     }
 
     @Test

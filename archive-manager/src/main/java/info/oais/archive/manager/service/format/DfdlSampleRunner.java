@@ -30,33 +30,12 @@ import java.util.List;
 @Component
 public class DfdlSampleRunner {
 
-    /** Upper bound on rendered rows, so a large sample can't produce an unbounded page. */
-    static final int MAX_ROWS = 2000;
-
-    /** One node of the parsed tree, flattened in document order for display. */
-    public record TreeRow(int depth, String name, String kind, String value, String byteRange) { }
-
     /**
-     * @param rows      the flattened tree, empty on failure
-     * @param truncated whether rows stopped at {@link #MAX_ROWS}
-     * @param error     Daffodil's compile/parse diagnostics, or {@code null} on success
+     * Byte positions in the result are best-effort in {@code oais-structure-dfdl}
+     * (see its {@code PositionTrackingInfosetOutputter}): they depend on internal
+     * Daffodil accessors that not every Daffodil version exposes.
      */
-    public record Result(List<TreeRow> rows, boolean truncated, String error) {
-        public boolean ok() {
-            return error == null;
-        }
-
-        /**
-         * Byte positions are best-effort in {@code oais-structure-dfdl} (see its
-         * {@code PositionTrackingInfosetOutputter}): they depend on internal
-         * Daffodil accessors that not every Daffodil version exposes.
-         */
-        public boolean hasPositions() {
-            return rows.stream().anyMatch(r -> !r.byteRange().isEmpty());
-        }
-    }
-
-    public Result run(String dfdlSchema, byte[] sample) {
+    public SampleDecodeResult run(String dfdlSchema, byte[] sample) {
         Path schemaFile = null;
         try {
             // Daffodil compiles from a URI, not a string.
@@ -64,14 +43,14 @@ public class DfdlSampleRunner {
             Files.writeString(schemaFile, dfdlSchema, StandardCharsets.UTF_8);
             DfdlStructureRepInfo repInfo = new DfdlStructureRepInfo(new DfdlFormatSpecification(schemaFile.toUri()));
             StructureNode root = repInfo.apply(new DigitalObjectRefImpl(new ByteArrayInputStream(sample)));
-            List<TreeRow> rows = new ArrayList<>();
+            List<SampleDecodeResult.TreeRow> rows = new ArrayList<>();
             boolean complete = flatten(root, 0, rows);
-            return new Result(rows, !complete, null);
+            return new SampleDecodeResult(rows, !complete, null);
         } catch (IOException e) {
-            return new Result(List.of(), false, "Could not write the schema to a temporary file: " + e.getMessage());
+            return SampleDecodeResult.failure("Could not write the schema to a temporary file: " + e.getMessage());
         } catch (RuntimeException e) {
             // StructureInterpretationException carries Daffodil's own diagnostics in its message.
-            return new Result(List.of(), false, e.getMessage() != null ? e.getMessage() : e.toString());
+            return SampleDecodeResult.failure(e.getMessage() != null ? e.getMessage() : e.toString());
         } finally {
             if (schemaFile != null) {
                 try {
@@ -83,9 +62,9 @@ public class DfdlSampleRunner {
         }
     }
 
-    /** @return {@code false} if {@link #MAX_ROWS} was reached before the whole tree was visited. */
-    private static boolean flatten(StructureNode node, int depth, List<TreeRow> rows) {
-        if (rows.size() >= MAX_ROWS) {
+    /** @return {@code false} if {@link SampleDecodeResult#MAX_ROWS} was reached before the whole tree was visited. */
+    private static boolean flatten(StructureNode node, int depth, List<SampleDecodeResult.TreeRow> rows) {
+        if (rows.size() >= SampleDecodeResult.MAX_ROWS) {
             return false;
         }
         String value = node.getKind() == StructureNodeKind.LEAF
@@ -96,7 +75,7 @@ public class DfdlSampleRunner {
                 .map(r -> "bytes " + r.startByteOffset() + "–" + (r.startByteOffset() + r.byteLength() - 1))
                 .or(() -> node.getSourceRange().map(r -> "bits " + r.startBitOffset() + "+" + r.bitLength()))
                 .orElse("");
-        rows.add(new TreeRow(depth, node.getName(), node.getKind().name(), value, range));
+        rows.add(new SampleDecodeResult.TreeRow(depth, node.getName(), node.getKind().name(), value, range));
         for (StructureNode child : node.getChildren()) {
             if (!flatten(child, depth + 1, rows)) {
                 return false;

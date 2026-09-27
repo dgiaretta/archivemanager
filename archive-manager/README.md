@@ -497,12 +497,29 @@ wanted.
     language to describe. DRB has two *unrelated* generated targets, since
     drb-python (https://gitlab.com/drb-python) and the original Java DRB
     (`fr.gael.drb`, reflection-based, matching the sibling
-    `oais-structure-adapters` project's own `oais-structure-drb` module) are
-    different libraries with different APIs, and neither has a declarative
-    per-format schema language the way Kaitai/DFDL do -- both generated files
-    say so themselves, and are explicitly a starting scaffold rather than a
-    verified driver. Only `definition` feeds their `doc:`/`documentation`
-    comments; `semanticName`/`units` are RDF-only (see below). The generated
+    `oais-structure-drb` module) are different libraries with different APIs.
+    - **drb-python** has no schema language: a format is supported by a
+      driver package (a `DrbFactory` plus `DrbNode`s, registered through the
+      `drb.driver`/`drb.topic` entry points). For a byte-layout definition,
+      `DrbGenerator.pythonDriverPackage` therefore generates a real,
+      pip-installable driver (downloaded as a `.zip`; `pip install <name>.zip`)
+      in the same layout as drb-python's own published drivers: the driver
+      module decodes each field and exposes it as a child node whose
+      attributes carry its byte `offset`/`length`, `type`, and the
+      `semantic_name`/`definition`/`units` from the archive; its topic
+      (`cortex.ttl`) matches the definition's **file extensions** (a new,
+      optional field in the editor's details -- the FITS template sets
+      `fits, fit, fts`), so drb's own resolver picks the driver
+      automatically for those files. User-entered text reaches the Python,
+      TOML and Turtle files only as escaped ASCII string literals
+      (`DrbGenerator.quotedLiteral`), never as code. A logical-tree
+      (HDF5-style) definition still gets a documented schema only -- no HDF5
+      driver for drb-python is published on PyPI.
+    - **Java DRB** output is a field-reference class. Only `definition`
+      feeds its documentation comments; `semanticName`/`units` are RDF-only
+      (see below).
+
+    The generated
     DFDL includes Daffodil's built-in `GeneralFormat` (the same idiom as
     `oais-structure-dfdl`'s own test schemas): Daffodil refuses to compile a
     schema that leaves properties like `leadingSkip`/`initiatedContent`
@@ -513,12 +530,25 @@ wanted.
     sibling `oais-structure-dfdl` module's `DfdlStructureRepInfo` (an
     executable Structure Representation Information), showing the decoded
     element tree or Daffodil's diagnostics. The sample is only held for that
-    one request. DFDL only: Daffodil compiles a `.dfdl.xsd` at runtime,
-    whereas `oais-structure-kaitai` needs a class generated ahead of time by
-    the Kaitai Struct compiler, and `oais-structure-drb` needs the
-    non-Maven-Central DRB library. `DfdlSampleRunnerTest` round-trips the
-    generator's output through Daffodil, including the built-in FITS
-    template against a real FITS header.
+    one request. `DfdlSampleRunnerTest` round-trips the generator's output
+    through Daffodil, including the built-in FITS template against a real
+    FITS header.
+
+    The drb-python section has the same test (`POST /repinfo-tools/test-drb-python`,
+    `DrbPythonSampleRunner`), for byte-layout definitions: the generated
+    driver module is run by drb-python itself, in a separate Python process
+    with a 60-second limit, loaded straight from a temporary file (nothing is
+    pip-installed) and applied through drb's own file node. **This needs
+    Python 3 with drb-python on the machine running the app**
+    (`pip install drb`): the app uses `archive.drb-python.executable`
+    (env `ARCHIVE_DRB_PYTHON_EXECUTABLE`) if set, otherwise the first of
+    `python3`/`python` that can import drb; without one, the page says so
+    instead of offering the upload. `DrbPythonSampleRunnerTest` runs the
+    generated drivers through real drb-python when one is available -- set
+    `DRB_PYTHON` to its interpreter -- and is skipped otherwise.
+
+    Kaitai has no such test: `oais-structure-kaitai` needs a Java class
+    generated ahead of time by the Kaitai Struct compiler.
   - **Saving** (`FormatDescriptionRdfService`) writes real OAIS structure via
     `EditService`'s existing primitives only: one overall
     `im:SemanticRepresentationInformation` per save, plus one
