@@ -16,10 +16,11 @@ import java.util.UUID;
 /**
  * Generates a DRB description for either of the two real, unrelated DRB
  * implementations (see {@link DrbTarget}'s doc comment): {@code drb-python}
- * (https://gitlab.com/drb-python), or the original Java DRB
- * ({@code fr.gael.drb}), as a {@code .java} field-reference class in the same
- * reflection-based shape as {@code oais-structure-drb}
- * ({@code DrbStructureNode}/{@code DrbFormatSpecification}).
+ * (https://gitlab.com/drb-python), or GAEL's Java DRB ({@code fr.gael.drb},
+ * LGPL v3), which does have a declarative schema language: for a byte layout
+ * the Java target is a DRB SDF schema ({@link #generate} with
+ * {@link DrbTarget#JAVA}), applied by DRB itself through
+ * {@code oais-structure-drb} -- see {@code DrbSampleRunner}.
  *
  * <p>drb-python has no declarative schema language: a format is supported by
  * a driver package (a {@code DrbFactory} plus {@code DrbNode}s, registered
@@ -36,7 +37,7 @@ public class DrbGenerator {
         boolean byteLayout = def.getKind() == FormatDefinitionKind.BYTE_LAYOUT;
         return switch (target) {
             case PYTHON -> byteLayout ? generatePythonByteLayout(def) : generatePythonLogicalTree(def);
-            case JAVA -> byteLayout ? generateJavaByteLayout(def) : generateJavaLogicalTree(def);
+            case JAVA -> byteLayout ? generateSdfSchema(def) : generateJavaLogicalTree(def);
         };
     }
 
@@ -337,62 +338,105 @@ public class DrbGenerator {
     }
 
     /**
-     * Java DRB ({@code fr.gael.drb}) target: a field-semantics reference plus
-     * a {@code DrbFormatSpecification} usage snippet, in the same package and
-     * reflection-based spirit as {@code oais-structure-drb}'s own
-     * {@code DrbStructureNode}/{@code DrbFormatSpecification} classes -- not
-     * a reimplementation of them. Most callers only need DRB's default,
-     * auto-detecting resolver; this exists for the field documentation and
-     * for the (rarer) case a format needs an explicit factory resolver or
-     * protocol hint.
+     * Java DRB target, byte layout: a DRB SDF (Structured Data File) schema --
+     * an XML Schema whose elements carry {@code sdf:block} annotations giving
+     * each field's length, byte order and encoding, the same form as GAEL's own
+     * examples (e.g. an {@code mmm.xsd}) -- which DRB itself applies to the
+     * bytes, through {@code oais-structure-drb} (see {@code DrbSampleRunner}).
+     * Each field's definition becomes its {@code xs:documentation}, which DRB
+     * reports back as the decoded node's {@code documentation} attribute.
+     *
+     * <p>DRB has no raw-bytes type ({@code xs:hexBinary} decodes as nothing),
+     * so a {@link info.oais.archive.manager.model.format.FieldType#BYTES} field
+     * becomes a run of {@code xs:unsignedByte} occurrences.
      */
-    private String generateJavaByteLayout(FormatDefinition def) {
-        String className = toPascalCase(def.getName()) + "DrbFields";
-        StringBuilder fieldDocs = new StringBuilder();
-        StringBuilder fieldConstants = new StringBuilder();
+    private String generateSdfSchema(FormatDefinition def) {
+        StringBuilder elements = new StringBuilder();
         for (FormatField field : def.getFields()) {
-            String javaName = toScreamingSnakeCase(field.name());
-            fieldDocs.append(" *   - %s: %s\n".formatted(field.name(), javaDocLine(field.definition())));
-            fieldConstants.append("    /** %s */\n    public static final String %s = \"%s\";\n"
-                    .formatted(javaDocLine(field.definition()), javaName, javaStringEscape(field.name())));
+            elements.append(sdfElement(field, def.getDefaultByteOrder()));
         }
+        String notes = def.getNotes() == null || def.getNotes().isBlank() ? "" : """
 
+                  <xs:annotation>
+                    <xs:documentation>%s</xs:documentation>
+                  </xs:annotation>
+                """.formatted(xmlEscape(def.getNotes()));
         return """
-                package info.oais.infomodel.structure.drb.generated;
-
-                import info.oais.infomodel.structure.drb.DrbFormatSpecification;
-
-                /**
-                 * DRB (Java, fr.gael.drb -- consumed by reflection, see oais-structure-drb's
-                 * ReflectiveApi/DrbStructureNode) field reference for "%s".
-                 *
-                 * DRB auto-detects a Digital Object's format from its content and exposes the
-                 * result as a DrbNode tree at runtime (name/value/children/attributes) -- there
-                 * is no separate declarative schema file to write per format the way there is
-                 * for Kaitai/DFDL, so this is a field-semantics reference and a
-                 * DrbFormatSpecification usage snippet, not a schema DRB itself reads.
-                 *
-                %s *
-                 * Adjust the package above to fit your project (e.g. alongside
-                 * oais-structure-drb if that is where this is used).
-                 */
-                public final class %s {
-
-                    private %s() {
-                    }
-
+                <?xml version="1.0" encoding="UTF-8"?>
+                <!--
+                  DRB SDF schema for "%s", generated by archive-manager's RepInfo Tools.
+                  Apply it with GAEL's DRB (fr.gael.drb, 2.5): e.g. the XQuery
+                  doc("data-file")/(this-schema.xsd)%s, or oais-structure-drb's
+                  new DrbFormatSpecification(schemaUri).
+                -->
+                <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+                           xmlns:sdf="http://www.gael.fr/2004/12/drb/sdf">
                 %s
-                    /**
-                     * Most callers only need the default, auto-detecting resolver:
-                     * {@code new DrbFormatSpecification()}. Construct it with an explicit
-                     * factory resolver class name / protocol hint only if this format needs
-                     * to bypass or confirm auto-detection.
-                     */
-                    public static DrbFormatSpecification defaultSpecification() {
-                        return new DrbFormatSpecification();
-                    }
-                }
-                """.formatted(def.getName(), fieldDocs, className, className, fieldConstants);
+                  <xs:element name="%s">
+                    <xs:complexType>
+                      <xs:sequence>
+                %s      </xs:sequence>
+                    </xs:complexType>
+                  </xs:element>
+                </xs:schema>
+                """.formatted(xmlCommentText(def.getName()), FormatIdentifiers.snakeCase(def.getName()), notes,
+                FormatIdentifiers.snakeCase(def.getName()), elements);
+    }
+
+    private String sdfElement(FormatField field, ByteOrder defaultOrder) {
+        String name = FormatIdentifiers.snakeCase(field.name());
+        ByteOrder order = field.byteOrder() == null ? defaultOrder : field.byteOrder();
+        int stringLength = field.lengthBytes() == null ? 1 : Math.max(1, field.lengthBytes());
+        String xsType;
+        String block;
+        String occurs = "";
+        switch (field.type()) {
+            case ASCII_STRING -> {
+                xsType = "xs:string";
+                block = "<sdf:length>%d</sdf:length><sdf:encoding>ASCII</sdf:encoding>".formatted(stringLength);
+            }
+            case BYTES -> {
+                xsType = "xs:unsignedByte";
+                block = "<sdf:length>1</sdf:length>"
+                        + (stringLength > 1 ? "<sdf:occurrence>%d</sdf:occurrence>".formatted(stringLength) : "");
+                occurs = stringLength > 1 ? " maxOccurs=\"%d\"".formatted(stringLength) : "";
+            }
+            default -> {
+                xsType = switch (field.type()) {
+                    case INT8 -> "xs:byte";
+                    case UINT8 -> "xs:unsignedByte";
+                    case INT16 -> "xs:short";
+                    case UINT16 -> "xs:unsignedShort";
+                    case INT32 -> "xs:int";
+                    case UINT32 -> "xs:unsignedInt";
+                    case INT64 -> "xs:long";
+                    case UINT64 -> "xs:unsignedLong";
+                    case FLOAT32 -> "xs:float";
+                    default -> "xs:double";
+                };
+                int width = field.fixedWidthBytes();
+                block = "<sdf:length>%d</sdf:length>".formatted(width)
+                        + (width > 1 ? "<sdf:byteOrder>%s</sdf:byteOrder>".formatted(order == ByteOrder.LITTLE_ENDIAN ? "LSB" : "MSB") : "");
+            }
+        }
+        String doc = field.definition() == null || field.definition().isBlank() ? ""
+                : "\n            <xs:documentation>%s</xs:documentation>".formatted(xmlEscape(field.definition()));
+        return """
+                        <xs:element name="%s" type="%s"%s>
+                          <xs:annotation>%s
+                            <xs:appinfo><sdf:block>%s</sdf:block></xs:appinfo>
+                          </xs:annotation>
+                        </xs:element>
+                """.formatted(name, xsType, occurs, doc, block);
+    }
+
+    private static String xmlEscape(String s) {
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
+    /** Text safe inside an XML comment, which can't contain "--". */
+    private static String xmlCommentText(String s) {
+        return s.replace("--", "- -").replaceAll("-$", "- ");
     }
 
     private String generateJavaLogicalTree(FormatDefinition def) {
@@ -411,13 +455,11 @@ public class DrbGenerator {
                 /**
                  * DRB (Java, fr.gael.drb) logical schema reference for "%s".
                  *
-                 * fr.gael.drb already has a real HDF5 driver that reads an actual .h5 file's
-                 * group/dataset/attribute tree at runtime via the DrbNode API -- see
-                 * oais-structure-drb's DrbStructureNode (getName/getChildrenList/
-                 * getAttributesList/getValue, all reached by reflection). This class does NOT
-                 * reimplement that; it documents the EXPECTED schema and field semantics for
-                 * this kind of file, for reference alongside the archive's own
-                 * SemanticRepresentationInformation entry.
+                 * This documents the EXPECTED group/dataset/attribute schema and field
+                 * semantics for this kind of file, for reference alongside the archive's own
+                 * SemanticRepresentationInformation entry. It is not something DRB reads:
+                 * DRB 2.5 has no HDF5 implementation, and its SDF schemas describe sequential
+                 * byte layouts, not a self-describing container's internal tree.
                  *
                 %s *
                  * Adjust the package above to fit your project.
@@ -427,7 +469,7 @@ public class DrbGenerator {
                     private %s() {
                     }
                 }
-                """.formatted(def.getName(), schemaDocs, className, className);
+                """.formatted(javaDocLine(def.getName()), schemaDocs, className, className);
     }
 
     private String notesBlock(String notes) {
@@ -476,9 +518,6 @@ public class DrbGenerator {
         return text.replace("*/", "* /").replace("\n", " ");
     }
 
-    private String javaStringEscape(String s) {
-        return s.replace("\\", "\\\\").replace("\"", "\\\"");
-    }
 
     private String toPascalCase(String name) {
         String snake = FormatIdentifiers.snakeCase(name);
@@ -491,7 +530,4 @@ public class DrbGenerator {
         return sb.isEmpty() ? "Format" : sb.toString();
     }
 
-    private String toScreamingSnakeCase(String name) {
-        return FormatIdentifiers.snakeCase(name).toUpperCase();
-    }
 }

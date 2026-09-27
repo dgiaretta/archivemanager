@@ -14,6 +14,7 @@ import info.oais.archive.manager.service.format.DfdlGenerator;
 import info.oais.archive.manager.service.format.DfdlSampleRunner;
 import info.oais.archive.manager.service.format.DrbGenerator;
 import info.oais.archive.manager.service.format.DrbPythonSampleRunner;
+import info.oais.archive.manager.service.format.DrbSampleRunner;
 import info.oais.archive.manager.service.format.FormatDescriptionRdfService;
 import info.oais.archive.manager.service.format.FormatTemplates;
 import info.oais.archive.manager.service.format.KaitaiGenerator;
@@ -64,10 +65,12 @@ public class RepInfoToolController {
     private final FormatDescriptionRdfService rdfService;
     private final DfdlSampleRunner dfdlSampleRunner;
     private final DrbPythonSampleRunner drbPythonSampleRunner;
+    private final DrbSampleRunner drbSampleRunner;
 
     public RepInfoToolController(ArchiveService archive, KaitaiGenerator kaitaiGenerator, DfdlGenerator dfdlGenerator,
                                   DrbGenerator drbGenerator, FormatDescriptionRdfService rdfService,
-                                  DfdlSampleRunner dfdlSampleRunner, DrbPythonSampleRunner drbPythonSampleRunner) {
+                                  DfdlSampleRunner dfdlSampleRunner, DrbPythonSampleRunner drbPythonSampleRunner,
+                                  DrbSampleRunner drbSampleRunner) {
         this.archive = archive;
         this.kaitaiGenerator = kaitaiGenerator;
         this.dfdlGenerator = dfdlGenerator;
@@ -75,6 +78,7 @@ public class RepInfoToolController {
         this.rdfService = rdfService;
         this.dfdlSampleRunner = dfdlSampleRunner;
         this.drbPythonSampleRunner = drbPythonSampleRunner;
+        this.drbSampleRunner = drbSampleRunner;
     }
 
     @GetMapping
@@ -263,6 +267,28 @@ public class RepInfoToolController {
         return "repinfo-tools/preview";
     }
 
+    /**
+     * Same as {@link #testDfdl}, but applies the draft's generated DRB SDF
+     * schema with GAEL's Java DRB, in-process (see {@link DrbSampleRunner}).
+     */
+    @PostMapping("/test-drb-java")
+    public String testDrbJava(@RequestParam("sample") MultipartFile sample, HttpSession session, Model model)
+            throws IOException {
+        FormatDefinition def = draft(session);
+        if (def == null) {
+            return "redirect:/repinfo-tools";
+        }
+        if (def.getKind() != FormatDefinitionKind.BYTE_LAYOUT) {
+            return "redirect:/repinfo-tools/preview";
+        }
+        populatePreview(def, model);
+        SampleDecodeResult result = sample.isEmpty()
+                ? SampleDecodeResult.failure(EMPTY_SAMPLE)
+                : drbSampleRunner.run(drbGenerator.generate(def, DrbTarget.JAVA), sample.getBytes());
+        addSampleResult(model, "drbJavaTest", result, sample);
+        return "repinfo-tools/preview";
+    }
+
     private static final String EMPTY_SAMPLE = "Choose a non-empty sample file to test against.";
 
     private void addSampleResult(Model model, String attribute, SampleDecodeResult result, MultipartFile sample) {
@@ -319,8 +345,9 @@ public class RepInfoToolController {
             }
             case "drb-java" -> {
                 text = drbGenerator.generate(def, DrbTarget.JAVA);
-                filename = safeFileName(def.getName()) + ".java";
-                mediaType = MediaType.TEXT_PLAIN;
+                boolean sdf = def.getKind() == FormatDefinitionKind.BYTE_LAYOUT;
+                filename = safeFileName(def.getName()) + (sdf ? ".drb.xsd" : ".java");
+                mediaType = sdf ? MediaType.APPLICATION_XML : MediaType.TEXT_PLAIN;
             }
             default -> {
                 return ResponseEntity.notFound().build();
@@ -351,7 +378,8 @@ public class RepInfoToolController {
                     case "kaitai" -> generated.put("Kaitai Struct", kaitaiGenerator.generate(def));
                     case "dfdl" -> generated.put("DFDL", dfdlGenerator.generate(def));
                     case "drb-python" -> generated.put("DRB (Python, drb-python)", drbGenerator.generate(def, DrbTarget.PYTHON));
-                    case "drb-java" -> generated.put("DRB (Java, fr.gael.drb)", drbGenerator.generate(def, DrbTarget.JAVA));
+                    case "drb-java" -> generated.put(def.getKind() == FormatDefinitionKind.BYTE_LAYOUT
+                            ? "DRB SDF schema (Java, fr.gael.drb)" : "DRB (Java, fr.gael.drb)", drbGenerator.generate(def, DrbTarget.JAVA));
                     default -> { }
                 }
             }

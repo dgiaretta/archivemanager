@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DRB SDF schema for a little-endian "point" record: int32 x, int32 y,
+     float64 z, 4-byte ASCII label. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:sdf="http://www.gael.fr/2004/12/drb/sdf">
+  <xs:element name="point">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="x" type="xs:int">
+          <xs:annotation>
+            <xs:documentation>x ordinate</xs:documentation>
+            <xs:appinfo><sdf:block><sdf:length>4</sdf:length><sdf:byteOrder>LSB</sdf:byteOrder></sdf:block></xs:appinfo>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="y" type="xs:int">
+          <xs:annotation><xs:appinfo><sdf:block><sdf:length>4</sdf:length><sdf:byteOrder>LSB</sdf:byteOrder></sdf:block></xs:appinfo></xs:annotation>
+        </xs:element>
+        <xs:element name="z" type="xs:double">
+          <xs:annotation><xs:appinfo><sdf:block><sdf:length>8</sdf:length><sdf:byteOrder>LSB</sdf:byteOrder></sdf:block></xs:appinfo></xs:annotation>
+        </xs:element>
+        <xs:element name="label" type="xs:string">
+          <xs:annotation><xs:appinfo><sdf:block><sdf:length>4</sdf:length><sdf:encoding>ASCII</sdf:encoding></sdf:block></xs:appinfo></xs:annotation>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

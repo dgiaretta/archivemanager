@@ -1,53 +1,60 @@
 # oais-structure-drb notes
 
-DRB (CNES/GAEL's "Data Request Broker") is not published to Maven Central,
-and its exact Java API has evolved across the classic `fr.gael.drb`
-distribution and the newer, partly open-sourced "DRB Cortex"
-(`fr.gael.drb.cortex`, `drbx-*` artifacts). Because of that, this module was
-written and reviewed without being able to compile it against a real DRB
-jar, and takes a different shape from `oais-structure-dfdl` and
-`oais-structure-kaitai` as a result:
+This module bridges GAEL Consultant's Java **DRB** ("Data Request Broker",
+`fr.gael.drb`) onto the common `StructureNode` model, like
+`oais-structure-dfdl` does for Apache Daffodil. It is written and tested against
+**DRB 2.5.13**, which is licensed under the GNU LGPL v3 and is served from this
+repository's own `third-party/maven-repo` (DRB is not on Maven Central) - see
+`third-party/README.md` for the licence, the sources jar, and which of DRB's
+own dependencies are and aren't used.
 
-- **No compile-time dependency on DRB at all.** `DrbStructureRepInfo`,
-  `DrbStructureNode` and `DrbStructureInterpreterProvider` talk to DRB
-  purely through `java.lang.reflect` (see `ReflectiveApi`). The module
-  compiles and its `StructureInterpreterProvider.isAvailable()` check
-  quietly returns `false` whether or not any DRB jar is present.
-- **You supply the DRB jar yourself**, however your organisation is
-  licensed to obtain it - a `system`-scope Maven dependency pointing at a
-  local jar, or an internal repository manager entry - added to this
-  module's `pom.xml` or to whatever application depends on it.
-- **The method names it looks for are a best-effort guess**, based on DRB's
-  long-standing public node-tree shape (a factory resolver that turns a
-  stream into a root node; a node with a name, a value, children, and
-  attributes) rather than a javadoc this project could fetch and pin
-  against. Concretely, `DrbStructureRepInfo` expects:
-  - a class named by `DrbFormatSpecification#getFactoryResolverClassName()`
-    (default: `fr.gael.drb.DrbFactoryResolver`) with a static
-    `getDefaultFactoryResolver()` method;
-  - that resolver having a `create(InputStream)` method returning a node;
-  - the node having `getName()`, `getValue()`, and either
-    `getChildrenList()`/`getChildren()` and
-    `getAttributesList()`/`getAttributes()` returning a `List`, an array, or
-    an `Iterable`.
+## Two ways to interpret a Digital Object
 
-  If your installed DRB version's method names differ, the fix is local and
-  small: adjust the candidate name lists in `DrbStructureRepInfo`
-  (`create`, `getDefaultFactoryResolver`) and `DrbStructureNode`
-  (`getChildrenList`/`getChildren`, `getAttributesList`/`getAttributes`,
-  `getValue`, `getName`) - nothing else in this project needs to change,
-  since everything above this adapter only ever sees the resulting
-  `StructureNode`.
+`DrbFormatSpecification` selects one:
 
-- **Stream lifetime is different from the other two adapters.** DRB is
-  built to navigate large data sources lazily; `DrbStructureRepInfo`
-  deliberately leaves the `DigitalObject`'s stream open when it returns,
-  rather than closing it the way the eager DFDL/Kaitai adapters do. See the
-  Javadoc on `DrbStructureRepInfo` for what this means for callers.
+- **An SDF schema** - `new DrbFormatSpecification(schemaUri)`. DRB's
+  declarative description language, its counterpart of a DFDL schema: an
+  ordinary XML Schema whose elements carry `sdf:block` annotations in the
+  `http://www.gael.fr/2004/12/drb/sdf` namespace - `sdf:length`,
+  `sdf:byteOrder` (`MSB`/`LSB`), `sdf:encoding` (`BINARY`/`ASCII`/`EBCDIC`),
+  `sdf:occurrence`, `sdf:delimiter`, `sdf:offset`, ... Binary records,
+  fixed-width text and delimited text (e.g. CSV, where each field has an
+  `sdf:delimiter`) can all be described this way. See `src/test/resources` for
+  a little-endian binary record and a CSV example; archive-manager's RepInfo
+  Tools also generates these schemas from a field list.
+- **DRB's own format recognition** - `DrbFormatSpecification.autoDetect("xml")`.
+  DRB picks one of its built-in implementations (XML, ...) by **file
+  extension**, so the Digital Object's usual extension has to be given.
 
-None of this is a reason not to use the module - reflection against a
-small, stable, long-documented API shape is a reasonable way to depend on a
-library you cannot pin a Maven coordinate to - but it does mean you should
-write one small integration test against your actual DRB jar and format
-before relying on this in anything that matters, rather than trusting the
-method names above blindly.
+## How the adapter works
+
+- **Reflection, not a compile-time dependency.** `DrbApi` is the one class that
+  touches DRB, through its public interfaces (`DrbNode`, `DrbFactoryImpl`,
+  `DrbAttribute`, ...). The module compiles without DRB, and
+  `DrbStructureInterpreterProvider.isAvailable()` simply reports `false` when
+  DRB isn't on the classpath; applications add `fr.gael.drb:drb` (plus
+  `org.slf4j:log4j-over-slf4j` for its log4j 1.x logging calls) at runtime.
+  This module's own tests use the real DRB.
+- **Fully in memory, like the other adapters.** DRB opens data by path, so the
+  bytes are written to a temporary file; the node tree DRB produces is copied
+  into plain `StructureNode`s (bounded by `DrbApi.MAX_NODES`), DRB's nodes are
+  closed, and the file is deleted before `apply` returns.
+- **Typed values.** Numbers come back as `Long` (`BigInteger` beyond its range)
+  or `Double`, text as `String`, by each node's declared XML Schema type.
+- **Byte positions and documentation.** DRB reports each decoded node's
+  absolute byte `offset` and `length`, which become `getSourceRange()`, and an
+  element's `xs:documentation` as a `documentation` attribute.
+- **Short data is an error.** DRB itself does not fail on data shorter than the
+  schema describes (it reports positions past the end); the adapter checks every
+  node's position against the data's size and throws
+  `StructureInterpretationException` instead.
+- **Serialised.** DRB documents no thread-safety guarantee, so calls into it
+  share one lock.
+
+## Known DRB limitations
+
+- `xs:hexBinary`/`xs:base64Binary` decode as nothing; describe raw bytes as
+  repeated `xs:unsignedByte` (with `maxOccurs` and `sdf:occurrence`).
+- Little-endian floating point is only decoded correctly from DRB 2.5 on
+  (DRB 2.2 ignored `LSB` for `xs:float`/`xs:double`).
+- DRB 2.5 has no HDF5 implementation.

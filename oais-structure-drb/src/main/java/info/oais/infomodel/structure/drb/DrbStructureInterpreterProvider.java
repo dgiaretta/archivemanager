@@ -12,17 +12,10 @@ import info.oais.infomodel.structure.StructureInterpreterProvider;
  * {@code META-INF/services/info.oais.infomodel.structure.StructureInterpreterProvider}
  * in this module's resources.
  *
- * <p>{@link #isAvailable()} probes for the default classic-DRB class name;
- * if you are using a DRB Cortex distribution with a different resolver
- * class, either add that class to the probe list here or simply rely on
- * {@link DrbStructureRepInfo} to fail with a clear message when it cannot
- * find the class named in your {@link DrbFormatSpecification}.</p>
+ * <p>{@link #isAvailable()} is {@code true} only when the DRB library itself
+ * is on the classpath (see {@link DrbApi}).</p>
  */
 public final class DrbStructureInterpreterProvider implements StructureInterpreterProvider {
-
-	private static final String[] KNOWN_RESOLVER_CLASSES = {
-			"fr.gael.drb.DrbFactoryResolver"
-	};
 
 	@Override
 	public SpecificationLanguage getSpecificationLanguage() {
@@ -31,15 +24,7 @@ public final class DrbStructureInterpreterProvider implements StructureInterpret
 
 	@Override
 	public boolean isAvailable() {
-		for (String className : KNOWN_RESOLVER_CLASSES) {
-			try {
-				Class.forName(className);
-				return true;
-			} catch (ClassNotFoundException | LinkageError ignored) {
-				// try the next known class name
-			}
-		}
-		return false;
+		return DrbApi.isAvailable();
 	}
 
 	@Override

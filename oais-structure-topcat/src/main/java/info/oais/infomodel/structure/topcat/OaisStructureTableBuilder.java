@@ -9,7 +9,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Properties;
 
 import io.kaitai.struct.KaitaiStruct;
 
@@ -61,10 +60,11 @@ import uk.ac.starlink.util.DataSource;
  *       already-compiled, already-on-classpath Kaitai Struct generated class
  *       (see {@link KaitaiFormatSpecification}'s own Javadoc for why a
  *       runtime {@code .ksy} path alone is not enough).</li>
- *   <li>{@code foo.drb.properties} -- optional {@code factoryResolverClassName}/
- *       {@code protocolHint} properties for {@link DrbFormatSpecification}'s
- *       3-argument constructor; or {@code foo.drb} (present, even empty) to
- *       opt in to DRB's own auto-detecting no-argument constructor instead.</li>
+ *   <li>{@code foo.drb.xsd} -- a DRB SDF schema (an XML Schema with
+ *       {@code sdf:block} annotations), applied via
+ *       {@link DrbFormatSpecification}; or {@code foo.drb} (present, even
+ *       empty) to let DRB recognise the format itself from the data file's
+ *       own extension ({@link DrbFormatSpecification#autoDetect}).</li>
  *   <li>{@code foo-table-view.xml} -- required alongside any of the above:
  *       the {@link TableViewSpecification} describing how to view the
  *       resulting {@link StructureNode} tree as rows and columns.</li>
@@ -93,7 +93,7 @@ public class OaisStructureTableBuilder implements TableBuilder {
 
     private static final String DFDL_SUFFIX = ".dfdl.xsd";
     private static final String KAITAI_CLASSNAME_SUFFIX = ".ksy.classname";
-    private static final String DRB_PROPERTIES_SUFFIX = ".drb.properties";
+    private static final String DRB_SCHEMA_SUFFIX = ".drb.xsd";
     private static final String DRB_MARKER_SUFFIX = ".drb";
     private static final String VIEW_SUFFIX = "-table-view.xml";
 
@@ -103,7 +103,7 @@ public class OaisStructureTableBuilder implements TableBuilder {
         Path dataPath = toPath(datsrc);
         if (!hasFormatSidecar(dataPath)) {
             throw new TableFormatException(
-                    "No " + DFDL_SUFFIX + " / " + KAITAI_CLASSNAME_SUFFIX + " / " + DRB_PROPERTIES_SUFFIX
+                    "No " + DFDL_SUFFIX + " / " + KAITAI_CLASSNAME_SUFFIX + " / " +  DRB_SCHEMA_SUFFIX
                             + " / " + DRB_MARKER_SUFFIX + " sidecar found next to " + dataPath);
         }
         Path viewPath = siblingOf(dataPath, VIEW_SUFFIX);
@@ -162,7 +162,7 @@ public class OaisStructureTableBuilder implements TableBuilder {
     private static boolean hasFormatSidecar(Path dataPath) {
         return Files.exists(siblingOf(dataPath, DFDL_SUFFIX))
                 || Files.exists(siblingOf(dataPath, KAITAI_CLASSNAME_SUFFIX))
-                || Files.exists(siblingOf(dataPath, DRB_PROPERTIES_SUFFIX))
+                || Files.exists(siblingOf(dataPath, DRB_SCHEMA_SUFFIX))
                 || Files.exists(siblingOf(dataPath, DRB_MARKER_SUFFIX));
     }
 
@@ -187,21 +187,20 @@ public class OaisStructureTableBuilder implements TableBuilder {
             }
         }
 
-        Path drbPropertiesPath = siblingOf(dataPath, DRB_PROPERTIES_SUFFIX);
-        if (Files.exists(drbPropertiesPath)) {
-            Properties props = new Properties();
-            try (InputStream in = Files.newInputStream(drbPropertiesPath)) {
-                props.load(in);
-            }
-            String resolverClassName = props.getProperty("factoryResolverClassName",
-                    "fr.gael.drb.DrbFactoryResolver");
-            String protocolHint = props.getProperty("protocolHint");
-            return new DrbFormatSpecification(resolverClassName, protocolHint, dataPath.toUri());
+        Path drbSchemaPath = siblingOf(dataPath, DRB_SCHEMA_SUFFIX);
+        if (Files.exists(drbSchemaPath)) {
+            return new DrbFormatSpecification(drbSchemaPath.toUri());
         }
 
         Path drbMarkerPath = siblingOf(dataPath, DRB_MARKER_SUFFIX);
         if (Files.exists(drbMarkerPath)) {
-            return new DrbFormatSpecification();
+            String fileName = dataPath.getFileName().toString();
+            int dot = fileName.lastIndexOf('.');
+            if (dot < 0 || dot == fileName.length() - 1) {
+                throw new IOException(drbMarkerPath + " asks DRB to recognise " + dataPath
+                        + " itself, but DRB goes by file extension and this file has none");
+            }
+            return DrbFormatSpecification.autoDetect(fileName.substring(dot + 1));
         }
 
         // hasFormatSidecar() is always checked by makeStarTable before this is

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  POM for GAEL's DRB 2.5.13, served from this repository's third-party/maven-repo
+  (DRB is not published to Maven Central) - see third-party/README.md.
+
+  Dependencies differ from DRB's own POM on purpose: its log4j 1.2.8 dependency
+  is left out (consumers route DRB's log4j calls through org.slf4j:log4j-over-slf4j
+  instead), and fr.gael.streams:streams is left out because only
+  fr.gael.drb.impl.sds.RandomAccessStreamData uses it, for reading from a
+  non-file stream, which this project never asks DRB to do.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>fr.gael.drb</groupId>
+  <artifactId>drb</artifactId>
+  <version>2.5.13</version>
+  <name>Data Request Broker - DRB API</name>
+  <url>http://www.gael.fr/drb</url>
+  <licenses>
+    <license>
+      <name>GNU Lesser General Public License v3</name>
+      <url>https://www.gnu.org/licenses/lgpl-3.0.txt</url>
+    </license>
+  </licenses>
+  <dependencies>
+    <!-- SdfFactory caches parsed schemas with EhCache and needs its classes at runtime. -->
+    <dependency>
+      <groupId>net.sf.ehcache</groupId>
+      <artifactId>ehcache-core</artifactId>
+      <version>2.5.0</version>
+    </dependency>
+  </dependencies>
+</project>

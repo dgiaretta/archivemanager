@@ -2,7 +2,6 @@ package info.oais.archive.manager.service.format;
 
 import info.oais.infomodel.implementation.DigitalObjectRefImpl;
 import info.oais.infomodel.structure.StructureNode;
-import info.oais.infomodel.structure.StructureNodeKind;
 import info.oais.infomodel.structure.dfdl.DfdlFormatSpecification;
 import info.oais.infomodel.structure.dfdl.DfdlStructureRepInfo;
 import org.springframework.stereotype.Component;
@@ -12,8 +11,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Runs a generated DFDL schema (see {@link DfdlGenerator}) against a sample
@@ -43,9 +40,7 @@ public class DfdlSampleRunner {
             Files.writeString(schemaFile, dfdlSchema, StandardCharsets.UTF_8);
             DfdlStructureRepInfo repInfo = new DfdlStructureRepInfo(new DfdlFormatSpecification(schemaFile.toUri()));
             StructureNode root = repInfo.apply(new DigitalObjectRefImpl(new ByteArrayInputStream(sample)));
-            List<SampleDecodeResult.TreeRow> rows = new ArrayList<>();
-            boolean complete = flatten(root, 0, rows);
-            return new SampleDecodeResult(rows, !complete, null);
+            return SampleDecodeResult.of(root);
         } catch (IOException e) {
             return SampleDecodeResult.failure("Could not write the schema to a temporary file: " + e.getMessage());
         } catch (RuntimeException e) {
@@ -60,34 +55,5 @@ public class DfdlSampleRunner {
                 }
             }
         }
-    }
-
-    /** @return {@code false} if {@link SampleDecodeResult#MAX_ROWS} was reached before the whole tree was visited. */
-    private static boolean flatten(StructureNode node, int depth, List<SampleDecodeResult.TreeRow> rows) {
-        if (rows.size() >= SampleDecodeResult.MAX_ROWS) {
-            return false;
-        }
-        String value = node.getKind() == StructureNodeKind.LEAF
-                ? node.getValue().map(DfdlSampleRunner::describe).orElse("")
-                : "";
-        String range = node.getSourceRange()
-                .filter(r -> r.isByteAligned() && r.bitLength() > 0)
-                .map(r -> "bytes " + r.startByteOffset() + "–" + (r.startByteOffset() + r.byteLength() - 1))
-                .or(() -> node.getSourceRange().map(r -> "bits " + r.startBitOffset() + "+" + r.bitLength()))
-                .orElse("");
-        rows.add(new SampleDecodeResult.TreeRow(depth, node.getName(), node.getKind().name(), value, range));
-        for (StructureNode child : node.getChildren()) {
-            if (!flatten(child, depth + 1, rows)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static String describe(Object value) {
-        if (value instanceof byte[] bytes) {
-            return bytes.length + " byte(s)";
-        }
-        return String.valueOf(value);
     }
 }

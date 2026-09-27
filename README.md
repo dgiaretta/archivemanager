@@ -9,9 +9,9 @@ This repository combines two projects in one Maven reactor:
   [dgiaretta/oaisrepinfo](https://github.com/dgiaretta/oaisrepinfo) (described in the rest of
   this README), which *execute* such descriptions against real bytes.
 
-The two meet in RepInfo Tools' "Test against a sample file": a generated DFDL schema is run
-through `oais-structure-dfdl` against an uploaded sample, before being saved to the archive as
-Representation Information. `archive-manager` also takes the OAIS core model from the
+The two meet in RepInfo Tools' "Test against a sample file": a generated DFDL schema or DRB SDF
+schema is run through `oais-structure-dfdl` / `oais-structure-drb` against an uploaded sample,
+before being saved to the archive as Representation Information. `archive-manager` also takes the OAIS core model from the
 `oaiscore` module rather than keeping its own copy.
 
 ```bash
@@ -36,7 +36,7 @@ The repository contains a vendored `oaiscore` module plus three adapter modules:
 - `oais-structure-api` — engine-agnostic interfaces and abstractions
 - `oais-structure-dfdl` — Apache Daffodil-backed adapter
 - `oais-structure-kaitai` — Kaitai Struct-backed adapter
-- `oais-structure-drb` — DRB-backed adapter via reflection
+- `oais-structure-drb` — GAEL Java DRB-backed adapter (DRB 2.5.13, LGPL v3)
 - `oais-structure-demo` — runnable example
 
 ## What this project does
@@ -119,7 +119,8 @@ root/
 ├─ oais-structure-demo/
 ├─ oais-structure-topcat/
 ├─ oais-structure-splat/     (only with -Psplat)
-└─ archive-manager/
+├─ archive-manager/
+└─ third-party/              (DRB 2.5.13: file-based Maven repo, sources, LGPL texts)
 ```
 
 ## Architecture at a glance
@@ -166,8 +167,11 @@ parsing outputs into a single `StructureNode` representation that can be consume
   reading their getters and runtime metadata to reconstruct a structure tree.
 
 - `oais-structure-drb`  
-  Bridges DRB through reflection so the module does not require a compile-time DRB dependency. This
-  makes it usable in environments where the proprietary library is not available on Maven Central.
+  Bridges GAEL's Java DRB: it applies a DRB SDF schema (DRB's own declarative format description -
+  an XML Schema with `sdf:block` annotations) or lets DRB recognise a format itself, and copies the
+  resulting tree into `StructureNode`s. It reaches DRB by reflection, so it compiles without it;
+  DRB 2.5.13 (LGPL v3, not on Maven Central) is served from `third-party/maven-repo`. See
+  [oais-structure-drb/README-DRB.md](oais-structure-drb/README-DRB.md).
 
 - `oais-structure-demo`  
   Demonstrates how the adapters plug into the OAIS model and produce executable structure information
@@ -220,11 +224,12 @@ The adapter modules do, however, depend on third-party libraries such as:
 
 - Daffodil
 - Kaitai Struct runtime
-- DRB, when available in a local environment
+- DRB 2.5.13 (GAEL Consultant, LGPL v3)
 
-The DRB module is designed to avoid a hard compile-time dependency on DRB jars because
-those artifacts are not published to Maven Central; it resolves the engine by reflection
-at runtime.
+DRB is not published to Maven Central, so this repository carries it - binary, sources and
+licence texts - in `third-party/` (see [third-party/README.md](third-party/README.md)), declared
+as a file-based Maven repository in the root `pom.xml`. The DRB module itself only reaches DRB by
+reflection, so it compiles without it.
 
 ## DFDL example description
 
@@ -259,18 +264,18 @@ A typical Kaitai-backed example is:
 
 ## DRB example description
 
-The DRB adapter is intended to wrap a DRB factory/resolver and expose its parsed tree through
-the same `StructureNode` API used by the DFDL and Kaitai adapters. In practical terms, a DRB
-example is a format definition that a DRB resolver can parse into a node tree with fields such as
-name, value, children, and attributes.
-
+DRB describes a format with an **SDF schema**: an ordinary XML Schema whose elements carry
+`sdf:block` annotations (`sdf:length`, `sdf:byteOrder`, `sdf:encoding`, `sdf:occurrence`,
+`sdf:delimiter`, ...), DRB's counterpart of a DFDL schema - see
+[oais-structure-drb/src/test/resources/point-le.drb.xsd](oais-structure-drb/src/test/resources/point-le.drb.xsd).
 A typical DRB-backed example is:
 
-1. a DRB format descriptor or resolver class supplied by the local environment,
-2. a `DrbFormatSpecification` pointing at that resolver,
+1. an SDF schema (`.drb.xsd`) describing the layout,
+2. a `DrbFormatSpecification` pointing at that schema (or `DrbFormatSpecification.autoDetect("xml")`
+   to let DRB recognise one of its built-in formats by file extension),
 3. a `DigitalObject` containing the target byte stream,
-4. a `StructureInterpreterProvider` that resolves the DRB instance and converts the resulting DRB node
-   tree into a `StructureNode`.
+4. a `StructureInterpreterProvider` that runs DRB and copies the resulting node tree - values typed,
+   with each node's byte offset/length - into a `StructureNode`.
 
 The important point is that downstream application code does not need to know whether the source
 of structure information came from DRB, Kaitai, or DFDL. All three are normalized to the same tree
@@ -296,8 +301,8 @@ invented for this module:
 |---|---|
 | `foo.dfdl.xsd` | A DFDL schema, used via `DfdlFormatSpecification`. |
 | `foo.ksy.classname` | A one-line text file naming an already-compiled, already-on-classpath Kaitai Struct generated class (see `KaitaiFormatSpecification`'s own Javadoc for why a runtime `.ksy` path alone is not enough). |
-| `foo.drb.properties` | Optional `factoryResolverClassName`/`protocolHint` properties for `DrbFormatSpecification`'s 3-argument constructor. |
-| `foo.drb` | Present (even empty) opts a file into DRB's own auto-detecting no-argument `DrbFormatSpecification()` instead. |
+| `foo.drb.xsd` | A DRB SDF schema, used via `DrbFormatSpecification`. |
+| `foo.drb` | Present (even empty) lets DRB recognise the format itself, from the data file's own extension (`DrbFormatSpecification.autoDetect`). |
 | `foo-table-view.xml` | Required alongside any of the above - the `TableViewSpecification` describing how to view the resulting `StructureNode` tree as rows and columns. |
 
 Requiring an explicit sidecar for every engine, including DRB (whose underlying library can
@@ -446,13 +451,11 @@ idiom, not just its single-record case, normalizes to the common `StructureNode`
   between columns - an infix separator rather than a terminator, so a real CSV file's optional
   trailing newline does not produce a spurious empty extra row). DFDL's DOM-based infoset instead
   surfaces the repeated rows as several same-named `row` siblings under one root.
-- **DRB**: DRB does not use an external schema file the way DFDL and Kaitai do - a real DRB CSV
-  driver auto-detects the format from content/extension and exposes rows as child nodes directly,
-  the same way its resolver does for any other format (see "DRB example description" above). Since
-  no real DRB jar is available in this project's build environment, this is exercised against the
-  same kind of fake factory resolver `DrbStructureRepInfoTest` already uses - see
-  `oais-structure-drb`'s `FakeCsvDrbFactoryResolver` and `CsvPointsDrbStructureRepInfoTest` - modelled
-  to surface repetition the same way DFDL does: same-named `row` siblings, not an array.
+- **DRB**: [oais-structure-drb/src/test/resources/csv-points.drb.xsd](oais-structure-drb/src/test/resources/csv-points.drb.xsd)
+  describes CSV as an SDF schema: a `row` element with `maxOccurs="unbounded"` whose ASCII fields
+  each carry an `sdf:delimiter` (`,`, then a newline for the last). Real DRB 2.5.13 surfaces the rows
+  the same way DFDL does - same-named `row` siblings, not an array - so `oais-structure-topcat`'s
+  DRB test reads the same ten-row CSV through the very same `points-table-view.xml` as its DFDL test.
 
 Because DFDL and DRB both surface repetition as same-named siblings while Kaitai Struct surfaces it
 as a single indexed array (see `StructureNodeKind`'s Javadoc on ARRAY vs. repeated COMPOSITE
@@ -520,5 +523,5 @@ Before publishing or sharing the repository externally:
 - confirm the license is correct and included in the repo
 - verify Java and Maven requirements are documented clearly
 - confirm external engine dependencies are noted for each adapter
-- review any proprietary or non-public DRB integration notes
+- keep `third-party/` (DRB's LGPL licence texts and sources jar) alongside any distribution that bundles DRB
 - run the full reactor build from the project root

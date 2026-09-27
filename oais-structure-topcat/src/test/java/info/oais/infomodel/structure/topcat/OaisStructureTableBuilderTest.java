@@ -21,7 +21,7 @@ import uk.ac.starlink.util.FileDataSource;
 
 /**
  * End-to-end tests against this project's own demo fixtures: real bytes,
- * through the real DFDL and Kaitai adapters, into a real STIL
+ * through the real DFDL, Kaitai and DRB adapters, into a real STIL
  * {@link StarTable}. No TOPCAT installation needed for this -- it exercises
  * exactly the same {@link OaisStructureTableBuilder#makeStarTable} path
  * TOPCAT itself would call (see {@code run-in-topcat.bat}, alongside these
@@ -111,6 +111,25 @@ class OaisStructureTableBuilderTest {
     }
 
     @Test
+    void readsDrbDescribedTenRowCsvAsATable() throws IOException {
+        Path csvPath = tempDir.resolve("points.csv");
+        copyResource(POINTS_CSV, csvPath);
+        copyResource("/points.drb.xsd", tempDir.resolve("points.drb.xsd"));
+        copyResource(POINTS_VIEW_XML, tempDir.resolve("points-table-view.xml"));
+
+        StarTable table = builder.makeStarTable(
+                new FileDataSource(csvPath.toFile()), false, StoragePolicy.PREFER_MEMORY);
+
+        assertColumns(table);
+        assertEquals(10, table.getRowCount());
+        assertEquals(42, table.getCell(0, 0));
+        assertEquals("hi", table.getCell(0, 2));
+        assertEquals(-500, table.getCell(9, 0));
+        assertEquals(500, table.getCell(9, 1));
+        assertEquals("deneb", table.getCell(9, 2));
+    }
+
+    @Test
     void readsKaitaiDescribedTenRowCsvAsATable() throws IOException {
         Path csvPath = tempDir.resolve("points-kaitai.csv");
         copyResource("/points-kaitai.csv", csvPath);
@@ -133,7 +152,7 @@ class OaisStructureTableBuilderTest {
     @Test
     void declinesAFileWithNoFormatSidecar() {
         // Only the view sidecar was copied in @BeforeEach -- no .dfdl.xsd,
-        // .ksy.classname or .drb(.properties), so this builder shouldn't
+        // .ksy.classname, .drb.xsd or .drb, so this builder shouldn't
         // claim it.
         assertThrows(TableFormatException.class, () ->
                 builder.makeStarTable(new FileDataSource(dataPath.toFile()), false, StoragePolicy.PREFER_MEMORY));

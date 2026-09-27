@@ -62,6 +62,25 @@ class RepInfoToolControllerTest {
     }
 
     @Test
+    void decodesAnUploadedSampleWithTheDraftsDrbSdfSchema() throws Exception {
+        MockHttpSession session = loggedInSessionWithFitsDraft();
+        ByteArrayOutputStream header = new ByteArrayOutputStream();
+        for (int i = 0; i < 10; i++) {
+            header.writeBytes(String.format("%-80s", i == 9 ? "END" : "KEY" + i + "    = 1")
+                    .getBytes(StandardCharsets.US_ASCII));
+        }
+
+        mockMvc.perform(multipart("/repinfo-tools/test-drb-java")
+                        .file(new MockMultipartFile("sample", "header.fits", "application/octet-stream",
+                                header.toByteArray()))
+                        .session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("decoded successfully")))
+                .andExpect(content().string(containsString("KEY1    = 1")))
+                .andExpect(content().string(containsString("bytes 80–159")));
+    }
+
+    @Test
     void downloadsTheDrbPythonDriverAsAnInstallablePackage() throws Exception {
         MockHttpSession session = loggedInSessionWithFitsDraft();
 

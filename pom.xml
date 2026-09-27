@@ -65,7 +65,21 @@
          TOPCAT table viewer (github.com/Starlink/starjava), a real published
          Maven Central artifact, not something needing a source build. -->
     <stil.version>4.3.2</stil.version>
+    <!-- GAEL's Java DRB (Data Request Broker, LGPL v3), not on Maven Central: served
+         from this repository's own third-party/maven-repo (see repositories
+         below and third-party/README.md). -->
+    <drb.version>2.5.13</drb.version>
   </properties>
+
+  <repositories>
+    <!-- Resolved relative to each module, all of which sit directly under the
+         reactor root; archive-manager (not a child of this POM) declares the
+         same repository itself. -->
+    <repository>
+      <id>third-party-local</id>
+      <url>file:${project.basedir}/../third-party/maven-repo</url>
+    </repository>
+  </repositories>
 
   <dependencyManagement>
     <dependencies>
@@ -127,6 +141,19 @@
       <dependency>
         <groupId>org.slf4j</groupId>
         <artifactId>slf4j-simple</artifactId>
+        <version>${slf4j.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>fr.gael.drb</groupId>
+        <artifactId>drb</artifactId>
+        <version>${drb.version}</version>
+      </dependency>
+      <!-- DRB logs through log4j 1.x's Logger/Category API only; this routes
+           those calls to SLF4J instead of shipping log4j 1.2 itself. -->
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>log4j-over-slf4j</artifactId>
         <version>${slf4j.version}</version>
       </dependency>
 

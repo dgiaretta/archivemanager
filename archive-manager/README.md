@@ -108,9 +108,11 @@ Requires JDK 17+ and Maven (or use the wrapper if you generate one with
 `mvn -N wrapper:wrapper`).
 
 This app is one module of a larger Maven reactor (see `../README.md`): it
-depends on the sibling `oaiscore` and `oais-structure-dfdl` modules (the
-OAIS core model, and the DFDL adapter used by RepInfo Tools), so install
-those once from the repository root before running this module on its own:
+depends on the sibling `oaiscore`, `oais-structure-dfdl` and
+`oais-structure-drb` modules (the OAIS core model, and the DFDL and DRB
+adapters used by RepInfo Tools) and on DRB itself from `../third-party`, so
+install those once from the repository root before running this module on
+its own:
 
 ```
 cd .. && mvn install -DskipTests && cd archive-manager
@@ -515,9 +517,17 @@ wanted.
       (`DrbGenerator.quotedLiteral`), never as code. A logical-tree
       (HDF5-style) definition still gets a documented schema only -- no HDF5
       driver for drb-python is published on PyPI.
-    - **Java DRB** output is a field-reference class. Only `definition`
-      feeds its documentation comments; `semanticName`/`units` are RDF-only
-      (see below).
+    - **Java DRB** (GAEL's `fr.gael.drb` 2.5.13, LGPL v3, bundled -- see
+      `../third-party/README.md`) *does* have a declarative language: for a
+      byte-layout definition the output is a **DRB SDF schema** (`.drb.xsd`),
+      an XML Schema whose `sdf:block` annotations give each field's
+      `sdf:length`, `sdf:byteOrder` (`MSB`/`LSB`) and `sdf:encoding`, with
+      the field's definition as its `xs:documentation`. DRB has no raw-bytes
+      type, so a `BYTES` field becomes repeated `xs:unsignedByte`. The file
+      works with DRB on its own too (e.g. DRB's XQuery
+      `doc("file")/(schema.drb.xsd)root`). A logical-tree definition gets a
+      documented reference class only -- DRB 2.5 has no HDF5 implementation.
+      `semanticName`/`units` are RDF-only (see below).
 
     The generated
     DFDL includes Daffodil's built-in `GeneralFormat` (the same idiom as
@@ -546,6 +556,15 @@ wanted.
     instead of offering the upload. `DrbPythonSampleRunnerTest` runs the
     generated drivers through real drb-python when one is available -- set
     `DRB_PYTHON` to its interpreter -- and is skipped otherwise.
+
+    The Java DRB section has one too (`POST /repinfo-tools/test-drb-java`,
+    `DrbSampleRunner`), in-process with no setup needed: the generated SDF
+    schema is applied by DRB through the sibling `oais-structure-drb`
+    module, and the decoded tree shows each field's byte position (DRB
+    reports them). Data shorter than the schema describes is reported as an
+    error naming the field. `DrbSampleRunnerTest` round-trips every field
+    type in both byte orders, raw bytes, and the FITS template through real
+    DRB.
 
     Kaitai has no such test: `oais-structure-kaitai` needs a Java class
     generated ahead of time by the Kaitai Struct compiler.

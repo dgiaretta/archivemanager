@@ -63,19 +63,24 @@ class DrbGeneratorTest {
     }
 
     @Test
-    void generatesJavaByteLayoutFieldReference() {
+    void generatesAWellFormedDrbSdfSchemaForAByteLayout() throws Exception {
         FormatDefinition def = new FormatDefinition();
         def.setName("point record");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
-        def.setDefaultByteOrder(ByteOrder.BIG_ENDIAN);
-        def.addField(new FormatField("x", FieldType.INT32, null, null, null, "x ordinate", null));
+        def.setDefaultByteOrder(ByteOrder.LITTLE_ENDIAN);
+        def.addField(new FormatField("x", FieldType.INT32, null, null, null, "x < y & \"ordinate\"", null));
+        def.addField(new FormatField("raw", FieldType.BYTES, 3, null, null, null, null));
 
-        String java = generator.generate(def, DrbTarget.JAVA);
+        String xsd = generator.generate(def, DrbTarget.JAVA);
 
-        assertThat(java).contains("class PointRecordDrbFields").contains("fr.gael.drb")
-                .contains("import info.oais.infomodel.structure.drb.DrbFormatSpecification;")
-                .contains("public static final String X = \"x\";")
-                .contains("defaultSpecification()");
+        assertThat(xsd).contains("xmlns:sdf=\"http://www.gael.fr/2004/12/drb/sdf\"")
+                .contains("<xs:element name=\"point_record\">")
+                .contains("<sdf:length>4</sdf:length><sdf:byteOrder>LSB</sdf:byteOrder>")
+                .contains("<xs:documentation>x &lt; y &amp; \"ordinate\"</xs:documentation>")
+                .contains("<xs:element name=\"raw\" type=\"xs:unsignedByte\" maxOccurs=\"3\">")
+                .contains("<sdf:occurrence>3</sdf:occurrence>");
+        javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder()
+                .parse(new org.xml.sax.InputSource(new java.io.StringReader(xsd)));
     }
 
     @Test
@@ -83,6 +88,6 @@ class DrbGeneratorTest {
         String java = generator.generate(FormatTemplates.hdf5(), DrbTarget.JAVA);
 
         assertThat(java).contains("class Hdf5LogicalSchemaExampleDrbSchema")
-                .contains("/observations/temperature").contains("fr.gael.drb");
+                .contains("/observations/temperature").contains("DRB 2.5 has no HDF5 implementation");
     }
 }

@@ -34,6 +34,7 @@
          (see ../pom.xml). This module isn't their child, so it can't
          inherit their dependencyManagement. -->
     <oais.structure.version>0.0.1-SNAPSHOT</oais.structure.version>
+    <drb.version>2.5.13</drb.version>
   </properties>
 
   <dependencies>
@@ -124,9 +125,53 @@
         </exclusion>
       </exclusions>
     </dependency>
+    <!-- The DRB adapter, which RepInfo Tools uses to run a generated DRB SDF
+         schema against an uploaded sample file, plus DRB itself (LGPL v3, from
+         ../third-party/maven-repo - see third-party/README.md) and the bridge
+         that routes DRB's log4j 1.x logging calls into Logback. -->
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-drb</artifactId>
+      <version>${oais.structure.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>fr.gael.drb</groupId>
+      <artifactId>drb</artifactId>
+      <version>${drb.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>log4j-over-slf4j</artifactId>
+      <scope>runtime</scope>
+    </dependency>
   </dependencies>
 
+  <repositories>
+    <!-- Same as the reactor root's: DRB isn't on Maven Central. -->
+    <repository>
+      <id>third-party-local</id>
+      <url>file:${project.basedir}/../third-party/maven-repo</url>
+    </repository>
+  </repositories>
+
   <build>
+    <resources>
+      <resource>
+        <directory>src/main/resources</directory>
+      </resource>
+      <!-- DRB (LGPL v3) is bundled into the executable jar, so its notice and
+           licence texts go into the jar too (META-INF/third-party/), for
+           deployments that copy only the jar. -->
+      <resource>
+        <directory>${project.basedir}/../third-party</directory>
+        <targetPath>META-INF/third-party</targetPath>
+        <includes>
+          <include>README.md</include>
+          <include>licenses/**</include>
+        </includes>
+      </resource>
+    </resources>
     <plugins>
       <plugin>
         <groupId>org.springframework.boot</groupId>
@@ -169,7 +214,7 @@
             Help page's API reference covers the OAIS core model and the
             structure adapters, not just this app. Read straight from their
             source folders rather than via this module's dependencies, so the
-            modules the app doesn't use at runtime (kaitai, drb, demo, topcat)
+            modules the app doesn't use at runtime (kaitai, demo, topcat)
             don't end up bundled into its jar. oais-structure-splat is left
             out: it only builds with -Psplat, against locally built jars.
           -->

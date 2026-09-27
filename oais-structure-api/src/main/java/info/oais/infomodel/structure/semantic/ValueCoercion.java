@@ -27,6 +27,9 @@ final class ValueCoercion {
 		if (targetClass == String.class) {
 			return value.toString();
 		}
+		if (value instanceof Number number) {
+			return coerceNumber(number, targetClass);
+		}
 		if (!(value instanceof String text)) {
 			return value;
 		}
@@ -63,5 +66,43 @@ final class ValueCoercion {
 			// value doesn't parse as targetClass - fall through and return it unchanged
 		}
 		return value;
+	}
+
+	/**
+	 * One numeric type to another (e.g. an adapter's {@code Long} into an
+	 * {@code int} column), only when no information is lost; otherwise the
+	 * value is returned unchanged, as for an unparseable string.
+	 */
+	private static Object coerceNumber(Number number, Class<?> targetClass) {
+		try {
+			if (targetClass == Double.class || targetClass == double.class) {
+				return number.doubleValue();
+			}
+			if (targetClass == Float.class || targetClass == float.class) {
+				return number.floatValue();
+			}
+			BigDecimal exact = new BigDecimal(number.toString());
+			if (targetClass == Integer.class || targetClass == int.class) {
+				return exact.intValueExact();
+			}
+			if (targetClass == Long.class || targetClass == long.class) {
+				return exact.longValueExact();
+			}
+			if (targetClass == Short.class || targetClass == short.class) {
+				return exact.shortValueExact();
+			}
+			if (targetClass == Byte.class || targetClass == byte.class) {
+				return exact.byteValueExact();
+			}
+			if (targetClass == BigInteger.class) {
+				return exact.toBigIntegerExact();
+			}
+			if (targetClass == BigDecimal.class) {
+				return exact;
+			}
+		} catch (ArithmeticException | NumberFormatException e) {
+			// out of range, or not a whole number, for targetClass
+		}
+		return number;
 	}
 }

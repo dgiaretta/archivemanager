@@ -8,50 +8,56 @@ import info.oais.infomodel.structure.FormatSpecification;
 import info.oais.infomodel.structure.SpecificationLanguage;
 
 /**
- * Points a {@link DrbStructureRepInfo} at the DRB factory resolver class to
- * use and, optionally, a protocol/format hint.
+ * Tells a {@link DrbStructureRepInfo} how DRB should interpret a Digital
+ * Object - one of two ways:
  *
- * <p>DRB is usually able to auto-detect a Digital Object's format from its
- * content (that is much of the point of it), so most callers only need
- * {@link #DrbFormatSpecification()}, which uses DRB's default factory
- * resolver. {@link #protocolHint()} is provided for cases where you already
- * know the format and want to bypass or confirm auto-detection; whether/how
- * a given DRB version honours it is left to {@link DrbStructureRepInfo} to
- * attempt on a best-effort basis.</p>
+ * <ul>
+ *   <li>{@link #autoDetect(String)}: let DRB pick one of its built-in
+ *       implementations (XML, ...) itself - which DRB does from the file name
+ *       extension, so the Digital Object's usual extension must be given;</li>
+ *   <li>{@link #DrbFormatSpecification(URI)}: apply a DRB "SDF" (Structured
+ *       Data File) schema - an ordinary XML Schema whose elements carry
+ *       {@code sdf:block} annotations (length, byte order, encoding,
+ *       occurrence, delimiter, ...) describing a binary or text layout,
+ *       DRB's declarative counterpart of a DFDL schema.</li>
+ * </ul>
  */
 public final class DrbFormatSpecification implements FormatSpecification {
 
-	private final String factoryResolverClassName;
-	private final String protocolHint;
-	private final URI specificationLocation;
+	private final URI sdfSchemaLocation;
+	private final String fileExtension;
 
-	public DrbFormatSpecification() {
-		this("fr.gael.drb.DrbFactoryResolver", null, null);
+	/** Apply the DRB SDF schema at {@code sdfSchemaLocation} (a local file). */
+	public DrbFormatSpecification(URI sdfSchemaLocation) {
+		this.sdfSchemaLocation = Objects.requireNonNull(sdfSchemaLocation, "sdfSchemaLocation");
+		this.fileExtension = null;
 	}
 
-	public DrbFormatSpecification(String factoryResolverClassName, String protocolHint, URI specificationLocation) {
-		this.factoryResolverClassName = Objects.requireNonNull(factoryResolverClassName, "factoryResolverClassName");
-		this.protocolHint = protocolHint;
-		this.specificationLocation = specificationLocation;
-	}
-
-	/**
-	 * @return the fully-qualified class name of the DRB factory resolver to
-	 *         look up via reflection, e.g. {@code fr.gael.drb.DrbFactoryResolver}
-	 *         for classic DRB, or whatever the equivalent is in the DRB
-	 *         Cortex distribution you are using
-	 */
-	public String getFactoryResolverClassName() {
-		return factoryResolverClassName;
+	private DrbFormatSpecification(String fileExtension) {
+		this.sdfSchemaLocation = null;
+		this.fileExtension = fileExtension;
 	}
 
 	/**
-	 * @return an optional protocol/format identifier to pass through to DRB,
-	 *         bypassing content-sniffing auto-detection where the installed
-	 *         DRB version supports doing so
+	 * Let DRB recognise the format itself, as it would a file with this
+	 * extension (e.g. {@code "xml"}) - DRB's resolver goes by extension.
 	 */
-	public Optional<String> protocolHint() {
-		return Optional.ofNullable(protocolHint);
+	public static DrbFormatSpecification autoDetect(String fileExtension) {
+		String ext = Objects.requireNonNull(fileExtension, "fileExtension").replaceFirst("^\\.", "");
+		if (!ext.matches("[A-Za-z0-9]+")) {
+			throw new IllegalArgumentException("Not a file extension: " + fileExtension);
+		}
+		return new DrbFormatSpecification(ext);
+	}
+
+	/** @return the SDF schema to apply, or empty to let DRB recognise the format itself */
+	public Optional<URI> sdfSchemaLocation() {
+		return Optional.ofNullable(sdfSchemaLocation);
+	}
+
+	/** @return for {@link #autoDetect}, the extension DRB recognises the format by */
+	public Optional<String> fileExtension() {
+		return Optional.ofNullable(fileExtension);
 	}
 
 	@Override
@@ -61,12 +67,13 @@ public final class DrbFormatSpecification implements FormatSpecification {
 
 	@Override
 	public Optional<URI> getSpecificationLocation() {
-		return Optional.ofNullable(specificationLocation);
+		return sdfSchemaLocation();
 	}
 
 	@Override
 	public String toString() {
-		return "DrbFormatSpecification{factoryResolverClassName=" + factoryResolverClassName
-				+ ", protocolHint=" + protocolHint + "}";
+		return sdfSchemaLocation == null
+				? "DrbFormatSpecification{autoDetect=." + fileExtension + "}"
+				: "DrbFormatSpecification{sdfSchema=" + sdfSchemaLocation + "}";
 	}
 }

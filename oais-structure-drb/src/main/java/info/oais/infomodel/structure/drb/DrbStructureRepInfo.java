@@ -1,32 +1,28 @@
 package info.oais.infomodel.structure.drb;
 
+import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
+import info.oais.infomodel.interfaces.DigitalObject;
 import info.oais.infomodel.structure.AbstractExecutableStructureRepInfo;
 import info.oais.infomodel.structure.StructureInterpretationException;
 import info.oais.infomodel.structure.StructureNode;
-import info.oais.infomodel.interfaces.DigitalObject;
 
 /**
  * {@link info.oais.infomodel.structure.ExecutableStructureRepInfo} backed by
- * DRB (CNES/GAEL's Data Request Broker), bridged entirely by reflection - see
- * this module's {@code README-DRB.md}.
+ * GAEL's Java DRB (Data Request Broker), reached through {@link DrbApi} -
+ * see this module's {@code README-DRB.md}.
  *
- * <p><b>Stream lifetime, unlike the other two adapters:</b> DRB is designed
- * to navigate large, heterogeneous data sources lazily, reading from the
- * underlying stream on demand as the returned node tree is traversed rather
- * than up front. Because of that, this adapter deliberately does
- * <em>not</em> close {@code digitalObject.getObject()}'s stream once
- * {@link #doApply} returns - doing so eagerly, the way the DFDL and Kaitai
- * adapters do (both of which parse fully into memory before returning),
- * would likely break lazy access to a DRB node tree that is still being
- * traversed by the caller. Callers of this adapter are responsible for
- * closing the {@link DigitalObject}'s underlying resource once they are
- * done navigating the result, and should supply a {@link DigitalObject}
- * backed by a repeatable/re-openable stream if {@link #apply} may be called
- * more than once.</p>
+ * <p>DRB opens data by file path, so the Digital Object's bytes are written
+ * to a temporary file first. DRB then either recognises the format itself or
+ * applies the {@link DrbFormatSpecification}'s SDF schema, and the resulting
+ * node tree is copied into plain {@link StructureNode}s before the temporary
+ * file is deleted - so, like the DFDL and Kaitai adapters, the returned tree
+ * is fully in memory and the Digital Object's stream is closed on return.
+ * {@link DrbApi#MAX_NODES} bounds that copy.</p>
  */
 public final class DrbStructureRepInfo extends AbstractExecutableStructureRepInfo {
 
@@ -41,58 +37,25 @@ public final class DrbStructureRepInfo extends AbstractExecutableStructureRepInf
 
 	@Override
 	protected StructureNode doApply(DigitalObject digitalObject) throws Exception {
-		DrbFormatSpecification spec = getFormatSpecification();
-
-		Class<?> resolverClass;
-		try {
-			resolverClass = Class.forName(spec.getFactoryResolverClassName());
-		} catch (ClassNotFoundException e) {
+		if (!DrbApi.isAvailable()) {
 			throw new StructureInterpretationException(
-					"DRB class " + spec.getFactoryResolverClassName() + " is not on the classpath - "
-							+ "add your DRB/DRB-Cortex jar as a dependency (see README-DRB.md)", e);
+					"The DRB library (fr.gael.drb) is not on the classpath - see README-DRB.md");
 		}
-
-		Object resolver = resolveDefaultResolver(resolverClass);
-
-		// Intentionally not try-with-resources: see this class's Javadoc on stream lifetime.
-		InputStream in = digitalObject.getObject();
-		Object drbNode;
+		// DRB recognises built-in formats by file extension, so the temp file carries the expected one.
+		Path data = Files.createTempFile("oais-drb-", "." + getFormatSpecification().fileExtension().orElse("dat"));
 		try {
-			Method create = resolver.getClass().getMethod("create", InputStream.class);
-			drbNode = create.invoke(resolver, in);
-		} catch (NoSuchMethodException e) {
-			throw new StructureInterpretationException(
-					"DRB factory resolver " + resolver.getClass() + " has no create(InputStream) method - "
-							+ "check the API of your installed DRB version and adjust DrbStructureRepInfo accordingly",
-					e);
-		} catch (InvocationTargetException e) {
-			throw new StructureInterpretationException(
-					"DRB could not create a node for the supplied DigitalObject using " + spec, e.getCause());
-		}
-
-		if (drbNode == null) {
-			throw new StructureInterpretationException(
-					"DRB returned no node (could not determine a matching format) for " + spec);
-		}
-		return new DrbStructureNode(drbNode);
-	}
-
-	/**
-	 * Resolves DRB's singleton default factory resolver. Classic DRB exposes
-	 * this as a static {@code getDefaultFactoryResolver()} on
-	 * {@code DrbFactoryResolver}; if your version names it differently,
-	 * this is the one place to change.
-	 */
-	private static Object resolveDefaultResolver(Class<?> resolverClass) throws Exception {
-		try {
-			Method getDefault = resolverClass.getMethod("getDefaultFactoryResolver");
-			return getDefault.invoke(null);
-		} catch (NoSuchMethodException e) {
-			throw new StructureInterpretationException(
-					resolverClass + " has no static getDefaultFactoryResolver() method - "
-							+ "check the API of your installed DRB version and adjust "
-							+ "DrbStructureRepInfo#resolveDefaultResolver accordingly",
-					e);
+			try (InputStream in = digitalObject.getObject()) {
+				Files.copy(in, data, StandardCopyOption.REPLACE_EXISTING);
+			}
+			Path schema = getFormatSpecification().sdfSchemaLocation().map(Path::of).orElse(null);
+			return DrbApi.decode(data, schema);
+		} finally {
+			try {
+				Files.deleteIfExists(data);
+			} catch (IOException e) {
+				// Still held open by DRB (possible on Windows): don't fail the decode over it.
+				data.toFile().deleteOnExit();
+			}
 		}
 	}
 }

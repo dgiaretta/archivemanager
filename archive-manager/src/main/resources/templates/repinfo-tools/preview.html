@@ -88,13 +88,38 @@
 
     <section class="editor-section" th:if="${drbJava != null}">
         <h2>DRB &mdash; Java (fr.gael.drb)</h2>
-        <p class="muted">
-            A field-semantics reference and usage snippet in the same reflection-based shape as
-            oais-structure-drb's own DrbStructureNode/DrbFormatSpecification classes, for
-            projects that already depend on the original Java DRB library rather than drb-python.
-        </p>
-        <a class="button-link" th:href="@{/repinfo-tools/download/drb-java}">Download .java &rarr;</a>
+        <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
+            <p class="muted">
+                A DRB SDF schema: an XML Schema whose <code>sdf:block</code> annotations give each
+                field's length, byte order and encoding &mdash; DRB's own declarative description
+                language, applied by GAEL's Java DRB (LGPL v3). Each field's definition becomes its
+                <code>xs:documentation</code>.
+            </p>
+            <a class="button-link" th:href="@{/repinfo-tools/download/drb-java}">Download .drb.xsd &rarr;</a>
+        </th:block>
+        <th:block th:unless="${def.kind.name() == 'BYTE_LAYOUT'}">
+            <p class="muted">
+                A documented schema for reference, not something DRB reads &mdash; DRB's SDF schemas
+                describe sequential byte layouts, and DRB has no HDF5 implementation.
+            </p>
+            <a class="button-link" th:href="@{/repinfo-tools/download/drb-java}">Download .java &rarr;</a>
+        </th:block>
         <pre class="sparql" th:text="${drbJava}">...</pre>
+
+        <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
+            <h3 id="drb-java-test">Test against a sample file</h3>
+            <p class="muted">
+                Applies the schema above with Java DRB, inside this application, and shows the
+                decoded node tree with each field's byte position. The file is only used for this
+                one request; nothing is stored.
+            </p>
+            <form th:action="@{/repinfo-tools/test-drb-java} + '#drb-java-test'" method="post"
+                  enctype="multipart/form-data" class="form">
+                <input type="file" name="sample" required/>
+                <button type="submit">Decode sample</button>
+            </form>
+            <th:block th:if="${drbJavaTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${drbJavaTest})}"></div></th:block>
+        </th:block>
     </section>
 
     <section class="editor-section">
@@ -128,7 +153,7 @@
                 <input type="checkbox" name="formats" value="drb-python"/> Save DRB (Python) description
             </label>
             <label th:if="${drbJava != null}">
-                <input type="checkbox" name="formats" value="drb-java"/> Save DRB (Java) description
+                <input type="checkbox" name="formats" value="drb-java"/> Save DRB (Java) description<span th:if="${def.kind.name() == 'BYTE_LAYOUT'}"> (SDF schema)</span>
             </label>
             <button type="submit">Save to archive</button>
         </form>

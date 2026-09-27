@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- DRB SDF schema for CSV "x,y,label" rows: repeated, delimited ASCII fields. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:sdf="http://www.gael.fr/2004/12/drb/sdf">
+  <xs:element name="points">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="row" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="x" type="xs:int">
+                <xs:annotation><xs:appinfo><sdf:block><sdf:encoding>ASCII</sdf:encoding><sdf:delimiter>,</sdf:delimiter></sdf:block></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="y" type="xs:int">
+                <xs:annotation><xs:appinfo><sdf:block><sdf:encoding>ASCII</sdf:encoding><sdf:delimiter>,</sdf:delimiter></sdf:block></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="label" type="xs:string">
+                <xs:annotation><xs:appinfo><sdf:block><sdf:encoding>ASCII</sdf:encoding><sdf:delimiter>&#10;</sdf:delimiter></sdf:block></xs:appinfo></xs:annotation>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

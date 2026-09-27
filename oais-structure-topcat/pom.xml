@@ -39,9 +39,8 @@
          only per-engine-specific code this module has, see its Javadoc), so
          it depends on all three adapters, the same way oais-structure-demo
          does. kaitai-struct-runtime comes transitively via
-         oais-structure-kaitai; there's no equivalent for DRB since
-         oais-structure-drb deliberately has no compile-time DRB dependency
-         of its own (reflection-based, see that module's own README). -->
+         oais-structure-kaitai; DRB itself, which oais-structure-drb only
+         reaches by reflection, is added at runtime scope below. -->
     <dependency>
       <groupId>info.oais.infomodel</groupId>
       <artifactId>oais-structure-dfdl</artifactId>
@@ -53,6 +52,18 @@
     <dependency>
       <groupId>info.oais.infomodel</groupId>
       <artifactId>oais-structure-drb</artifactId>
+    </dependency>
+    <!-- DRB (LGPL v3, from ../third-party/maven-repo) plus the bridge for its
+         log4j 1.x logging calls, so copy-dependencies includes them. -->
+    <dependency>
+      <groupId>fr.gael.drb</groupId>
+      <artifactId>drb</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>log4j-over-slf4j</artifactId>
+      <scope>runtime</scope>
     </dependency>
 
     <dependency>
