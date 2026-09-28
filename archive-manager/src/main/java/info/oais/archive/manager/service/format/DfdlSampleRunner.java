@@ -2,6 +2,7 @@ package info.oais.archive.manager.service.format;
 
 import info.oais.infomodel.implementation.DigitalObjectRefImpl;
 import info.oais.infomodel.structure.StructureNode;
+import info.oais.infomodel.structure.description.FormatDescription;
 import info.oais.infomodel.structure.dfdl.DfdlFormatSpecification;
 import info.oais.infomodel.structure.dfdl.DfdlStructureRepInfo;
 import org.springframework.stereotype.Component;
@@ -33,6 +34,11 @@ public class DfdlSampleRunner {
      * Daffodil accessors that not every Daffodil version exposes.
      */
     public SampleDecodeResult run(String dfdlSchema, byte[] sample) {
+        return run(null, dfdlSchema, sample);
+    }
+
+    /** @param format the description the schema was generated from, to line the result up against (null: don't) */
+    public SampleDecodeResult run(FormatDescription format, String dfdlSchema, byte[] sample) {
         Path schemaFile = null;
         try {
             // Daffodil compiles from a URI, not a string.
@@ -40,7 +46,7 @@ public class DfdlSampleRunner {
             Files.writeString(schemaFile, dfdlSchema, StandardCharsets.UTF_8);
             DfdlStructureRepInfo repInfo = new DfdlStructureRepInfo(new DfdlFormatSpecification(schemaFile.toUri()));
             StructureNode root = repInfo.apply(new DigitalObjectRefImpl(new ByteArrayInputStream(sample)));
-            return SampleDecodeResult.of(root);
+            return format == null ? SampleDecodeResult.of(root) : SampleDecodeResult.of(format, root);
         } catch (IOException e) {
             return SampleDecodeResult.failure("Could not write the schema to a temporary file: " + e.getMessage());
         } catch (RuntimeException e) {

@@ -1,6 +1,7 @@
 package info.oais.archive.manager.service.format;
 
 import info.oais.infomodel.implementation.DigitalObjectRefImpl;
+import info.oais.infomodel.structure.description.FormatDescription;
 import info.oais.infomodel.structure.drb.DrbFormatSpecification;
 import info.oais.infomodel.structure.drb.DrbStructureRepInfo;
 import org.springframework.stereotype.Component;
@@ -22,12 +23,18 @@ import java.nio.file.Path;
 public class DrbSampleRunner {
 
     public SampleDecodeResult run(String sdfSchema, byte[] sample) {
+        return run(null, sdfSchema, sample);
+    }
+
+    /** @param format the description the schema was generated from, to line the result up against (null: don't) */
+    public SampleDecodeResult run(FormatDescription format, String sdfSchema, byte[] sample) {
         Path schemaFile = null;
         try {
             schemaFile = Files.createTempFile("repinfo-tools-", ".drb.xsd");
             Files.writeString(schemaFile, sdfSchema, StandardCharsets.UTF_8);
             DrbStructureRepInfo repInfo = new DrbStructureRepInfo(new DrbFormatSpecification(schemaFile.toUri()));
-            return SampleDecodeResult.of(repInfo.apply(new DigitalObjectRefImpl(new ByteArrayInputStream(sample))));
+            var root = repInfo.apply(new DigitalObjectRefImpl(new ByteArrayInputStream(sample)));
+            return format == null ? SampleDecodeResult.of(root) : SampleDecodeResult.of(format, root);
         } catch (IOException e) {
             return SampleDecodeResult.failure("Could not write the schema to a temporary file: " + e.getMessage());
         } catch (RuntimeException e) {

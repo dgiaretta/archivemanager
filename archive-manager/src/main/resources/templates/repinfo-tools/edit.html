@@ -15,7 +15,7 @@
                 <input type="text" name="name" th:value="${def.name}" required/>
             </label>
             <label>
-                Notes (padding rules, variable-length conventions, anything a reader needs before the field list)
+                Notes (padding rules, variable-length conventions, anything a reader needs before the structure)
                 <textarea name="notes" rows="4" th:text="${def.notes}"></textarea>
             </label>
             <label>
@@ -36,60 +36,204 @@
         </form>
     </section>
 
-    <!-- Byte-layout fields -->
-    <section class="editor-section" th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
-        <h2>Fields (file order)</h2>
+    <!-- Byte-layout structure: records, fields and choices -->
+    <section class="editor-section" th:if="${def.kind.name() == 'BYTE_LAYOUT'}" id="structure">
+        <h2>Structure</h2>
         <p class="muted">
-            <strong>Semantic name</strong>, <strong>definition</strong>, and <strong>units</strong>
-            become this field's own Semantic Representation Information when you save --
-            distinct from <strong>name</strong>, the structural identifier the generators emit
-            (e.g. a field named "t" could have semantic name "Temperature").
+            The file as a tree, in data order. A <strong>record</strong> groups elements (and can be
+            repeated, or be one line of delimited text such as a CSV row); a <strong>field</strong>
+            is one value; a <strong>choice</strong> is one of several records, picked by an earlier
+            field's value. Counts, lengths and conditions can use earlier fields and arithmetic,
+            e.g. <code>n</code>, <code>rows * cols</code>, <code>flags = 1</code>. Select an element to
+            edit it, including what it means: its semantic name, definition, units and more.
         </p>
-        <table class="attrs" th:if="${!def.fields.isEmpty()}">
-            <tr>
-                <th>Name</th><th>Type</th><th>Length</th><th>Byte order</th><th>Semantic name</th>
-                <th>Definition</th><th>Units</th><th></th>
-            </tr>
-            <tr th:each="f, it : ${def.fields}">
-                <td th:text="${f.name}">name</td>
-                <td th:text="${f.type}">type</td>
-                <td th:text="${f.lengthBytes}">len</td>
-                <td th:text="${f.byteOrder} ?: 'default'">order</td>
-                <td th:text="${f.semanticName}">semantic name</td>
-                <td th:text="${f.definition}">definition</td>
-                <td th:text="${f.units}">units</td>
-                <td>
-                    <form th:action="@{/repinfo-tools/fields/{i}/move(i=${it.index})}" method="post" class="inline-form">
+        <p class="notice error" th:if="${editorError != null}" th:text="${editorError}">error</p>
+        <p class="notice" th:if="${editorMessage != null}" th:text="${editorMessage}">saved</p>
+        <p class="notice error" th:if="${problemCount > 0}"
+           th:text="${problemCount == 1 ? '1 problem to fix before the description can be generated for every engine - see below.'
+                    : problemCount + ' problems to fix before the description can be generated for every engine - see below.'}">problems</p>
+
+        <table class="attrs structure-tree">
+            <tr><th>Element</th><th>Layout</th><th>Meaning</th><th></th></tr>
+            <tr th:each="row : ${rows}" th:classappend="${form != null and form.id == row.id} ? 'selected'">
+                <td th:style="|padding-left: ${row.depth * 1.4 + 0.5}rem|">
+                    <span class="element-kind" th:text="${row.kind}">field</span>
+                    <a th:href="@{/repinfo-tools/edit(element=${row.id})} + '#edit-element'" th:text="${row.name}">name</a>
+                    <ul class="problems" th:if="${!row.problems.isEmpty()}">
+                        <li th:each="p : ${row.problems}" th:text="${p}">problem</li>
+                    </ul>
+                </td>
+                <td th:text="${row.summary}">UINT8</td>
+                <td th:text="${row.semantics}">meaning</td>
+                <td class="row-actions">
+                    <form th:if="${!row.root}" th:action="@{/repinfo-tools/elements/{id}/move(id=${row.id})}" method="post" class="inline-form">
                         <input type="hidden" name="delta" value="-1"/>
-                        <button type="submit" th:disabled="${it.index == 0}" title="Move up">&uarr;</button>
+                        <button type="submit" th:disabled="${row.first}" title="Move up">&uarr;</button>
                     </form>
-                    <form th:action="@{/repinfo-tools/fields/{i}/move(i=${it.index})}" method="post" class="inline-form">
+                    <form th:if="${!row.root}" th:action="@{/repinfo-tools/elements/{id}/move(id=${row.id})}" method="post" class="inline-form">
                         <input type="hidden" name="delta" value="1"/>
-                        <button type="submit" th:disabled="${it.index == def.fields.size() - 1}" title="Move down">&darr;</button>
+                        <button type="submit" th:disabled="${row.last}" title="Move down">&darr;</button>
                     </form>
-                    <form th:action="@{/repinfo-tools/fields/{i}/delete(i=${it.index})}" method="post" class="inline-form">
+                    <form th:if="${!row.root}" th:action="@{/repinfo-tools/elements/{id}/delete(id=${row.id})}" method="post" class="inline-form">
                         <button type="submit" class="delete-btn" title="Remove">&times;</button>
                     </form>
                 </td>
             </tr>
         </table>
-        <p th:if="${def.fields.isEmpty()}" class="muted">No fields yet.</p>
+        <p class="muted" th:if="${form == null}">Select an element above to edit it, or to add elements inside it.</p>
+    </section>
 
-        <form th:action="@{/repinfo-tools/fields}" method="post" class="inline-add-form">
-            <input type="text" name="name" placeholder="field name" required/>
-            <select name="type">
-                <option th:each="t : ${fieldTypes}" th:value="${t}" th:text="${t}">INT32</option>
-            </select>
-            <input type="number" name="lengthBytes" placeholder="length (bytes, string/bytes only)"/>
-            <select name="byteOrder">
-                <option value="">(use default)</option>
-                <option th:each="o : ${byteOrders}" th:value="${o}" th:text="${o}">BIG_ENDIAN</option>
-            </select>
-            <input type="text" name="semanticName" placeholder="semantic name (e.g. Temperature)"/>
-            <input type="text" name="definition" placeholder="what this field means" style="min-width:22rem;"/>
-            <input type="text" name="units" placeholder="units (optional)"/>
-            <button type="submit">Add field</button>
+    <!-- Edit panel for the selected element -->
+    <section class="editor-section" th:if="${def.kind.name() == 'BYTE_LAYOUT' and form != null}" id="edit-element">
+        <h2 th:text="${form.root ? 'The whole file' : 'Edit ' + form.kind + ' ' + form.name}">Edit field</h2>
+        <form th:action="@{/repinfo-tools/elements/{id}/update(id=${form.id})}" method="post" class="form">
+            <fieldset>
+                <legend>Layout</legend>
+                <label th:if="${!form.root}">
+                    Name (lower-case letters, digits and underscores)
+                    <input type="text" name="name" th:value="${form.name}" required/>
+                </label>
+                <th:block th:if="${form.kind == 'field'}">
+                    <label>
+                        Type
+                        <select name="type">
+                            <option th:each="t : ${fieldTypes}" th:value="${t}" th:text="${t}"
+                                    th:selected="${t.name() == form.type}">UINT8</option>
+                        </select>
+                    </label>
+                    <label>
+                        Length in bytes (STRING and BYTES in a binary record only): a number, or an
+                        expression such as <code>name_len</code> or <code>n * 2 - 1</code>
+                        <input type="text" name="length" th:value="${form.length}"/>
+                    </label>
+                    <label>
+                        Byte order (multi-byte numbers)
+                        <select name="byteOrder">
+                            <option value="" th:selected="${form.byteOrder == ''}">(the file's default)</option>
+                            <option th:each="o : ${byteOrders}" th:value="${o}" th:text="${o}"
+                                    th:selected="${o.name() == form.byteOrder}">BIG_ENDIAN</option>
+                        </select>
+                    </label>
+                </th:block>
+                <label th:if="${form.kind == 'choice'}">
+                    Chosen by (an earlier field, or an expression)
+                    <input type="text" name="discriminator" th:value="${form.discriminator}" required/>
+                </label>
+                <label th:if="${form.kind == 'branch'}">
+                    Used when the choice's value is
+                    <input type="text" name="branchKey" th:value="${form.branchKey}" required/>
+                </label>
+                <th:block th:if="${form.kind == 'record' or form.kind == 'branch'}">
+                    <label class="checkbox">
+                        <input type="checkbox" name="text" th:checked="${form.text}"/>
+                        Delimited text (e.g. one CSV row): its fields are text between separators
+                    </label>
+                    <label>
+                        Field separator (<code>\t</code> for a tab)
+                        <input type="text" name="fieldSeparator" th:value="${form.fieldSeparator}"/>
+                    </label>
+                    <label>
+                        Record terminator (<code>\n</code> for a newline)
+                        <input type="text" name="recordTerminator" th:value="${form.recordTerminator}"/>
+                    </label>
+                </th:block>
+                <th:block th:if="${!form.root and form.kind != 'branch'}">
+                    <label>
+                        Occurs
+                        <select name="occurs">
+                            <option value="once" th:selected="${form.occurs == 'once'}">once</option>
+                            <option value="optional" th:selected="${form.occurs == 'optional'}">only if a condition holds</option>
+                            <option value="repeated" th:selected="${form.occurs == 'repeated'}">a number of times</option>
+                            <option value="until_end" th:selected="${form.occurs == 'until_end'}">repeatedly, to the end of the data</option>
+                        </select>
+                    </label>
+                    <label>
+                        Condition or number of times (e.g. <code>flags = 1</code>, <code>n</code>, <code>rows * cols</code>)
+                        <input type="text" name="occursExpr" th:value="${form.occursExpr}"/>
+                    </label>
+                </th:block>
+            </fieldset>
+
+            <fieldset>
+                <legend>Meaning (Semantic Representation Information)</legend>
+                <label>
+                    Semantic name (what it represents, e.g. "Temperature")
+                    <input type="text" name="semanticName" th:value="${form.semanticName}"/>
+                </label>
+                <label>
+                    Definition
+                    <textarea name="definition" rows="3" th:text="${form.definition}"></textarea>
+                </label>
+                <th:block th:if="${form.kind == 'field'}">
+                    <label>
+                        Units (e.g. "K", "hPa")
+                        <input type="text" name="units" th:value="${form.units}"/>
+                    </label>
+                    <label>
+                        Units in a vocabulary (optional link, e.g. a QUDT unit)
+                        <input type="url" name="unitsUri" th:value="${form.unitsUri}" placeholder="https://qudt.org/vocab/unit/K"/>
+                    </label>
+                    <label>
+                        Coded values, one per line as <code>value = meaning</code>
+                        <textarea name="codes" rows="3" th:text="${form.codes}" placeholder="1 = housekeeping&#10;2 = science"></textarea>
+                    </label>
+                    <div class="form-row">
+                        <label>
+                            Scale (physical value = raw &times; scale + offset)
+                            <input type="text" name="scale" th:value="${form.scale}" placeholder="1"/>
+                        </label>
+                        <label>
+                            Offset
+                            <input type="text" name="offset" th:value="${form.offset}" placeholder="0"/>
+                        </label>
+                    </div>
+                    <label>
+                        Fill value (the raw value meaning "no data")
+                        <input type="text" name="fillValue" th:value="${form.fillValue}"/>
+                    </label>
+                    <div class="form-row">
+                        <label>
+                            Smallest valid value
+                            <input type="text" name="validMin" th:value="${form.validMin}"/>
+                        </label>
+                        <label>
+                            Largest valid value
+                            <input type="text" name="validMax" th:value="${form.validMax}"/>
+                        </label>
+                    </div>
+                </th:block>
+                <label>
+                    Concept in a vocabulary or ontology (optional link)
+                    <input type="url" name="conceptUri" th:value="${form.conceptUri}"/>
+                </label>
+            </fieldset>
+            <button type="submit">Save</button>
         </form>
+
+        <th:block th:if="${form.kind == 'record' or form.kind == 'branch'}">
+            <h3 th:text="${form.root ? 'Add to the whole file' : 'Add inside ' + form.name}">Add inside</h3>
+            <form th:action="@{/repinfo-tools/elements/add}" method="post" class="inline-add-form">
+                <input type="hidden" name="parentId" th:value="${form.id}"/>
+                <select name="kind">
+                    <option value="field">field</option>
+                    <option value="record">record</option>
+                    <option value="choice">choice</option>
+                </select>
+                <input type="text" name="name" placeholder="name" required/>
+                <input type="text" name="discriminator" placeholder="for a choice: chosen by, e.g. kind"/>
+                <button type="submit">Add</button>
+            </form>
+        </th:block>
+        <th:block th:if="${form.kind == 'choice'}">
+            <h3>Add a branch</h3>
+            <form th:action="@{/repinfo-tools/elements/add}" method="post" class="inline-add-form">
+                <input type="hidden" name="parentId" th:value="${form.id}"/>
+                <input type="hidden" name="kind" value="branch"/>
+                <input type="text" name="name" placeholder="branch record name, e.g. temperature" required/>
+                <input type="text" name="key" th:placeholder="'used when ' + ${form.discriminator} + ' is, e.g. 1'" required/>
+                <button type="submit">Add branch</button>
+            </form>
+        </th:block>
     </section>
 
     <!-- HDF5-style logical tree -->

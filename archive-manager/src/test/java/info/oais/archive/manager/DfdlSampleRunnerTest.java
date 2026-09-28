@@ -1,10 +1,9 @@
 package info.oais.archive.manager;
 
-import info.oais.archive.manager.model.format.ByteOrder;
-import info.oais.archive.manager.model.format.FieldType;
+import info.oais.infomodel.structure.description.ByteOrder;
+import info.oais.infomodel.structure.description.PrimitiveType;
 import info.oais.archive.manager.model.format.FormatDefinition;
 import info.oais.archive.manager.model.format.FormatDefinitionKind;
-import info.oais.archive.manager.model.format.FormatField;
 import info.oais.archive.manager.service.format.DfdlGenerator;
 import info.oais.archive.manager.service.format.DfdlSampleRunner;
 import info.oais.archive.manager.service.format.FormatTemplates;
@@ -34,9 +33,9 @@ class DfdlSampleRunnerTest {
         def.setName("point record");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setDefaultByteOrder(ByteOrder.LITTLE_ENDIAN);
-        def.addField(new FormatField("x", FieldType.INT32, null, null, null, "x ordinate", null));
-        def.addField(new FormatField("y", FieldType.INT32, null, null, null, "y ordinate", null));
-        def.addField(new FormatField("label", FieldType.ASCII_STRING, 4, null, null, "short label", null));
+        TestFormats.addField(def, "x", PrimitiveType.INT32, null, null, null, "x ordinate", null);
+        TestFormats.addField(def, "y", PrimitiveType.INT32, null, null, null, "y ordinate", null);
+        TestFormats.addField(def, "label", PrimitiveType.STRING, 4, null, null, "short label", null);
 
         byte[] bytes = ByteBuffer.allocate(12).order(java.nio.ByteOrder.LITTLE_ENDIAN)
                 .putInt(42).putInt(-7).put("abcd".getBytes(StandardCharsets.US_ASCII)).array();

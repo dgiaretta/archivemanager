@@ -10,15 +10,24 @@
         <span th:unless="${result.ok()}">could not be decoded.</span>
     </p>
     <pre class="sparql" th:unless="${result.ok()}" th:text="${result.error()}">diagnostics</pre>
+    <p class="notice error" th:if="${result.ok() and result.trailingBytes() != null and result.trailingBytes() > 0}"
+       th:text="${result.trailingBytes() + ' byte' + (result.trailingBytes() == 1 ? '' : 's')
+                + ' at the end of the file are not covered by the description, so they were ignored. '
+                + 'Either the description is incomplete, or the sample has extra data.'}">leftover</p>
+    <p class="muted" th:if="${result.ok() and result.trailingBytes() != null and result.trailingBytes() == 0}">
+        The description accounts for every byte of the sample.</p>
+    <p class="notice" th:if="${result.warning() != null}" th:text="${result.warning()}">warning</p>
     <table th:if="${result.ok()}" class="listing">
         <thead>
-        <tr><th>Element</th><th>Kind</th><th>Value</th><th th:if="${result.hasPositions()}">Position</th></tr>
+        <tr><th>Element</th><th>Kind</th><th>Value</th><th th:if="${result.hasMeanings()}">Meaning</th>
+            <th th:if="${result.hasPositions()}">Position</th></tr>
         </thead>
         <tbody>
         <tr th:each="row : ${result.rows()}">
             <td th:style="'padding-left:' + (${row.depth()} * 1.25 + 0.5) + 'em'"><code th:text="${row.name()}">x</code></td>
             <td th:text="${row.kind()}">LEAF</td>
             <td th:text="${row.value()}">42</td>
+            <td th:if="${result.hasMeanings()}" th:text="${row.meaning()}">housekeeping</td>
             <td class="muted" th:if="${result.hasPositions()}" th:text="${row.byteRange()}">bytes 0&ndash;3</td>
         </tr>
         </tbody>

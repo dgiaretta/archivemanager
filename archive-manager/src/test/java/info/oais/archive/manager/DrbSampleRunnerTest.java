@@ -1,11 +1,10 @@
 package info.oais.archive.manager;
 
-import info.oais.archive.manager.model.format.ByteOrder;
+import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.archive.manager.model.format.DrbTarget;
-import info.oais.archive.manager.model.format.FieldType;
+import info.oais.infomodel.structure.description.PrimitiveType;
 import info.oais.archive.manager.model.format.FormatDefinition;
 import info.oais.archive.manager.model.format.FormatDefinitionKind;
-import info.oais.archive.manager.model.format.FormatField;
 import info.oais.archive.manager.service.format.DrbGenerator;
 import info.oais.archive.manager.service.format.DrbSampleRunner;
 import info.oais.archive.manager.service.format.FormatTemplates;
@@ -32,17 +31,17 @@ class DrbSampleRunnerTest {
 
     @ParameterizedTest
     @EnumSource(ByteOrder.class)
-    void decodesEveryFieldTypeInEitherByteOrder(ByteOrder order) {
+    void decodesEveryPrimitiveTypeInEitherByteOrder(ByteOrder order) {
         FormatDefinition def = new FormatDefinition();
         def.setName("all types");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setDefaultByteOrder(order);
-        for (FieldType type : List.of(FieldType.INT8, FieldType.UINT8, FieldType.INT16, FieldType.UINT16,
-                FieldType.INT32, FieldType.UINT32, FieldType.INT64, FieldType.UINT64, FieldType.FLOAT32, FieldType.FLOAT64)) {
-            def.addField(new FormatField(type.name().toLowerCase(), type, null, null, null, null, null));
+        for (PrimitiveType type : List.of(PrimitiveType.INT8, PrimitiveType.UINT8, PrimitiveType.INT16, PrimitiveType.UINT16,
+                PrimitiveType.INT32, PrimitiveType.UINT32, PrimitiveType.INT64, PrimitiveType.UINT64, PrimitiveType.FLOAT32, PrimitiveType.FLOAT64)) {
+            TestFormats.addField(def, type.name().toLowerCase(), type, null, null, null, null, null);
         }
-        def.addField(new FormatField("label", FieldType.ASCII_STRING, 4, null, null, null, null));
-        def.addField(new FormatField("raw", FieldType.BYTES, 2, null, null, null, null));
+        TestFormats.addField(def, "label", PrimitiveType.STRING, 4, null, null, null, null);
+        TestFormats.addField(def, "raw", PrimitiveType.BYTES, 2, null, null, null, null);
 
         ByteBuffer bytes = ByteBuffer.allocate(48).order(order == ByteOrder.LITTLE_ENDIAN
                 ? java.nio.ByteOrder.LITTLE_ENDIAN : java.nio.ByteOrder.BIG_ENDIAN);
@@ -91,7 +90,7 @@ class DrbSampleRunnerTest {
         def.setName("escaping -- check");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setNotes("notes with <markup> & \"quotes\"");
-        def.addField(new FormatField("x", FieldType.UINT8, null, null, null, "</xs:documentation><evil/> & more", null));
+        TestFormats.addField(def, "x", PrimitiveType.UINT8, null, null, null, "</xs:documentation><evil/> & more", null);
 
         SampleDecodeResult result = runner.run(generator.generate(def, DrbTarget.JAVA), new byte[] {7});
 

@@ -620,3 +620,22 @@ main.container-narrow {
   overflow-x: auto;
 }
 .readme pre code { background: none; padding: 0; }
+
+/* RepInfo Tools structure editor */
+.notice { padding: 0.6rem 0.85rem; border-radius: 4px; background: var(--accent-soft); color: var(--ink); font-size: 0.9rem; }
+.notice.error { background: #fdecea; color: #8e2a1f; }
+.structure-tree td { vertical-align: top; }
+.structure-tree tr.selected td { background: var(--accent-soft); }
+.structure-tree .element-kind {
+  display: inline-block; min-width: 4.2rem; font-size: 0.72rem; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--muted);
+}
+.structure-tree .problems { margin: 0.3rem 0 0; padding-left: 1.1rem; color: #8e2a1f; font-size: 0.82rem; }
+.structure-tree .row-actions { white-space: nowrap; }
+.form fieldset { border: 1px solid var(--border); border-radius: 6px; padding: 0.9rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.9rem; }
+.form legend { font-weight: 600; color: var(--ink); padding: 0 0.3rem; }
+.form .form-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+.form .form-row label { flex: 1; min-width: 10rem; }
+.form label.checkbox { flex-direction: row; align-items: center; gap: 0.5rem; color: var(--ink); }
+.form label.checkbox input { width: auto; }
+#edit-element .form { max-width: 46rem; }

@@ -7,7 +7,7 @@ import java.util.List;
  * hierarchy (e.g. {@code /observations/temperature} for a Dataset inside a
  * Group, {@code /observations/temperature@units} for an Attribute on that
  * Dataset) rather than a nested Java tree, so the editor can use the same
- * flat add/edit/delete/reorder row pattern as {@link FormatField} instead of
+ * flat add/edit/delete/reorder row pattern instead of
  * needing bespoke tree-editing UI. Document order in the definition's list
  * doubles as display order; a row's indentation when rendered is inferred
  * from how many {@code /} segments its path has.

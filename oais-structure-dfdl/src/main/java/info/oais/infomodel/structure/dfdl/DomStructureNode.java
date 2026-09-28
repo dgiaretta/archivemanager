@@ -60,6 +60,8 @@ final class DomStructureNode implements StructureNode {
 	private final Map<List<Integer>, ByteRange> rangesByPath;
 	private final Map<List<Integer>, Object> typedValuesByPath;
 	private final List<Integer> path;
+	/** Attributes added by the adapter rather than read from the DOM (e.g. {@link StructureNode#TRAILING_BYTES}). */
+	private final Map<String, Object> extraAttributes;
 
 	/**
 	 * Wraps {@code element} with no source-range or typed-value information
@@ -88,6 +90,16 @@ final class DomStructureNode implements StructureNode {
 		this.rangesByPath = rangesByPath;
 		this.typedValuesByPath = typedValuesByPath;
 		this.path = path;
+		this.extraAttributes = Map.of();
+	}
+
+	DomStructureNode(Element element, Map<List<Integer>, ByteRange> rangesByPath,
+			Map<List<Integer>, Object> typedValuesByPath, List<Integer> path, Map<String, Object> extraAttributes) {
+		this.element = element;
+		this.rangesByPath = rangesByPath;
+		this.typedValuesByPath = typedValuesByPath;
+		this.path = path;
+		this.extraAttributes = extraAttributes;
 	}
 
 	@Override
@@ -157,6 +169,7 @@ final class DomStructureNode implements StructureNode {
 				attributes.put(attr.getName(), attr.getValue());
 			}
 		}
+		attributes.putAll(extraAttributes);
 		return attributes;
 	}
 

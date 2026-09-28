@@ -16,7 +16,10 @@ annotations saying how each one is laid out in the data: `dfdl:length` and
 another. Binary records, fixed-width text and delimited text (e.g. CSV) can all
 be described. See `src/test/resources` for a binary "point" record and a CSV
 example, and `oais-structure-demo` for more; archive-manager's RepInfo Tools
-also generates DFDL schemas from a field list.
+also generates DFDL schemas from its engine-neutral description (counts as
+`dfdl:occursCount`, conditions and choices as `dfdl:choiceDispatchKey`/
+`dfdl:choiceBranchKey` and occurrence expressions, CSV records with
+`dfdl:separator`/`dfdl:terminator`).
 
 `new DfdlFormatSpecification(schemaUri)` points the adapter at a schema; the
 schema's default root element is parsed.
@@ -43,6 +46,11 @@ schema's default root element is parsed.
   appears as several same-named children of its parent, the same convention as
   the DRB adapter and plain XML; use `childrenNamed("row")`. Kaitai's adapter
   uses a single `ARRAY` node instead.
+- **Leftover bytes are reported, not ignored.** Daffodil stops once the
+  schema's root element is complete and says nothing about data that follows.
+  The adapter takes Daffodil's final position and sets the root node's
+  `trailingBytes` attribute (`StructureNode.TRAILING_BYTES`) to the number of
+  bytes left over.
 - **Errors carry Daffodil's own diagnostics.** A schema that doesn't compile,
   or data that doesn't match it, raises `StructureInterpretationException`
   whose message lists Daffodil's diagnostics.
@@ -69,8 +77,11 @@ Daffodil:
   children, and "explicit" with no `dfdl:length` fails to compile.
 - **Qualify element names in expressions** (`../tns:labelLen`, not
   `../labelLen`) when the schema uses `elementFormDefault="qualified"`.
-- **Use an infix `dfdl:separator` rather than a terminator between CSV
-  rows**, so a file's final newline doesn't produce an empty extra row.
+- **End each CSV row with `dfdl:terminator="%NL; %ES;"`** (a newline, or
+  the end of the data). A plain `%NL;` terminator makes a file whose last
+  line has no newline lose that line -- silently, since Daffodil ignores
+  unparsed data; an infix separator between rows instead produces an empty
+  extra row from a final newline.
 
 ## Known limitations
 

@@ -75,6 +75,14 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Lets GeneratedDescriptionsMatrixTest run a generated .ksy through the
+         Kaitai adapter (when the Kaitai Struct compiler is installed). -->
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-kaitai</artifactId>
+      <version>${oais.structure.version}</version>
+      <scope>test</scope>
+    </dependency>
 
     <!-- CSV parsing for the NAM "Bulk Upload Spreadsheet" (Eternal SIP metadata) import.
          1.13.0 specifically: CSVFormat.Builder.get() (used below) was only added in this

@@ -30,6 +30,8 @@ class KaitaiStructureRepInfoTest {
 		assertEquals(-7, point.valueAt("y").orElseThrow());
 		assertEquals("hi", point.valueAt("label").orElseThrow());
 		assertEquals(2, point.valueAt("labelLen").orElseThrow());
+		assertEquals(java.util.List.of("x", "y", "labelLen", "label"),
+				point.getChildren().stream().map(StructureNode::getName).toList(), "fields in file order");
 	}
 
 	private static byte[] pointBytes(int x, int y, String label) throws Exception {

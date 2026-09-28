@@ -1,10 +1,9 @@
 package info.oais.archive.manager;
 
-import info.oais.archive.manager.model.format.ByteOrder;
-import info.oais.archive.manager.model.format.FieldType;
+import info.oais.infomodel.structure.description.ByteOrder;
+import info.oais.infomodel.structure.description.PrimitiveType;
 import info.oais.archive.manager.model.format.FormatDefinition;
 import info.oais.archive.manager.model.format.FormatDefinitionKind;
-import info.oais.archive.manager.model.format.FormatField;
 import info.oais.archive.manager.service.format.DfdlGenerator;
 import info.oais.archive.manager.service.format.FormatTemplates;
 import org.junit.jupiter.api.Test;
@@ -26,9 +25,9 @@ class DfdlGeneratorTest {
         def.setName("point record");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setDefaultByteOrder(ByteOrder.LITTLE_ENDIAN);
-        def.addField(new FormatField("x", FieldType.INT32, null, null, null, "x ordinate", null));
-        def.addField(new FormatField("labelLen", FieldType.UINT8, null, null, null, "length of label", null));
-        def.addField(new FormatField("label", FieldType.ASCII_STRING, 20, ByteOrder.BIG_ENDIAN, null, "short label", null));
+        TestFormats.addField(def, "x", PrimitiveType.INT32, null, null, null, "x ordinate", null);
+        TestFormats.addField(def, "labelLen", PrimitiveType.UINT8, null, null, null, "length of label", null);
+        TestFormats.addField(def, "label", PrimitiveType.STRING, 20, ByteOrder.BIG_ENDIAN, null, "short label", null);
 
         String xsd = generator.generate(def);
 

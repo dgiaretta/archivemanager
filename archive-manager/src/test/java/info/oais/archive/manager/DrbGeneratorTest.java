@@ -1,11 +1,10 @@
 package info.oais.archive.manager;
 
-import info.oais.archive.manager.model.format.ByteOrder;
+import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.archive.manager.model.format.DrbTarget;
-import info.oais.archive.manager.model.format.FieldType;
+import info.oais.infomodel.structure.description.PrimitiveType;
 import info.oais.archive.manager.model.format.FormatDefinition;
 import info.oais.archive.manager.model.format.FormatDefinitionKind;
-import info.oais.archive.manager.model.format.FormatField;
 import info.oais.archive.manager.service.format.DrbGenerator;
 import info.oais.archive.manager.service.format.FormatTemplates;
 import org.junit.jupiter.api.Test;
@@ -19,17 +18,19 @@ class DrbGeneratorTest {
     private final DrbGenerator generator = new DrbGenerator();
 
     @Test
-    void generatesPythonByteLayoutScaffoldWithFieldAccessors() {
+    void generatesPythonDriverAsTheInterpreterPlusTheDescriptionAsData() {
         FormatDefinition def = new FormatDefinition();
         def.setName("point record");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setDefaultByteOrder(ByteOrder.BIG_ENDIAN);
-        def.addField(new FormatField("x", FieldType.INT32, null, null, null, "x ordinate", null));
+        TestFormats.addField(def, "x", PrimitiveType.INT32, null, null, null, "x ordinate", null);
 
         String py = generator.generate(def, DrbTarget.PYTHON);
 
-        assertThat(py).contains("class PointRecordNode(WrappedNode)").contains("class PointRecordFactory(DrbFactory)")
-                .contains("(\"x\", \"int32\", 4, \"big\", None, \"x ordinate\", None),");
+        assertThat(py).contains("class _FormatNode(WrappedNode)").contains("class PointRecordFactory(DrbFactory)")
+                .contains("DESCRIPTION = {\"name\": \"point record\", \"order\": \"big\"")
+                .contains("{\"kind\": \"field\", \"name\": \"x\", \"type\": \"int32\", \"length\": None")
+                .contains("\"sem\": {\"definition\": \"x ordinate\"}");
     }
 
     @Test
@@ -68,16 +69,16 @@ class DrbGeneratorTest {
         def.setName("point record");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setDefaultByteOrder(ByteOrder.LITTLE_ENDIAN);
-        def.addField(new FormatField("x", FieldType.INT32, null, null, null, "x < y & \"ordinate\"", null));
-        def.addField(new FormatField("raw", FieldType.BYTES, 3, null, null, null, null));
+        TestFormats.addField(def, "x", PrimitiveType.INT32, null, null, null, "x < y & \"ordinate\"", null);
+        TestFormats.addField(def, "raw", PrimitiveType.BYTES, 3, null, null, null, null);
 
         String xsd = generator.generate(def, DrbTarget.JAVA);
 
         assertThat(xsd).contains("xmlns:sdf=\"http://www.gael.fr/2004/12/drb/sdf\"")
                 .contains("<xs:element name=\"point_record\">")
                 .contains("<sdf:length>4</sdf:length><sdf:byteOrder>LSB</sdf:byteOrder>")
-                .contains("<xs:documentation>x &lt; y &amp; \"ordinate\"</xs:documentation>")
-                .contains("<xs:element name=\"raw\" type=\"xs:unsignedByte\" maxOccurs=\"3\">")
+                .contains("<xs:documentation>x &lt; y &amp; &quot;ordinate&quot;</xs:documentation>")
+                .contains("<xs:element name=\"raw\" type=\"xs:unsignedByte\" maxOccurs=\"unbounded\">")
                 .contains("<sdf:occurrence>3</sdf:occurrence>");
         javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder()
                 .parse(new org.xml.sax.InputSource(new java.io.StringReader(xsd)));

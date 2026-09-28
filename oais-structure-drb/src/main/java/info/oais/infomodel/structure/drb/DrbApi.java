@@ -93,7 +93,9 @@ final class DrbApi {
 							+ " to the data - DRB's own messages about why are in the application log");
 				}
 				opened.add(root);
-				return copy(api, root, new int[1], java.nio.file.Files.size(data));
+				long size = java.nio.file.Files.size(data);
+				StructureNode copied = copy(api, root, new int[1], size);
+				return withTrailingBytes(copied, size);
 			} catch (InvocationTargetException e) {
 				Throwable cause = e.getCause() == null ? e : e.getCause();
 				throw new StructureInterpretationException("DRB failed: " + cause, cause);
@@ -103,6 +105,19 @@ final class DrbApi {
 				}
 			}
 		}
+	}
+
+	/** Adds {@link StructureNode#TRAILING_BYTES} to the root, from where DRB says its data ends. */
+	private static StructureNode withTrailingBytes(StructureNode root, long dataSize) {
+		java.util.Optional<ByteRange> range = root.getSourceRange();
+		if (range.isEmpty()) {
+			return root;
+		}
+		long end = range.get().startByteOffset() + range.get().byteLength();
+		return DefaultStructureNode.builder(root.getName(), root.getKind()).value(root.getValue().orElse(null))
+				.addChildren(root.getChildren()).attributes(root.getAttributes())
+				.attribute(StructureNode.TRAILING_BYTES, dataSize - end).sourceRange(range.get())
+				.build();
 	}
 
 	/**

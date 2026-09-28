@@ -106,7 +106,10 @@ public final class DfdlStructureRepInfo extends AbstractExecutableStructureRepIn
 			throw new StructureInterpretationException(
 					"DFDL parse produced no root element for " + getFormatSpecification());
 		}
-		return new DomStructureNode(root, extras.rangesByPath(), extras.typedValuesByPath(), List.of());
+		// Daffodil stops where the schema ends and ignores anything after it; report how much that was.
+		long trailing = bytes.length - (result.location().bytePos1b() - 1);
+		return new DomStructureNode(root, extras.rangesByPath(), extras.typedValuesByPath(), List.of(),
+				Map.of(StructureNode.TRAILING_BYTES, trailing));
 	}
 
 	/**

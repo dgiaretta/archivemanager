@@ -1,11 +1,10 @@
 package info.oais.archive.manager;
 
-import info.oais.archive.manager.model.format.ByteOrder;
+import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.archive.manager.model.format.DrbTarget;
-import info.oais.archive.manager.model.format.FieldType;
+import info.oais.infomodel.structure.description.PrimitiveType;
 import info.oais.archive.manager.model.format.FormatDefinition;
 import info.oais.archive.manager.model.format.FormatDefinitionKind;
-import info.oais.archive.manager.model.format.FormatField;
 import info.oais.archive.manager.service.format.DrbGenerator;
 import info.oais.archive.manager.service.format.DrbPythonSampleRunner;
 import info.oais.archive.manager.service.format.FormatTemplates;
@@ -110,17 +109,17 @@ class DrbPythonSampleRunnerTest {
         def.setName("point record");
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setDefaultByteOrder(ByteOrder.LITTLE_ENDIAN);
-        def.addField(new FormatField("x", FieldType.INT32, null, null, "X", xDefinition, "m"));
-        def.addField(new FormatField("y", FieldType.INT16, null, null, null, null, null));
-        def.addField(new FormatField("z", FieldType.FLOAT64, null, null, null, null, null));
-        def.addField(new FormatField("label", FieldType.ASCII_STRING, 4, null, null, null, null));
+        TestFormats.addField(def, "x", PrimitiveType.INT32, null, null, "X", xDefinition, "m");
+        TestFormats.addField(def, "y", PrimitiveType.INT16, null, null, null, null, null);
+        TestFormats.addField(def, "z", PrimitiveType.FLOAT64, null, null, null, null, null);
+        TestFormats.addField(def, "label", PrimitiveType.STRING, 4, null, null, null, null);
         return def;
     }
 
     private static List<String> leafValues(SampleDecodeResult result) {
         return result.rows().stream()
                 .filter(r -> r.kind().equals("LEAF"))
-                .map(r -> r.name() + "=" + r.value())
+                .map(r -> r.name() + "=" + r.value().trim())
                 .toList();
     }
 }

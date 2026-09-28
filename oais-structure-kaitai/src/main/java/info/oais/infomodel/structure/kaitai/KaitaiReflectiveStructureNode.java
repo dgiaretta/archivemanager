@@ -65,6 +65,7 @@ public final class KaitaiReflectiveStructureNode implements StructureNode {
 	private final Optional<ByteRange> sourceRange;
 	/** For a repeated field: each element's range, from its parent's {@code _arrStart}/{@code _arrEnd}. */
 	private final List<Optional<ByteRange>> elementRanges;
+	private final Map<String, Object> attributes;
 
 	private KaitaiReflectiveStructureNode(String name, Object value, Class<?> declaredType,
 			Optional<ByteRange> sourceRange, List<Optional<ByteRange>> elementRanges) {
@@ -73,6 +74,16 @@ public final class KaitaiReflectiveStructureNode implements StructureNode {
 		this.declaredType = declaredType;
 		this.sourceRange = sourceRange;
 		this.elementRanges = elementRanges;
+		this.attributes = Map.of();
+	}
+
+	private KaitaiReflectiveStructureNode(String name, KaitaiStruct root, Map<String, Object> attributes) {
+		this.name = name;
+		this.value = root;
+		this.declaredType = root.getClass();
+		this.sourceRange = Optional.empty();
+		this.elementRanges = List.of();
+		this.attributes = Map.copyOf(attributes);
 	}
 
 	/**
@@ -82,6 +93,11 @@ public final class KaitaiReflectiveStructureNode implements StructureNode {
 	 * @param kaitaiStructRoot the object returned by a generated class's constructor
 	 * @return a {@link StructureNode} view over it
 	 */
+	/** Like {@link #ofRoot(String, KaitaiStruct)}, with attributes on the root (e.g. {@link StructureNode#TRAILING_BYTES}). */
+	public static StructureNode ofRoot(String name, KaitaiStruct kaitaiStructRoot, Map<String, Object> attributes) {
+		return new KaitaiReflectiveStructureNode(name, kaitaiStructRoot, attributes);
+	}
+
 	public static StructureNode ofRoot(String name, KaitaiStruct kaitaiStructRoot) {
 		return new KaitaiReflectiveStructureNode(name, kaitaiStructRoot, kaitaiStructRoot.getClass(), Optional.empty(),
 				List.of());
@@ -165,7 +181,7 @@ public final class KaitaiReflectiveStructureNode implements StructureNode {
 
 	@Override
 	public Map<String, Object> getAttributes() {
-		return Map.of();
+		return attributes;
 	}
 
 	@Override
@@ -212,7 +228,37 @@ public final class KaitaiReflectiveStructureNode implements StructureNode {
 				}
 			}
 		}
+		// Reflection returns methods in no particular order, but a format's fields
+		// have one: file order.
+		List<String> order = fieldOrder(type);
+		methods.sort(java.util.Comparator.comparingInt(m -> {
+			int i = order.indexOf(m.getName());
+			return i < 0 ? Integer.MAX_VALUE : i;
+		}));
 		return methods.stream();
+	}
+
+	/**
+	 * The file order of {@code type}'s fields: its {@code _seqFields} (declared
+	 * by {@code ksc --debug} builds, in {@code seq} order), otherwise its Java
+	 * fields in declaration order, which the compiler also writes in
+	 * {@code seq} order. Computed ({@code instances}) values follow.
+	 */
+	private static List<String> fieldOrder(Class<?> type) {
+		try {
+			if (type.getField("_seqFields").get(null) instanceof String[] seq) {
+				return List.of(seq);
+			}
+		} catch (NoSuchFieldException | IllegalAccessException | NullPointerException e) {
+			// Not a --debug build: fall back to field declaration order.
+		}
+		List<String> names = new ArrayList<>();
+		for (Field f : type.getDeclaredFields()) {
+			if (!Modifier.isStatic(f.getModifiers()) && !f.getName().startsWith("_")) {
+				names.add(f.getName());
+			}
+		}
+		return names;
 	}
 
 	private static boolean isFieldAccessor(Method m) {

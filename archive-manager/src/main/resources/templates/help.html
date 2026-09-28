@@ -146,14 +146,23 @@
                 Catalogue page) &mdash; import a CSV/XLSX of NAM-format records in one go.</li>
             <li><a th:href="@{/repinfo-tools}">RepInfo Tools</a> &mdash; a guided editor for
                 building Kaitai Struct, DFDL, and/or DRB descriptions of a binary or
-                self-describing data format (built-in FITS and HDF5 starting points). Beyond the
-                structural layout, give any field or tree row a semantic name, a definition, and
-                units, and saving turns those into real Semantic Representation Information: one
-                individual per field (name as its <code>rdfs:label</code>, definition as its
+                self-describing data format (built-in FITS, telemetry, CSV and HDF5 starting
+                points). A byte layout is edited as a tree of fields, records (including CSV-style
+                delimited-text records) and choices; any element can be optional under a
+                condition or repeated a computed number of times, using small expressions such as
+                <code>sample_pairs * 2</code> or <code>packet_type = 2</code> that refer to
+                fields read earlier. Beyond the structure, give any element its semantics &mdash; a
+                semantic name, definition, units (with a vocabulary link), a code list, a scale
+                factor and offset, a fill value and a valid range &mdash; and saving turns those into
+                real Semantic Representation Information: one individual per element, nested like
+                the description (name as its <code>rdfs:label</code>, definition as its
                 <code>skos:definition</code>, units linked via
-                <code>rico:hasUnitOfMeasurement</code>), gathered under one overall Semantic
+                <code>rico:hasUnitOfMeasurement</code>, code lists as SKOS concept schemes),
+                gathered under one overall Semantic
                 Representation Information alongside the Structure Representation Information for
-                whichever generated description(s) you keep. For a byte layout, the DRB outputs
+                whichever generated description(s) you keep. Sample tests show each value's
+                meaning (a code's meaning or the scaled value with units), which branch each
+                choice took, and any bytes the description doesn't cover. For a byte layout, the DRB outputs
                 are an installable drb-python driver package and a DRB SDF schema for GAEL's Java
                 DRB, and you can test the DFDL description, the DRB SDF schema and the drb-python
                 driver against a sample data file before saving (the drb-python test needs Python

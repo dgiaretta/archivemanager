@@ -1,6 +1,7 @@
 package info.oais.infomodel.structure.kaitai;
 
 import java.io.InputStream;
+import java.util.Map;
 import java.lang.reflect.Constructor;
 
 import io.kaitai.struct.ByteBufferKaitaiStream;
@@ -62,7 +63,9 @@ public final class KaitaiStructureRepInfo extends AbstractExecutableStructureRep
 					e.getCause() != null ? e.getCause() : e);
 		}
 
-		return KaitaiReflectiveStructureNode.ofRoot("root", parsed);
+		// Kaitai stops where the description ends and ignores anything after it; report how much that was.
+		long trailing = bytes.length - parsed._io().pos();
+		return KaitaiReflectiveStructureNode.ofRoot("root", parsed, Map.of(StructureNode.TRAILING_BYTES, trailing));
 	}
 
 	/** Whether {@code type} was compiled with {@code ksc --debug} (it then declares {@code _attrStart}). */

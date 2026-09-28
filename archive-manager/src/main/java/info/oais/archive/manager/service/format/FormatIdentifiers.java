@@ -10,12 +10,12 @@ package info.oais.archive.manager.service.format;
  * {@code toPascalCase}/{@code toScreamingSnakeCase}) without duplicating the
  * same sanitization in each one.
  */
-final class FormatIdentifiers {
+public final class FormatIdentifiers {
 
     private FormatIdentifiers() {
     }
 
-    static String snakeCase(String name) {
+    public static String snakeCase(String name) {
         if (name == null || name.isBlank()) {
             return "field";
         }

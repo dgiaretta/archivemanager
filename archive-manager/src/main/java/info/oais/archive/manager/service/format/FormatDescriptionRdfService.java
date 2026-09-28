@@ -2,10 +2,13 @@ package info.oais.archive.manager.service.format;
 
 import info.oais.archive.manager.model.format.FormatDefinition;
 import info.oais.archive.manager.model.format.FormatDefinitionKind;
-import info.oais.archive.manager.model.format.FormatField;
 import info.oais.archive.manager.model.format.Hdf5Node;
 import info.oais.archive.manager.rdf.Ns;
 import info.oais.archive.manager.service.EditService;
+import info.oais.infomodel.structure.description.ChoiceDescription;
+import info.oais.infomodel.structure.description.ElementDescription;
+import info.oais.infomodel.structure.description.RecordDescription;
+import info.oais.infomodel.structure.description.Semantics;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -27,21 +30,27 @@ import java.util.Map;
  * two RepresentationInformation individuals, both {@code interpretedUsing}
  * from the same DataObject.
  *
- * <p><strong>Per-field structure.</strong> Underneath that one overall
- * Semantic Representation Information, every field (byte-layout) or tree row
- * (logical-tree) that carries a semantic name, definition, or units gets its
- * own {@code im:SemanticRepresentationInformation} individual -- {@code
- * rdfs:label} for the semantic name (falling back to the field's structural
- * name/path if none was given), {@code skos:definition} for the definition,
- * and {@code rico:hasUnitOfMeasurement} to a shared {@code
- * rico:UnitOfMeasurement} individual (one per distinct unit string in this
- * save, so two fields both in "K" point at the same one) for the units. Each
- * is linked from the overall Semantic Representation Information via {@code
- * im:interpretedUsingRecurse} -- the OAIS Information Model's own property
- * for one Representation Information needing further Representation
- * Information to interpret it (figure 4-10), reused here rather than
- * inventing a new one, and unrestricted in cardinality unlike
- * hasSemanticRepresentationInformation.
+ * <p><strong>Per-element structure.</strong> Underneath that one overall
+ * Semantic Representation Information, every element of a byte-layout
+ * description -- field, record, choice and choice branch -- gets its own
+ * {@code im:SemanticRepresentationInformation} individual, nested to mirror
+ * the description: each is linked from its parent's (or, at the top, the
+ * overall one) via {@code im:interpretedUsingRecurse}, the OAIS Information
+ * Model's own property for one Representation Information needing further
+ * Representation Information to interpret it (figure 4-10), unrestricted in
+ * cardinality unlike hasSemanticRepresentationInformation. Each carries
+ * {@code rdfs:label} (the semantic name, falling back to the element's name),
+ * {@code bridge:structuralPath} (where it sits, e.g. {@code packet.body.temp}),
+ * {@code skos:definition}, and {@code rico:hasUnitOfMeasurement} to a shared
+ * {@code rico:UnitOfMeasurement} individual (one per distinct unit string, with
+ * {@code skos:exactMatch} to a vocabulary term when one was given). The rest of
+ * its semantics use the bridge ontology's data-element properties
+ * ({@code oais-ric-bridge.ttl}): {@code bridge:scaleFactor}/{@code addOffset},
+ * {@code bridge:fillValue}, {@code bridge:validMin}/{@code validMax},
+ * {@code bridge:representsConcept}, and {@code bridge:hasCodeList} to a
+ * {@code skos:ConceptScheme} whose concepts pair each code ({@code skos:notation})
+ * with its meaning ({@code skos:prefLabel}). A logical-tree definition gets one
+ * individual per row.
  */
 @Service
 public class FormatDescriptionRdfService {
@@ -91,59 +100,106 @@ public class FormatDescriptionRdfService {
     }
 
     /**
-     * Creates one {@code im:SemanticRepresentationInformation} per field/row,
-     * linked from the overall {@code semanticRi} via {@code
-     * interpretedUsingRecurse}, and one shared {@code rico:UnitOfMeasurement}
-     * per distinct unit string used along the way.
+     * Creates the per-element Semantic Representation Information under the
+     * overall {@code semanticRi}: for a byte layout, one per element of the
+     * description, nested to mirror it (a record's or choice's individual links
+     * to its elements' via {@code im:interpretedUsingRecurse}); for a logical
+     * tree, one per row. Units are shared {@code rico:UnitOfMeasurement}
+     * individuals, one per distinct unit string.
      */
     private void addFieldSemantics(FormatDefinition def, String semanticRi) {
         Map<String, String> unitsByLabel = new LinkedHashMap<>();
         if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
-            for (FormatField field : def.getFields()) {
-                String label = field.semanticName() == null || field.semanticName().isBlank()
-                        ? field.name() : field.semanticName();
-                addFieldSemantic(semanticRi, label, field.definition(), field.units(), unitsByLabel);
+            for (ElementDescription child : def.getRoot().children()) {
+                addElementSemantics(child, "", semanticRi, unitsByLabel);
             }
         } else {
             for (Hdf5Node node : def.getNodes()) {
                 String label = node.semanticName() == null || node.semanticName().isBlank()
                         ? node.name() : node.semanticName();
-                addFieldSemantic(semanticRi, label, node.definition(), node.units(), unitsByLabel);
+                String rowRi = edit.createEntity(Ns.IM + "SemanticRepresentationInformation");
+                edit.addLiteral(rowRi, Ns.RDFS + "label", label);
+                edit.addLiteral(rowRi, Ns.SKOS + "definition", node.definition());
+                addUnits(rowRi, node.units(), null, unitsByLabel);
+                edit.addRelationship(semanticRi, Ns.IM + "interpretedUsingRecurse", rowRi);
             }
         }
     }
 
-    private void addFieldSemantic(String semanticRi, String label, String definition, String units,
-                                   Map<String, String> unitsByLabel) {
-        String fieldRi = edit.createEntity(Ns.IM + "SemanticRepresentationInformation");
-        edit.addLiteral(fieldRi, Ns.RDFS + "label", label);
-        edit.addLiteral(fieldRi, Ns.SKOS + "definition", definition);
-        if (units != null && !units.isBlank()) {
-            String unitIri = unitsByLabel.computeIfAbsent(units, u -> {
-                String iri = edit.createEntity(Ns.RICO + "UnitOfMeasurement");
-                edit.addLiteral(iri, Ns.RDFS + "label", u);
-                return iri;
-            });
-            edit.addRelationship(fieldRi, Ns.RICO + "hasUnitOfMeasurement", unitIri);
+    private void addElementSemantics(ElementDescription e, String parentPath, String parentRi,
+                                     Map<String, String> unitsByLabel) {
+        String path = parentPath.isEmpty() ? e.name() : parentPath + "." + e.name();
+        Semantics s = e.semantics();
+        String ri = edit.createEntity(Ns.IM + "SemanticRepresentationInformation");
+        edit.addLiteral(ri, Ns.RDFS + "label", s.semanticName() == null ? e.name() : s.semanticName());
+        edit.addLiteral(ri, Ns.BRIDGE + "structuralPath", path);
+        edit.addLiteral(ri, Ns.SKOS + "definition", s.definition());
+        addUnits(ri, s.units(), s.unitsUri(), unitsByLabel);
+        if (s.conceptUri() != null) {
+            edit.addRelationship(ri, Ns.BRIDGE + "representsConcept", s.conceptUri().toString());
         }
-        edit.addRelationship(semanticRi, Ns.IM + "interpretedUsingRecurse", fieldRi);
+        if (s.scale() != null) {
+            edit.addLiteral(ri, Ns.BRIDGE + "scaleFactor", s.scale().toPlainString());
+        }
+        if (s.offset() != null) {
+            edit.addLiteral(ri, Ns.BRIDGE + "addOffset", s.offset().toPlainString());
+        }
+        edit.addLiteral(ri, Ns.BRIDGE + "fillValue", s.fillValue());
+        if (s.validMin() != null) {
+            edit.addLiteral(ri, Ns.BRIDGE + "validMin", s.validMin().toPlainString());
+        }
+        if (s.validMax() != null) {
+            edit.addLiteral(ri, Ns.BRIDGE + "validMax", s.validMax().toPlainString());
+        }
+        if (!s.codes().isEmpty()) {
+            String scheme = edit.createEntity(Ns.SKOS + "ConceptScheme");
+            edit.addLiteral(scheme, Ns.RDFS + "label", "Codes for " + path);
+            s.codes().forEach((code, meaning) -> {
+                String concept = edit.createEntity(Ns.SKOS + "Concept");
+                edit.addLiteral(concept, Ns.SKOS + "notation", code);
+                edit.addLiteral(concept, Ns.SKOS + "prefLabel", meaning);
+                edit.addRelationship(concept, Ns.SKOS + "inScheme", scheme);
+            });
+            edit.addRelationship(ri, Ns.BRIDGE + "hasCodeList", scheme);
+        }
+        edit.addRelationship(parentRi, Ns.IM + "interpretedUsingRecurse", ri);
+
+        if (e instanceof RecordDescription r) {
+            for (ElementDescription child : r.children()) {
+                addElementSemantics(child, path, ri, unitsByLabel);
+            }
+        } else if (e instanceof ChoiceDescription c) {
+            for (ChoiceDescription.Branch b : c.branches()) {
+                addElementSemantics(b.record(), path, ri, unitsByLabel);
+            }
+        }
+    }
+
+    private void addUnits(String ri, String units, java.net.URI unitsUri, Map<String, String> unitsByLabel) {
+        if (units == null || units.isBlank()) {
+            return;
+        }
+        String unitIri = unitsByLabel.computeIfAbsent(units, u -> {
+            String iri = edit.createEntity(Ns.RICO + "UnitOfMeasurement");
+            edit.addLiteral(iri, Ns.RDFS + "label", u);
+            return iri;
+        });
+        if (unitsUri != null) {
+            edit.addRelationship(unitIri, Ns.SKOS + "exactMatch", unitsUri.toString());
+        }
+        edit.addRelationship(ri, Ns.RICO + "hasUnitOfMeasurement", unitIri);
     }
 
     private String semanticSummary(FormatDefinition def) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Field semantics for \"").append(def.getName()).append("\":\n");
+        sb.append("Semantics of \"").append(def.getName()).append("\":\n");
         if (!def.getNotes().isBlank()) {
             sb.append('\n').append(def.getNotes()).append('\n');
         }
         sb.append('\n');
         if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
-            for (FormatField field : def.getFields()) {
-                sb.append("- ").append(field.name()).append(": ")
-                        .append(field.definition() == null || field.definition().isBlank() ? "(no definition)" : field.definition());
-                if (field.units() != null && !field.units().isBlank()) {
-                    sb.append(" [").append(field.units()).append(']');
-                }
-                sb.append('\n');
+            for (ElementDescription child : def.getRoot().children()) {
+                summarise(child, "", sb);
             }
         } else {
             for (Hdf5Node node : def.getNodes()) {
@@ -156,5 +212,16 @@ public class FormatDescriptionRdfService {
             }
         }
         return sb.toString();
+    }
+
+    private static void summarise(ElementDescription e, String parentPath, StringBuilder sb) {
+        String path = parentPath.isEmpty() ? e.name() : parentPath + "." + e.name();
+        String meaning = KaitaiGenerator.describe(e.semantics());
+        sb.append("- ").append(path).append(": ").append(meaning.isEmpty() ? "(no definition)" : meaning).append('\n');
+        if (e instanceof RecordDescription r) {
+            r.children().forEach(child -> summarise(child, path, sb));
+        } else if (e instanceof ChoiceDescription c) {
+            c.branches().forEach(b -> summarise(b.record(), path, sb));
+        }
     }
 }

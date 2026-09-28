@@ -471,26 +471,66 @@ wanted.
   (`.dfdl.xsd`), and/or DRB descriptions for a binary/self-describing data
   format, with field-by-field semantic name/definition/units, saved into the
   archive as real `im:RepresentationInformation`.
-  - Two starting shapes: **byte-layout** (a sequential binary format, like
-    FITS -- fields in file order, each with a type/length/byte order/semantic
-    name/definition/units) or **logical-tree** (a self-describing container's
-    group/dataset/attribute schema, like HDF5 -- Kaitai/DFDL don't apply here,
-    see below). Built-in templates: FITS's primary header required keyword
-    cards with their real FITS Standard meanings (`FormatTemplates.fits()`),
-    and a worked-example HDF5 group/dataset/attribute tree
-    (`FormatTemplates.hdf5()`) -- HDF5 has no fixed universal schema to
-    template byte-for-byte, so this is a starting shape to replace, not a
-    standard.
+  - Two starting shapes: **byte-layout** (a format read in file order, like
+    FITS or a telemetry stream -- described as a tree, below) or
+    **logical-tree** (a self-describing container's group/dataset/attribute
+    schema, like HDF5 -- Kaitai/DFDL don't apply here, see below). Built-in
+    templates: FITS's primary header required keyword cards with their real
+    FITS Standard meanings (`FormatTemplates.fits()`); a worked-example
+    **telemetry** stream that uses every structural feature
+    (`FormatTemplates.telemetry()`: a packet count, a choice on a coded
+    packet type, a length-prefixed message, a checksum present only for
+    science packets, scaled values with units and code lists); a **CSV**
+    table (`FormatTemplates.csv()`); and a worked-example HDF5
+    group/dataset/attribute tree (`FormatTemplates.hdf5()`) -- HDF5 has no
+    fixed universal schema to template byte-for-byte, so that one is a
+    starting shape to replace, not a standard.
+  - **The description model** is engine-neutral and lives in
+    `oais-structure-api` (package `info.oais.infomodel.structure.description`),
+    so every generator, the sample tests and anything else built on the
+    adapters share it. A `FormatDescription` has a root `RecordDescription`
+    whose children are:
+    - **fields** (`FieldDescription`): a primitive type (8- to 64-bit
+      integers, 32/64-bit floats, text, raw bytes), a length for text/bytes,
+      and an optional byte-order override;
+    - **records** (`RecordDescription`): a named group of elements, which
+      can be a **delimited-text** record (`TextLayout`, e.g. one CSV line:
+      comma-separated fields ended by a newline);
+    - **choices** (`ChoiceDescription`): one of several branch records,
+      picked by comparing an earlier field (the discriminator) with each
+      branch's key.
+
+    Every element has an **occurrence**: once, optional (present only when a
+    condition holds), repeated a computed number of times, or repeated to
+    the end of the data (last element only). Lengths, counts and conditions
+    are small **expressions** (`Expression`, parsed by `ExpressionParser`):
+    references to fields read earlier, integer and string literals,
+    `+ - * / %`, comparisons `= != < <= > >=`, and `and`/`or`/`not` -- e.g.
+    `message_length`, `sample_pairs * 2`, `packet_type = 2`. `Scope` works
+    out which fields an expression can see (earlier siblings and the
+    enclosing records' earlier fields, read exactly once) and how far up
+    each engine has to navigate to reach them; `EngineSyntax` then renders
+    the expression as XPath for DFDL/DRB or as Kaitai's expression language.
+    `DescriptionValidator` explains anything that can't be generated (an
+    unknown or later field, a repeat to the end that isn't last, a text
+    record containing raw bytes, ...) next to the element concerned.
+  - **Semantics.** Every element carries `Semantics`: a semantic name
+    (what a human calls it, e.g. "Detector temperature" for a field named
+    `temperature`), a definition, units (with an optional vocabulary IRI,
+    e.g. a QUDT unit), a concept IRI, a **code list** (value = meaning, e.g.
+    `1 = housekeeping`), a **scale factor and offset** (physical value = raw
+    × scale + offset), a **fill value**, and a **valid range**. These go
+    into the generated descriptions as documentation (Kaitai `doc`/`doc-ref`,
+    `xs:documentation` in DFDL and DRB, node attributes in drb-python) and
+    into the archive as Semantic Representation Information (see *Saving*).
   - The definition being built lives in the HTTP session
     (`RepInfoToolController`, a session-scoped `FormatDefinition`), not the
-    archive, until you explicitly save it -- add/edit/delete/reorder fields
-    one small POST at a time, the same pattern as `/entities/{id}/edit`. Each
-    `FormatField`/`Hdf5Node` carries a structural `name` (what the generators
-    below emit as an identifier) separately from `semanticName` (what a human
-    calls the concept, e.g. "Temperature" for a field named `t`) -- the
-    latter, plus `definition` and `units`, is what becomes Semantic
-    Representation Information on save, not the generated Kaitai/DFDL/DRB
-    text.
+    archive, until you explicitly save it. The editor shows the description
+    as a tree (`DescriptionEditorView`); select an element to edit it, and
+    add, delete or reorder elements one small POST at a time
+    (`/repinfo-tools/elements/add`, `/elements/{id}/update`, `/delete`,
+    `/move`), the same pattern as `/entities/{id}/edit`. An expression that
+    doesn't parse is explained rather than saved.
   - **Generators** (`KaitaiGenerator`/`DfdlGenerator`/`DrbGenerator`, package
     `service.format`) hand-build their output text the same way every SPARQL
     query elsewhere in this app is built, rather than through a generic
@@ -505,10 +545,14 @@ wanted.
       `drb.driver`/`drb.topic` entry points). For a byte-layout definition,
       `DrbGenerator.pythonDriverPackage` therefore generates a real,
       pip-installable driver (downloaded as a `.zip`; `pip install <name>.zip`)
-      in the same layout as drb-python's own published drivers: the driver
-      module decodes each field and exposes it as a child node whose
-      attributes carry its byte `offset`/`length`, `type`, and the
-      `semantic_name`/`definition`/`units` from the archive; its topic
+      in the same layout as drb-python's own published drivers. Its module is
+      a small generic interpreter (`drb-python/interpreter.py`, shared by
+      every driver) plus the description itself as a Python data literal, so
+      counts, choices, conditions and text records all work without
+      generating format-specific code. Each decoded element is a child node
+      whose attributes carry its byte `offset`/`length`, `type`, its
+      semantics, and -- where the semantics say -- the code's `meaning`, the
+      scaled `physical_value`, or `fill`; its topic
       (`cortex.ttl`) matches the definition's **file extensions** (a new,
       optional field in the editor's details -- the FITS template sets
       `fits, fit, fts`), so drb's own resolver picks the driver
@@ -521,13 +565,16 @@ wanted.
       `../third-party/README.md`) *does* have a declarative language: for a
       byte-layout definition the output is a **DRB SDF schema** (`.drb.xsd`),
       an XML Schema whose `sdf:block` annotations give each field's
-      `sdf:length`, `sdf:byteOrder` (`MSB`/`LSB`) and `sdf:encoding`, with
-      the field's definition as its `xs:documentation`. DRB has no raw-bytes
-      type, so a `BYTES` field becomes repeated `xs:unsignedByte`. The file
-      works with DRB on its own too (e.g. DRB's XQuery
-      `doc("file")/(schema.drb.xsd)root`). A logical-tree definition gets a
-      documented reference class only -- DRB 2.5 has no HDF5 implementation.
-      `semanticName`/`units` are RDF-only (see below).
+      `sdf:length`, `sdf:byteOrder` (`MSB`/`LSB`) and `sdf:encoding`, counts
+      and conditions as `sdf:occurrence` XPath queries, choices as
+      `sdf:signature` queries on the discriminator, and text records as
+      `sdf:delimiter`s, with the element's semantics as its
+      `xs:documentation`. DRB has no raw-bytes type, so a `BYTES` field
+      becomes repeated `xs:unsignedByte`. The file works with DRB on its own
+      too (e.g. DRB's XQuery `doc("file")/(schema.drb.xsd)root`). A
+      logical-tree definition gets a documented reference class only -- DRB
+      2.5 has no HDF5 implementation. See `../oais-structure-drb/README-DRB.md`
+      for DRB's one known gap here (a CSV file's last line needs its newline).
 
     The generated
     DFDL includes Daffodil's built-in `GeneralFormat` (the same idiom as
@@ -568,6 +615,22 @@ wanted.
 
     Kaitai has no such test: `oais-structure-kaitai` needs a Java class
     generated ahead of time by the Kaitai Struct compiler.
+
+    Every engine names and nests what it decodes a little differently
+    (Kaitai camel-cases names, DRB turns raw bytes into runs of values, some
+    engines leave out a choice's branch level). `StructureAligner` (in
+    `oais-structure-api`) walks the decoded tree alongside the description
+    and lines the two up, so all three tests show the same rows: each
+    element's value, its **meaning** from the semantics (a code's meaning,
+    the scaled physical value with units, "fill value"), which **branch** a
+    choice took, and elements that are **absent** because their condition was
+    false. Each test also reports **bytes left over** after the description
+    ends (`StructureNode.TRAILING_BYTES`, set by every adapter), since an
+    engine that silently stops early would otherwise look like a success.
+    `GeneratedDescriptionsMatrixTest` decodes the same samples -- including
+    the built-in templates -- with DFDL, Java DRB, drb-python (when
+    `DRB_PYTHON` is set) and Kaitai (when the Kaitai Struct compiler is
+    installed; `KAITAI_COMPILER` to point at it) and checks that they agree.
   - **Saving** (`FormatDescriptionRdfService`) writes real OAIS structure via
     `EditService`'s existing primitives only: one overall
     `im:SemanticRepresentationInformation` per save, plus one
@@ -576,19 +639,27 @@ wanted.
     at one each, so two formats means two RepresentationInformation
     individuals sharing the one overall Semantic RI) -- linked to an existing
     or newly-created `im:DigitalObject` via `interpretedUsing`. Underneath
-    that one overall Semantic RI, every field/row with a semantic
-    name/definition/units gets its **own** `im:SemanticRepresentationInformation`
-    individual (`rdfs:label` for the name, falling back to the structural
-    name/path; `skos:definition` for the definition; `rico:hasUnitOfMeasurement`
-    to a `rico:UnitOfMeasurement` individual shared across fields with the
-    same unit string), linked from the overall one via
+    that one overall Semantic RI, every element of the description (field,
+    record, choice, branch; or every row of a logical tree) gets its **own**
+    `im:SemanticRepresentationInformation` individual, nested to mirror the
+    description and linked from its parent's via
     `im:interpretedUsingRecurse` -- the Information Model's own property for
     one Representation Information needing further Representation
     Information to interpret it (figure 4-10), reused here rather than
-    inventing a new one. The overall Semantic RI's `rdfs:comment` still
-    carries a plain-text summary of every field, for a one-glance read
-    without following the per-field links. See
-    `FormatDescriptionRdfServiceTest` for the exact shape this produces.
+    inventing a new one. Each carries `rdfs:label` (the semantic name,
+    falling back to the element's name), `bridge:structuralPath` (e.g.
+    `packet.body.science.temperature`), `skos:definition`, and
+    `rico:hasUnitOfMeasurement` to a `rico:UnitOfMeasurement` individual
+    shared across elements with the same unit string (with `skos:exactMatch`
+    to the unit's vocabulary IRI, if given). The rest of the semantics use
+    data-element properties added to `oais-ric-bridge.ttl`:
+    `bridge:scaleFactor`, `bridge:addOffset`, `bridge:fillValue`,
+    `bridge:validMin`/`validMax`, `bridge:representsConcept`, and
+    `bridge:hasCodeList` to a `skos:ConceptScheme` whose `skos:Concept`s
+    pair each code (`skos:notation`) with its meaning (`skos:prefLabel`). The
+    overall Semantic RI's `rdfs:comment` still carries a plain-text summary
+    of every element, for a one-glance read without following the links.
+    See `FormatDescriptionRdfServiceTest` for the exact shape this produces.
 - **SPARQL console** (`/sparql`) -- run arbitrary SELECT queries against the
   union of the data graph and the ontology graph. Try, for instance:
 
@@ -1101,12 +1172,14 @@ what "the data can be in Dhivehi and renders/searches correctly" required.
   needs internet access in the browser. If you're running somewhere offline,
   download `vis-network.min.js` and change the `<script src="...">` in
   `templates/graph/view.html` to point at a local copy under `static/js/`.
-- **RepInfo Tools fields are fixed-length only.** `FormatField`
-  has no way to express "this field's length is given by an earlier field's
-  decoded value" (e.g. a length-prefixed string), which real formats commonly
-  need -- `oais-structure-adapters`' own `point2d.ksy` example does exactly
-  this (`size: label_len`). Describing such a format currently means treating
-  the length-prefix and the value as two separate fixed-length fields and
-  noting the relationship in the format's free-text notes instead of in the
-  generated schema itself.
+- **What RepInfo Tools' description model deliberately leaves out.** It
+  covers what all four engines can express the same way: sequences, counts,
+  lengths and conditions computed from earlier fields, choices on a
+  discriminator, and simple delimited text. It does not (yet) cover
+  bit-level fields, absolute offsets/seeking (e.g. a table of contents
+  pointing elsewhere in the file), compressed or encrypted sections,
+  checksum validation, quoted/escaped CSV, or text numbers in custom
+  formats. Such a format can still be described with the engine's own
+  language by hand (see the `README-*.md` of each adapter module); the
+  parts the model does cover can be generated first and extended.
 

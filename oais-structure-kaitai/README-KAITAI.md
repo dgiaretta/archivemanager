@@ -25,9 +25,14 @@ class - and that class is what parses the bytes. So:
 - The generated classes must be compiled into the application.
   This module's are checked in under `src/main/java/.../generated/`, so its
   build needs no compiler.
-- archive-manager's RepInfo Tools can generate a `.ksy` from a field list, but
-  can't test it against a sample file the way it can DFDL and DRB, since that
-  would mean running the Kaitai compiler and a Java compiler on the server.
+- archive-manager's RepInfo Tools can generate a `.ksy` from its
+  engine-neutral description (one type per record and choice branch,
+  `repeat: expr`/`eos`, `if`, `switch-on`, text fields with `terminator`),
+  but can't test it against a sample file the way it can DFDL and DRB, since
+  that would mean running the Kaitai compiler and a Java compiler on the
+  server. Its build does, though: `GeneratedDescriptionsMatrixTest` compiles
+  the generated `.ksy` files when the Kaitai Struct compiler is installed and
+  checks Kaitai decodes the same values as the other engines.
 
 ## Generating the classes
 
@@ -48,7 +53,12 @@ out and everything else still works, just without positions.
   field in camelCase with no `get` prefix (`label_len` becomes `labelLen()`), a
   nested type is another `KaitaiStruct`, and a `repeat` field is a `List`.
   Kaitai's own bookkeeping accessors (`_io`, `_parent`, `_root`, `_read`, ...)
-  are skipped.
+  are skipped. Children come in **file order**: from a `--debug` class's
+  `_seqFields` list, otherwise from the order of the class's declared fields
+  (Java reflection doesn't promise method order).
+- **Leftover bytes.** The root node's `trailingBytes` attribute
+  (`StructureNode.TRAILING_BYTES`) says how many bytes the parse didn't reach
+  (the stream's final position against its size).
 - **Typed values.** Values come back as the generated accessors' Java types
   (`int`, `long`, `double`, `String`, `byte[]`, ...).
 - **Repetition is an `ARRAY` node.** A `repeat` field becomes one node of kind

@@ -21,7 +21,9 @@ own dependencies are and aren't used.
   fixed-width text and delimited text (e.g. CSV, where each field has an
   `sdf:delimiter`) can all be described this way. See `src/test/resources` for
   a little-endian binary record and a CSV example; archive-manager's RepInfo
-  Tools also generates these schemas from a field list.
+  Tools also generates these schemas from its engine-neutral description
+  (counts and conditions as `sdf:occurrence` queries, choices as
+  `sdf:signature` queries, CSV records with `sdf:delimiter`).
 - **DRB's own format recognition** - `DrbFormatSpecification.autoDetect("xml")`.
   DRB picks one of its built-in implementations (XML, ...) by **file
   extension**, so the Digital Object's usual extension has to be given.
@@ -48,8 +50,25 @@ own dependencies are and aren't used.
   schema describes (it reports positions past the end); the adapter checks every
   node's position against the data's size and throws
   `StructureInterpretationException` instead.
+- **Leftover bytes.** The root node's `trailingBytes` attribute
+  (`StructureNode.TRAILING_BYTES`) says how many bytes follow the end of what
+  the schema describes, so a description that stops early is visible.
 - **Serialised.** DRB documents no thread-safety guarantee, so calls into it
   share one lock.
+
+## Writing SDF schemas DRB will accept
+
+These came up while generating schemas from archive-manager's descriptions:
+
+- **Mark a query that depends on the data `constant="false"`**
+  (`<sdf:occurrence constant="false">../count</sdf:occurrence>`). Otherwise
+  DRB evaluates it once and reuses the first answer for every repetition.
+- **A choice is several optional elements with `sdf:signature` queries**
+  (e.g. `../kind = 2`); DRB reads the one whose signature holds. Queries
+  inside a branch are one level deeper than they look, since they're
+  evaluated from the branch's own node.
+- **A delimiter is a single character.** `sdf:delimiter` has no
+  "or end of data" alternative.
 
 ## Known DRB limitations
 
@@ -58,3 +77,6 @@ own dependencies are and aren't used.
 - Little-endian floating point is only decoded correctly from DRB 2.5 on
   (DRB 2.2 ignored `LSB` for `xs:float`/`xs:double`).
 - DRB 2.5 has no HDF5 implementation.
+- In delimited text, the last field of the file needs its delimiter: a CSV
+  file whose last line has no final newline loses that line. (DFDL, Kaitai
+  and drb-python all read it.)

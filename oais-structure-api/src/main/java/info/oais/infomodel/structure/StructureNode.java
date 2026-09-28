@@ -35,6 +35,15 @@ import java.util.Optional;
 public interface StructureNode {
 
 	/**
+	 * Attribute on the root node of a decode: how many bytes of the Digital
+	 * Object came after the data the description accounts for (a
+	 * {@link Long}). Nonzero means the description doesn't cover the whole
+	 * object - engines otherwise ignore such bytes silently. Absent when the
+	 * engine can't tell.
+	 */
+	String TRAILING_BYTES = "trailingBytes";
+
+	/**
 	 * Local name of this node: an element/field name for a COMPOSITE, or an
 	 * index rendered as text (e.g. {@code "0"}, {@code "1"}) for a member of
 	 * an ARRAY node's children.

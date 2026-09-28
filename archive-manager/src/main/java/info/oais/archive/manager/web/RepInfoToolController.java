@@ -1,12 +1,9 @@
 package info.oais.archive.manager.web;
 
 import jakarta.servlet.http.HttpSession;
-import info.oais.archive.manager.model.format.ByteOrder;
 import info.oais.archive.manager.model.format.DrbTarget;
-import info.oais.archive.manager.model.format.FieldType;
 import info.oais.archive.manager.model.format.FormatDefinition;
 import info.oais.archive.manager.model.format.FormatDefinitionKind;
-import info.oais.archive.manager.model.format.FormatField;
 import info.oais.archive.manager.model.format.Hdf5Node;
 import info.oais.archive.manager.model.format.Hdf5NodeKind;
 import info.oais.archive.manager.service.ArchiveService;
@@ -19,6 +16,19 @@ import info.oais.archive.manager.service.format.FormatDescriptionRdfService;
 import info.oais.archive.manager.service.format.FormatTemplates;
 import info.oais.archive.manager.service.format.KaitaiGenerator;
 import info.oais.archive.manager.service.format.SampleDecodeResult;
+import info.oais.archive.manager.service.format.FormatIdentifiers;
+import info.oais.infomodel.structure.description.ByteOrder;
+import info.oais.infomodel.structure.description.Descriptions;
+import info.oais.infomodel.structure.description.ChoiceDescription;
+import info.oais.infomodel.structure.description.DescriptionValidator;
+import info.oais.infomodel.structure.description.FormatDescription;
+import info.oais.infomodel.structure.description.RecordDescription;
+import info.oais.infomodel.structure.description.ElementDescription;
+import info.oais.infomodel.structure.description.Expression;
+import info.oais.infomodel.structure.description.FieldDescription;
+import info.oais.infomodel.structure.description.Occurrence;
+import info.oais.infomodel.structure.description.PrimitiveType;
+import info.oais.infomodel.structure.description.Semantics;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -31,6 +41,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -92,6 +103,8 @@ public class RepInfoToolController {
         FormatDefinition def = switch (template) {
             case "fits" -> FormatTemplates.fits();
             case "hdf5" -> FormatTemplates.hdf5();
+            case "telemetry" -> FormatTemplates.telemetry();
+            case "csv" -> FormatTemplates.csv();
             case "blank-logical" -> {
                 FormatDefinition d = new FormatDefinition();
                 d.setName("New logical schema");
@@ -116,16 +129,205 @@ public class RepInfoToolController {
     }
 
     @GetMapping("/edit")
-    public String edit(HttpSession session, Model model) {
+    public String edit(@RequestParam(required = false) String element, HttpSession session, Model model) {
         FormatDefinition def = draft(session);
         if (def == null) {
             return "redirect:/repinfo-tools";
         }
         model.addAttribute("def", def);
-        model.addAttribute("fieldTypes", FieldType.values());
+        model.addAttribute("fieldTypes", PrimitiveType.values());
         model.addAttribute("byteOrders", ByteOrder.values());
         model.addAttribute("nodeKinds", Hdf5NodeKind.values());
+        if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
+            FormatDescription format = def.toFormatDescription();
+            model.addAttribute("rows", DescriptionEditorView.rows(format));
+            model.addAttribute("problemCount", DescriptionValidator.validate(format).size());
+            if (element != null) {
+                DescriptionEditorView.form(format, element).ifPresent(f -> model.addAttribute("form", f));
+            }
+        }
         return "repinfo-tools/edit";
+    }
+
+    /**
+     * Adds an element inside the record (or branch) {@code parentId}, or a
+     * branch to the choice {@code parentId}, then opens it for editing.
+     */
+    @PostMapping("/elements/add")
+    public String addElement(@RequestParam String parentId, @RequestParam String kind, @RequestParam String name,
+                             @RequestParam(required = false) String discriminator,
+                             @RequestParam(required = false) String key,
+                             HttpSession session, RedirectAttributes redirect) {
+        FormatDefinition def = draft(session);
+        if (def == null) {
+            return "redirect:/repinfo-tools";
+        }
+        String snake = FormatIdentifiers.snakeCase(name);
+        String id = ElementDescription.newId();
+        try {
+            switch (kind) {
+                case "field" -> def.editRoot(root -> Descriptions.addChild(root, parentId, new FieldDescription(id, snake,
+                        PrimitiveType.UINT8, null, null, Occurrence.ONCE, Semantics.NONE)));
+                case "record" -> def.editRoot(root -> Descriptions.addChild(root, parentId,
+                        new RecordDescription(id, snake, List.of(), null, Occurrence.ONCE, Semantics.NONE)));
+                case "choice" -> {
+                    Expression on = Expression.parse(required(discriminator, "What the choice is made on"));
+                    def.editRoot(root -> Descriptions.addChild(root, parentId,
+                            new ChoiceDescription(id, snake, on, List.of(), Occurrence.ONCE, Semantics.NONE)));
+                }
+                case "branch" -> {
+                    String branchKey = required(key, "The value selecting this branch");
+                    def.editRoot(root -> Descriptions.addBranch(root, parentId, new ChoiceDescription.Branch(branchKey,
+                            new RecordDescription(id, snake, List.of(), null, Occurrence.ONCE, Semantics.NONE))));
+                }
+                default -> throw new IllegalArgumentException("Unknown kind of element: " + kind);
+            }
+        } catch (IllegalArgumentException e) {
+            redirect.addFlashAttribute("editorError", e.getMessage());
+            return "redirect:/repinfo-tools/edit?element=" + parentId;
+        }
+        return "redirect:/repinfo-tools/edit?element=" + id;
+    }
+
+    /** Saves the edit form for one element (see {@code DescriptionEditorView.Form}). */
+    @PostMapping("/elements/{id}/update")
+    public String updateElement(@PathVariable String id, @RequestParam Map<String, String> form,
+                                HttpSession session, RedirectAttributes redirect) {
+        FormatDefinition def = draft(session);
+        if (def == null) {
+            return "redirect:/repinfo-tools";
+        }
+        try {
+            ElementDescription existing = Descriptions.find(def.getRoot(), id)
+                    .orElseThrow(() -> new IllegalArgumentException("That element no longer exists."));
+            boolean root = existing.id().equals(def.getRoot().id());
+            String name = root ? existing.name() : FormatIdentifiers.snakeCase(required(form.get("name"), "The name"));
+            Occurrence occurrence = root ? Occurrence.ONCE : occurrence(form.get("occurs"), form.get("occursExpr"));
+            Semantics semantics = semantics(form);
+            ElementDescription updated;
+            if (existing instanceof FieldDescription f) {
+                PrimitiveType type = PrimitiveType.valueOf(form.getOrDefault("type", f.type().name()));
+                String lengthText = form.getOrDefault("length", "").strip();
+                Expression length = type.needsLength() && !lengthText.isEmpty() ? Expression.parse(lengthText) : null;
+                String order = form.getOrDefault("byteOrder", "");
+                updated = new FieldDescription(id, name, type, length, order.isBlank() ? null : ByteOrder.valueOf(order),
+                        occurrence, semantics);
+            } else if (existing instanceof ChoiceDescription c) {
+                updated = new ChoiceDescription(id, name, Expression.parse(required(form.get("discriminator"),
+                        "What the choice is made on")), c.branches(), occurrence, semantics);
+            } else {
+                RecordDescription r = (RecordDescription) existing;
+                RecordDescription.TextLayout text = form.containsKey("text")
+                        ? new RecordDescription.TextLayout(
+                                DescriptionEditorView.unescapeControl(required(form.get("fieldSeparator"), "The field separator")),
+                                DescriptionEditorView.unescapeControl(required(form.get("recordTerminator"), "The record terminator")))
+                        : null;
+                boolean branch = DescriptionEditorView.branchKeyOf(def.getRoot(), id) != null;
+                updated = new RecordDescription(id, name, r.children(), text, branch ? Occurrence.ONCE : occurrence, semantics);
+                if (branch) {
+                    String newKey = required(form.get("branchKey"), "The value selecting this branch");
+                    def.editRoot(rootRecord -> rekeyBranch(rootRecord, id, newKey));
+                }
+            }
+            ElementDescription replacement = updated;
+            def.editRoot(rootRecord -> Descriptions.update(rootRecord, id, e -> replacement));
+            redirect.addFlashAttribute("editorMessage", "Saved '" + replacement.name() + "'.");
+        } catch (IllegalArgumentException e) {
+            redirect.addFlashAttribute("editorError", e.getMessage());
+        }
+        return "redirect:/repinfo-tools/edit?element=" + id;
+    }
+
+    @PostMapping("/elements/{id}/delete")
+    public String deleteElement(@PathVariable String id, HttpSession session) {
+        FormatDefinition def = draft(session);
+        if (def != null && !id.equals(def.getRoot().id())) {
+            def.editRoot(root -> Descriptions.remove(root, id));
+        }
+        return "redirect:/repinfo-tools/edit";
+    }
+
+    @PostMapping("/elements/{id}/move")
+    public String moveElement(@PathVariable String id, @RequestParam int delta, HttpSession session) {
+        FormatDefinition def = draft(session);
+        if (def != null) {
+            def.editRoot(root -> Descriptions.move(root, id, delta));
+        }
+        return "redirect:/repinfo-tools/edit";
+    }
+
+    private static RecordDescription rekeyBranch(RecordDescription root, String branchRecordId, String key) {
+        for (ElementDescription e : Descriptions.all(root)) {
+            if (e instanceof ChoiceDescription c && c.branches().stream().anyMatch(b -> b.record().id().equals(branchRecordId))) {
+                List<ChoiceDescription.Branch> branches = c.branches().stream()
+                        .map(b -> b.record().id().equals(branchRecordId) ? new ChoiceDescription.Branch(key, b.record()) : b)
+                        .toList();
+                return Descriptions.update(root, c.id(), x -> c.withBranches(branches));
+            }
+        }
+        return root;
+    }
+
+    private static Occurrence occurrence(String kind, String expression) {
+        return switch (kind == null ? "once" : kind) {
+            case "optional" -> new Occurrence.Optional(Expression.parse(required(expression, "The condition")));
+            case "repeated" -> new Occurrence.Repeated(Expression.parse(required(expression, "The repeat count")));
+            case "until_end" -> new Occurrence.UntilEnd();
+            default -> Occurrence.ONCE;
+        };
+    }
+
+    /** The semantics part of the edit form; see {@code Semantics} for what each part means. */
+    private static Semantics semantics(Map<String, String> form) {
+        Map<String, String> codes = new LinkedHashMap<>();
+        for (String line : form.getOrDefault("codes", "").split("\\R")) {
+            if (line.isBlank()) {
+                continue;
+            }
+            int sep = line.indexOf('=') >= 0 ? line.indexOf('=') : line.indexOf(':');
+            if (sep <= 0) {
+                throw new IllegalArgumentException("Write each coded value as 'value = meaning', e.g. '1 = housekeeping' (not '"
+                        + line.strip() + "').");
+            }
+            codes.put(line.substring(0, sep).strip(), line.substring(sep + 1).strip());
+        }
+        return new Semantics(form.get("semanticName"), form.get("definition"), form.get("units"),
+                uri(form.get("unitsUri"), "The units link"), uri(form.get("conceptUri"), "The concept link"), codes,
+                decimal(form.get("scale"), "The scale"), decimal(form.get("offset"), "The offset"), form.get("fillValue"),
+                decimal(form.get("validMin"), "The smallest valid value"), decimal(form.get("validMax"), "The largest valid value"));
+    }
+
+    private static java.net.URI uri(String text, String what) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        try {
+            java.net.URI uri = new java.net.URI(text.strip());
+            if (uri.getScheme() == null) {
+                throw new IllegalArgumentException(what + " must be a full web address, starting http:// or https://.");
+            }
+            return uri;
+        } catch (java.net.URISyntaxException e) {
+            throw new IllegalArgumentException(what + " isn't a valid web address.");
+        }
+    }
+
+    private static java.math.BigDecimal decimal(String text, String what) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        try {
+            return new java.math.BigDecimal(text.strip());
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(what + " must be a number (not '" + text.strip() + "').");
+        }
+    }
+
+    private static String required(String value, String what) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(what + " is needed.");
+        }
+        return value;
     }
 
     @PostMapping("/details")
@@ -138,39 +340,6 @@ public class RepInfoToolController {
             def.setNotes(notes);
             def.setFileExtensions(fileExtensions);
             def.setDefaultByteOrder(defaultByteOrder);
-        }
-        return "redirect:/repinfo-tools/edit";
-    }
-
-    @PostMapping("/fields")
-    public String addField(@RequestParam String name, @RequestParam FieldType type,
-                            @RequestParam(required = false) Integer lengthBytes,
-                            @RequestParam(required = false) ByteOrder byteOrder,
-                            @RequestParam(required = false) String semanticName,
-                            @RequestParam(required = false) String definition,
-                            @RequestParam(required = false) String units,
-                            HttpSession session) {
-        FormatDefinition def = draft(session);
-        if (def != null && !name.isBlank()) {
-            def.addField(new FormatField(name, type, lengthBytes, byteOrder, semanticName, definition, units));
-        }
-        return "redirect:/repinfo-tools/edit";
-    }
-
-    @PostMapping("/fields/{index}/delete")
-    public String deleteField(@PathVariable int index, HttpSession session) {
-        FormatDefinition def = draft(session);
-        if (def != null) {
-            def.removeField(index);
-        }
-        return "redirect:/repinfo-tools/edit";
-    }
-
-    @PostMapping("/fields/{index}/move")
-    public String moveField(@PathVariable int index, @RequestParam int delta, HttpSession session) {
-        FormatDefinition def = draft(session);
-        if (def != null) {
-            def.moveField(index, delta);
         }
         return "redirect:/repinfo-tools/edit";
     }
@@ -238,7 +407,7 @@ public class RepInfoToolController {
         }
         SampleDecodeResult result = sample.isEmpty()
                 ? SampleDecodeResult.failure(EMPTY_SAMPLE)
-                : dfdlSampleRunner.run(dfdl, sample.getBytes());
+                : dfdlSampleRunner.run(def.toFormatDescription(), dfdl, sample.getBytes());
         addSampleResult(model, "dfdlTest", result, sample);
         return "repinfo-tools/preview";
     }
@@ -261,8 +430,9 @@ public class RepInfoToolController {
         populatePreview(def, model);
         SampleDecodeResult result = sample.isEmpty()
                 ? SampleDecodeResult.failure(EMPTY_SAMPLE)
-                : drbPythonSampleRunner.run(drbGenerator.generate(def, DrbTarget.PYTHON),
-                        drbGenerator.pythonFactoryClassName(def), sample.getBytes(), sample.getOriginalFilename());
+                : DrbPythonSampleRunner.align(def.toFormatDescription(),
+                        drbPythonSampleRunner.run(drbGenerator.generate(def, DrbTarget.PYTHON),
+                                drbGenerator.pythonFactoryClassName(def), sample.getBytes(), sample.getOriginalFilename()));
         addSampleResult(model, "drbPythonTest", result, sample);
         return "repinfo-tools/preview";
     }
@@ -284,7 +454,7 @@ public class RepInfoToolController {
         populatePreview(def, model);
         SampleDecodeResult result = sample.isEmpty()
                 ? SampleDecodeResult.failure(EMPTY_SAMPLE)
-                : drbSampleRunner.run(drbGenerator.generate(def, DrbTarget.JAVA), sample.getBytes());
+                : drbSampleRunner.run(def.toFormatDescription(), drbGenerator.generate(def, DrbTarget.JAVA), sample.getBytes());
         addSampleResult(model, "drbJavaTest", result, sample);
         return "repinfo-tools/preview";
     }

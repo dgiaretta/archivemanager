@@ -2,6 +2,7 @@ package info.oais.archive.manager.service.format;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import info.oais.infomodel.structure.description.FormatDescription;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -52,7 +53,8 @@ public class DrbPythonSampleRunner {
                 if value is None:
                     return ""
                 if isinstance(value, (bytes, bytearray)):
-                    return str(len(value)) + " byte(s)"
+                    shown = "0x" + bytes(value[:64]).hex()
+                    return shown if len(value) <= 64 else shown + "\u2026 (" + str(len(value)) + " bytes)"
                 return str(value)
 
             def walk(node, depth):
@@ -74,7 +76,8 @@ public class DrbPythonSampleRunner {
                 spec.loader.exec_module(module)
                 root = getattr(module, factory_name)().create(DrbFileFactory().create(sample_path))
                 complete = walk(root, 0)
-                print(json.dumps({"rows": rows, "truncated": not complete, "error": None}))
+                trailing = getattr(root, "trailing_bytes", None)
+                print(json.dumps({"rows": rows, "truncated": not complete, "error": None, "trailing": trailing}))
             except Exception as ex:
                 print(json.dumps({"rows": [], "truncated": False, "error": type(ex).__name__ + ": " + str(ex)}))
             """;
@@ -157,6 +160,19 @@ public class DrbPythonSampleRunner {
         }
     }
 
+    /**
+     * Lines a successful run's rows up against the description the driver was
+     * generated from, like the other engines' results (see {@link SampleDecodeResult}).
+     */
+    public static SampleDecodeResult align(FormatDescription format, SampleDecodeResult raw) {
+        if (!raw.ok()) {
+            return raw;
+        }
+        SampleDecodeResult aligned = SampleDecodeResult.of(format, SampleDecodeResult.toStructureNode(raw.rows()));
+        return new SampleDecodeResult(aligned.rows(), aligned.truncated() || raw.truncated(), null, raw.trailingBytes(),
+                aligned.warning());
+    }
+
     public String notAvailableMessage() {
         return configuredExecutable.isEmpty()
                 ? "No Python with drb-python was found (tried python3 and python). Install it with "
@@ -174,7 +190,8 @@ public class DrbPythonSampleRunner {
             rows.add(new SampleDecodeResult.TreeRow(row.path("depth").asInt(), row.path("name").asText(),
                     row.path("kind").asText(), row.path("value").asText(), row.path("byteRange").asText()));
         }
-        return new SampleDecodeResult(rows, node.path("truncated").asBoolean(), null);
+        Long trailing = node.hasNonNull("trailing") ? node.get("trailing").asLong() : null;
+        return new SampleDecodeResult(rows, node.path("truncated").asBoolean(), null, trailing, null);
     }
 
     private Optional<String> probe(String executable) {

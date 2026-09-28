@@ -44,6 +44,24 @@
             </p>
             <button type="submit">Start from HDF5 example &rarr;</button>
         </form>
+        <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
+            <input type="hidden" name="template" value="telemetry"/>
+            <h3>Telemetry packets</h3>
+            <p class="muted">
+                A worked binary example using counts, a choice on a packet type, a length-prefixed
+                message, a conditional checksum, and scaled values with units and code lists.
+            </p>
+            <button type="submit">Start from telemetry example &rarr;</button>
+        </form>
+        <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
+            <input type="hidden" name="template" value="csv"/>
+            <h3>CSV table</h3>
+            <p class="muted">
+                Delimited text: one comma-separated reading per line to the end of the file,
+                with units, a scale factor, a valid range and a fill value on its columns.
+            </p>
+            <button type="submit">Start from CSV example &rarr;</button>
+        </form>
     </div>
 
     <h2>Or start blank</h2>
