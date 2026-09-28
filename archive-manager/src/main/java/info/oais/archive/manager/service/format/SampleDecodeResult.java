@@ -94,6 +94,10 @@ public record SampleDecodeResult(List<TreeRow> rows, boolean truncated, String e
         }
         String name = node.name() + (node.index() == null ? "" : "[" + node.index() + "]");
         String range = range(Optional.ofNullable(node.sourceRange()));
+        if (node.presence() == AlignedNode.Presence.NIL) {
+            rows.add(new TreeRow(depth, name, kindOf(node), "", range, "no value (nil)"));
+            return true;
+        }
         if (node.presence() == AlignedNode.Presence.ABSENT) {
             rows.add(new TreeRow(depth, name, kindOf(node), "", "", "absent: its condition is false"));
             return true;

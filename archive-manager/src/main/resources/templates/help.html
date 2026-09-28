@@ -164,9 +164,14 @@
                 meaning (a code's meaning or the scaled value with units), which branch each
                 choice took, and any bytes the description doesn't cover. For a byte layout, the DRB outputs
                 are an installable drb-python driver package and a DRB SDF schema for GAEL's Java
-                DRB, and you can test the DFDL description, the DRB SDF schema and the drb-python
-                driver against a sample data file before saving (the drb-python test needs Python
-                with <code>pip install drb</code> on the server; the others need nothing extra).</li>
+                DRB, and you can test the Kaitai Struct and DFDL descriptions, the DRB SDF schema and
+                the drb-python driver against a sample data file before saving (the drb-python test
+                needs Python with <code>pip install drb</code> on the server; the others need
+                nothing extra &mdash; the Kaitai Struct compiler is bundled). You can also choose which
+                languages to generate: choosing fewer than all four unlocks what only they can
+                describe, such as bit fields, records of a stated size, nil values, quoted CSV and
+                number formats (DFDL), or elements at an absolute offset and zlib-compressed
+                records (Kaitai Struct).</li>
         </ul>
     </section>
 

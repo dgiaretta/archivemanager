@@ -6,7 +6,7 @@ package info.oais.infomodel.structure.description;
  * and {@link #BYTES} need a length. In a delimited-text record every value is
  * text between delimiters, and the type says how to read it: {@code INT*} and
  * {@code UINT*} as a decimal integer, {@code FLOAT*} as a decimal number,
- * {@link #STRING} as-is ({@link #BYTES} isn't allowed there).
+ * {@link #STRING} as-is ({@link #BYTES} and {@link #BITS} aren't allowed there).
  */
 public enum PrimitiveType {
 	INT8(1), UINT8(1), INT16(2), UINT16(2), INT32(4), UINT32(4), INT64(8), UINT64(8),
@@ -14,7 +14,13 @@ public enum PrimitiveType {
 	/** ASCII text. */
 	STRING(0),
 	/** Raw bytes, not interpreted. */
-	BYTES(0);
+	BYTES(0),
+	/**
+	 * An unsigned integer a given number of <em>bits</em> long (its length,
+	 * 1 to 64), most significant bit first. A byte-sized field after bit
+	 * fields starts at the next whole byte.
+	 */
+	BITS(0);
 
 	private final int width;
 
@@ -28,7 +34,7 @@ public enum PrimitiveType {
 	}
 
 	public boolean isInteger() {
-		return ordinal() <= UINT64.ordinal();
+		return ordinal() <= UINT64.ordinal() || this == BITS;
 	}
 
 	public boolean isFloat() {
@@ -43,7 +49,7 @@ public enum PrimitiveType {
 		return this == INT8 || this == INT16 || this == INT32 || this == INT64 || isFloat();
 	}
 
-	/** Whether a binary field of this type needs an explicit length. */
+	/** Whether a binary field of this type needs an explicit length (in bits, for {@link #BITS}). */
 	public boolean needsLength() {
 		return width == 0;
 	}

@@ -220,6 +220,72 @@ class RepInfoToolControllerTest {
                 .andExpect(content().string(containsString("dfdl:separator=\",\"")));
     }
 
+    @Test
+    void choosingDfdlOnlyOffersItsFeaturesAndGeneratesOnlyDfdl() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
+        mockMvc.perform(post("/repinfo-tools/start").param("template", "blank").session(session));
+        String row = addElement(session, "root", "record", "row", null, null);
+        String note = addElement(session, row, "field", "note", null, null);
+
+        // With all four languages, the DFDL-only options aren't offered.
+        mockMvc.perform(post("/repinfo-tools/elements/{id}/update", row).session(session)
+                .param("name", "row").param("occurs", "until_end").param("text", "on")
+                .param("fieldSeparator", ",").param("recordTerminator", "\\n"));
+        mockMvc.perform(get("/repinfo-tools/edit").param("element", note).session(session))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("name=\"nilValue\""))));
+
+        mockMvc.perform(post("/repinfo-tools/details").session(session).param("name", "Notes")
+                .param("defaultByteOrder", "BIG_ENDIAN").param("targets", "DFDL"));
+        mockMvc.perform(get("/repinfo-tools/edit").param("element", note).session(session))
+                .andExpect(content().string(containsString("name=\"nilValue\"")))
+                .andExpect(content().string(containsString("name=\"numberPattern\"")));
+        mockMvc.perform(get("/repinfo-tools/edit").param("element", row).session(session))
+                .andExpect(content().string(containsString("name=\"quote\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("name=\"zlib\""))));
+
+        mockMvc.perform(post("/repinfo-tools/elements/{id}/update", row).session(session)
+                .param("name", "row").param("occurs", "until_end").param("text", "on").param("quote", "\"")
+                .param("fieldSeparator", ",").param("recordTerminator", "\\n"));
+        mockMvc.perform(post("/repinfo-tools/elements/{id}/update", note).session(session)
+                .param("name", "note").param("type", "STRING").param("occurs", "once")
+                .param("nilShown", "1").param("nil", "on").param("nilValue", "NA"));
+
+        mockMvc.perform(get("/repinfo-tools/preview").session(session))
+                .andExpect(content().string(containsString("Not generated: Kaitai Struct isn&#39;t one of this description&#39;s languages")))
+                .andExpect(content().string(containsString("dfdl:escapeSchemeRef")));
+        mockMvc.perform(multipart("/repinfo-tools/test-dfdl")
+                        .file(new MockMultipartFile("sample", "n.csv", "text/csv",
+                                "\"a, b\"\nNA\n".getBytes(StandardCharsets.US_ASCII)))
+                        .session(session))
+                .andExpect(content().string(containsString("decoded successfully")))
+                .andExpect(content().string(containsString("a, b")))
+                .andExpect(content().string(containsString("no value (nil)")));
+
+        // Adding a language that can't express them flags each element using them.
+        mockMvc.perform(post("/repinfo-tools/details").session(session).param("name", "Notes")
+                .param("defaultByteOrder", "BIG_ENDIAN").param("targets", "DFDL", "KAITAI"));
+        mockMvc.perform(get("/repinfo-tools/edit").session(session))
+                .andExpect(content().string(containsString("uses nil values in delimited text, which Kaitai Struct can&#39;t express")));
+    }
+
+    @Test
+    void testsTheKaitaiDescriptionAgainstASampleFile() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
+        mockMvc.perform(post("/repinfo-tools/start").param("template", "telemetry").session(session));
+
+        mockMvc.perform(multipart("/repinfo-tools/test-kaitai")
+                        .file(new MockMultipartFile("sample", "t.tlm", "application/octet-stream",
+                                GeneratedDescriptionsMatrixTest.telemetryBytes()))
+                        .session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("decoded successfully")))
+                .andExpect(content().string(containsString("chose science")))
+                .andExpect(content().string(containsString("= 300 K")))
+                .andExpect(content().string(containsString("The description accounts for every byte of the sample.")));
+    }
+
     /** Adds an element through the editor and returns its id (taken from the redirect). */
     private String addElement(MockHttpSession session, String parentId, String kind, String name, String discriminator,
                               String key) throws Exception {

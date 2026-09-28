@@ -32,6 +32,24 @@
             </label>
             <input type="hidden" name="defaultByteOrder" th:if="${def.kind.name() != 'BYTE_LAYOUT'}"
                    th:value="${def.defaultByteOrder}"/>
+            <fieldset th:if="${def.kind.name() == 'BYTE_LAYOUT'}" class="languages">
+                <legend>Languages to generate</legend>
+                <p class="muted">
+                    With all four, the description is limited to what every language can express.
+                    Choose fewer to use what only they can:
+                </p>
+                <ul class="muted feature-list">
+                    <li th:each="f : ${features}">
+                        <span th:text="${f.label()}">bit fields</span>:
+                        <span th:text="${featureLanguages.get(f.name())}">DFDL and Kaitai Struct</span>
+                        <strong th:if="${allow.get(f.name())}">(available)</strong>
+                    </li>
+                </ul>
+                <label class="checkbox" th:each="l : ${languages}">
+                    <input type="checkbox" name="targets" th:value="${l}" th:checked="${def.targets(l)}"/>
+                    <span th:text="${l.label()}">DFDL</span>
+                </label>
+            </fieldset>
             <button type="submit">Save details</button>
         </form>
     </section>
@@ -50,8 +68,8 @@
         <p class="notice error" th:if="${editorError != null}" th:text="${editorError}">error</p>
         <p class="notice" th:if="${editorMessage != null}" th:text="${editorMessage}">saved</p>
         <p class="notice error" th:if="${problemCount > 0}"
-           th:text="${problemCount == 1 ? '1 problem to fix before the description can be generated for every engine - see below.'
-                    : problemCount + ' problems to fix before the description can be generated for every engine - see below.'}">problems</p>
+           th:text="${problemCount == 1 ? '1 problem to fix before the description can be generated in its languages - see below.'
+                    : problemCount + ' problems to fix before the description can be generated in its languages - see below.'}">problems</p>
 
         <table class="attrs structure-tree">
             <tr><th>Element</th><th>Layout</th><th>Meaning</th><th></th></tr>
@@ -103,9 +121,38 @@
                     </label>
                     <label>
                         Length in bytes (STRING and BYTES in a binary record only): a number, or an
-                        expression such as <code>name_len</code> or <code>n * 2 - 1</code>
+                        expression such as <code>name_len</code> or <code>n * 2 - 1</code>.
+                        <th:block th:if="${allow.get('BIT_FIELDS')}">For BITS, the number of bits (1 to 64).</th:block>
                         <input type="text" name="length" th:value="${form.length}"/>
                     </label>
+                    <th:block th:if="${form.inText and allow.get('NIL_VALUES')}">
+                        <input type="hidden" name="nilShown" value="1"/>
+                        <label class="checkbox">
+                            <input type="checkbox" name="nil" th:checked="${form.nil}"/>
+                            Can have no value (nil), written as:
+                        </label>
+                        <label>
+                            Text meaning "no value" (e.g. <code>NA</code>; leave empty for an empty field)
+                            <input type="text" name="nilValue" th:value="${form.nilValue}"/>
+                        </label>
+                    </th:block>
+                    <th:block th:if="${form.inText and allow.get('NUMBER_FORMATS')}">
+                        <label>
+                            Number format, for a number not written as plain digits (e.g. <code>#,##0.00</code>);
+                            leave empty for plain digits
+                            <input type="text" name="numberPattern" th:value="${form.numberPattern}"/>
+                        </label>
+                        <div class="form-row">
+                            <label>
+                                Decimal separator
+                                <input type="text" name="decimalSeparator" th:value="${form.decimalSeparator}" maxlength="1"/>
+                            </label>
+                            <label>
+                                Grouping separator (e.g. <code>,</code>; empty if none)
+                                <input type="text" name="groupingSeparator" th:value="${form.groupingSeparator}" maxlength="1"/>
+                            </label>
+                        </div>
+                    </th:block>
                     <label>
                         Byte order (multi-byte numbers)
                         <select name="byteOrder">
@@ -136,7 +183,30 @@
                         Record terminator (<code>\n</code> for a newline)
                         <input type="text" name="recordTerminator" th:value="${form.recordTerminator}"/>
                     </label>
+                    <label th:if="${allow.get('QUOTED_TEXT')}">
+                        Quote (e.g. <code>"</code>): values containing separators are enclosed in it, with a
+                        doubled quote inside meaning one; leave empty if values are never quoted
+                        <input type="text" name="quote" th:value="${form.quote}" maxlength="1"/>
+                    </label>
+                    <label th:if="${!form.root and allow.get('SIZED_RECORDS')}">
+                        Size in bytes, if stated (a number or an expression such as <code>block_len</code>): its
+                        elements are read within it and any bytes they don't use are skipped
+                        <input type="text" name="recordSize" th:value="${form.recordSize}"/>
+                    </label>
+                    <th:block th:if="${!form.root and allow.get('COMPRESSION')}">
+                        <input type="hidden" name="zlibShown" value="1"/>
+                        <label class="checkbox">
+                            <input type="checkbox" name="zlib" th:checked="${form.zlib}"/>
+                            zlib-compressed (its size is then the compressed size)
+                        </label>
+                    </th:block>
                 </th:block>
+                <label th:if="${!form.root and form.kind != 'choice' and form.kind != 'branch' and !form.inText
+                               and allow.get('ABSOLUTE_OFFSETS')}">
+                    Read at an offset (bytes from the start of the file, or of the enclosing record of a
+                    stated size), e.g. <code>index_offset</code>; leave empty to read it in sequence
+                    <input type="text" name="position" th:value="${form.position}"/>
+                </label>
                 <th:block th:if="${!form.root and form.kind != 'branch'}">
                     <label>
                         Occurs

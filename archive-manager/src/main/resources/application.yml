@@ -50,6 +50,11 @@ archive:
   # Empty means: try python3, then python. Env: ARCHIVE_DRB_PYTHON_EXECUTABLE.
   drb-python:
     executable: ""
+  # RepInfo Tools' Kaitai sample test runs the bundled Kaitai Struct compiler
+  # as a separate Java process (with this JVM's own java); it's stopped after
+  # this many seconds. Env: ARCHIVE_KAITAI_TIMEOUT_SECONDS.
+  kaitai:
+    timeout-seconds: 120
   # The single shared password required to create/edit/delete data (browsing
   # stays open without it). This is intentionally left set for deployment use,
   # since the password must remain available when the application is run in a

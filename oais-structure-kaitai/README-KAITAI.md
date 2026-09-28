@@ -25,14 +25,31 @@ class - and that class is what parses the bytes. So:
 - The generated classes must be compiled into the application.
   This module's are checked in under `src/main/java/.../generated/`, so its
   build needs no compiler.
-- archive-manager's RepInfo Tools can generate a `.ksy` from its
+- archive-manager's RepInfo Tools generates a `.ksy` from its
   engine-neutral description (one type per record and choice branch,
-  `repeat: expr`/`eos`, `if`, `switch-on`, text fields with `terminator`),
-  but can't test it against a sample file the way it can DFDL and DRB, since
-  that would mean running the Kaitai compiler and a Java compiler on the
-  server. Its build does, though: `GeneratedDescriptionsMatrixTest` compiles
-  the generated `.ksy` files when the Kaitai Struct compiler is installed and
-  checks Kaitai decodes the same values as the other engines.
+  `repeat: expr`/`eos`, `if`, `switch-on`, text fields with `terminator`;
+  and, when Kaitai is among the chosen languages, bit fields `bN`,
+  `size:` records, `process: zlib` and `instances` with `pos:` for elements
+  at an offset). It **can** test it against a sample file: it bundles the
+  Kaitai Struct compiler, runs it as a separate Java process, compiles the
+  generated Java in-process and loads it (`KaitaiSampleRunner`; see
+  archive-manager's README).
+
+## What Kaitai Struct is used for
+
+Beyond this project's two small examples, Kaitai Struct is mostly used to
+describe and reverse-engineer existing binary formats. The gallery's
+specifications include:
+
+- media containers: MP4, AVI, WAV, MIDI;
+- executables and other binary formats: ELF, PE/EXE, Mach-O, Java `.class`;
+- filesystems and forensics: NTFS, ext2, Windows registry hives, prefetch
+  files, event logs (popular in malware analysis and CTF challenges);
+- archive and compression formats, game asset formats, and network
+  protocol and packet capture formats (PCAP).
+
+Any of the gallery's `.ksy` files can be compiled and used with this adapter
+in the same way as the examples here.
 
 ## Generating the classes
 
@@ -80,7 +97,13 @@ out and everything else still works, just without positions.
 ## Known limitations
 
 - Descriptions can't be loaded at run time: every format needs its class
-  generated and compiled first.
+  generated and compiled first (archive-manager does both on demand for its
+  sample test, which takes a few seconds).
+- The Kaitai Struct compiler doesn't rename fields whose names are Java
+  reserved words (`class`, `int`, `null`, ...), so their Java doesn't
+  compile; archive-manager's editor rejects such names when Kaitai is a
+  target. Names YAML reads as booleans or null (`on`, `no`, `null`) must be
+  quoted in a `.ksy`, as archive-manager's generator does.
 - Parsing is eager and in memory; for very large files a
   `RandomAccessFileKaitaiStream` variant of `KaitaiStructureRepInfo` would be
   the natural extension.

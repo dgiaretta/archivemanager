@@ -29,7 +29,9 @@ public record AlignedNode(ElementDescription description, Integer index, Presenc
 
 	/** Whether the data has the element. */
 	public enum Presence {
-		PRESENT, ABSENT
+		PRESENT, ABSENT,
+		/** In the data, but holding its nil value (e.g. {@code NA}): no value. */
+		NIL
 	}
 
 	public AlignedNode {
@@ -74,6 +76,10 @@ public record AlignedNode(ElementDescription description, Integer index, Presenc
 		String path = (parentPath.isEmpty() ? "" : parentPath + ".") + name() + (index == null ? "" : "[" + index + "]");
 		if (presence == Presence.ABSENT) {
 			lines.add(path + " = <absent>");
+			return;
+		}
+		if (presence == Presence.NIL) {
+			lines.add(path + " = <nil>");
 			return;
 		}
 		if (description instanceof FieldDescription) {

@@ -5,6 +5,7 @@ import info.oais.archive.manager.service.format.DrbGenerator;
 import info.oais.archive.manager.service.format.DrbPythonSampleRunner;
 import info.oais.archive.manager.service.format.FormatTemplates;
 import info.oais.archive.manager.service.format.KaitaiGenerator;
+import info.oais.archive.manager.service.format.KaitaiSampleRunner;
 import info.oais.archive.manager.service.format.SampleDecodeResult;
 import info.oais.infomodel.implementation.DigitalObjectRefImpl;
 import info.oais.infomodel.structure.DefaultStructureNode;
@@ -12,11 +13,14 @@ import info.oais.infomodel.structure.StructureNode;
 import info.oais.infomodel.structure.StructureNodeKind;
 import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.infomodel.structure.description.ChoiceDescription;
+import info.oais.infomodel.structure.description.DescriptionLanguage;
 import info.oais.infomodel.structure.description.DescriptionValidator;
 import info.oais.infomodel.structure.description.ElementDescription;
 import info.oais.infomodel.structure.description.Expression;
+import info.oais.infomodel.structure.description.Feature;
 import info.oais.infomodel.structure.description.FieldDescription;
 import info.oais.infomodel.structure.description.FormatDescription;
+import info.oais.infomodel.structure.description.NumberFormat;
 import info.oais.infomodel.structure.description.Occurrence;
 import info.oais.infomodel.structure.description.PrimitiveType;
 import info.oais.infomodel.structure.description.RecordDescription;
@@ -26,29 +30,25 @@ import info.oais.infomodel.structure.dfdl.DfdlFormatSpecification;
 import info.oais.infomodel.structure.dfdl.DfdlStructureRepInfo;
 import info.oais.infomodel.structure.drb.DrbFormatSpecification;
 import info.oais.infomodel.structure.drb.DrbStructureRepInfo;
-import info.oais.infomodel.structure.kaitai.KaitaiFormatSpecification;
-import info.oais.infomodel.structure.kaitai.KaitaiStructureRepInfo;
-import io.kaitai.struct.KaitaiStruct;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import javax.tools.ToolProvider;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.Set;
+import java.util.zip.Deflater;
 import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,16 +57,18 @@ import static org.assertj.core.api.Assertions.assertThat;
  * The consistency check across engines: each reference format is generated
  * for every engine, the same sample bytes are decoded by each, and the
  * results - lined up against the description by {@link StructureAligner} -
- * must be identical. Daffodil (DFDL) and DRB always run; drb-python runs
- * when a Python with drb is available ({@code DRB_PYTHON}), and Kaitai Struct
- * when its compiler is ({@code KAITAI_COMPILER}, or on the usual install
- * path / PATH).
+ * must be identical. Daffodil (DFDL), DRB and Kaitai Struct (through the
+ * bundled compiler, as RepInfo Tools runs it) always run; drb-python runs
+ * when a Python with drb is available ({@code DRB_PYTHON}). An engine whose
+ * language can't express a case's {@link Feature}s is skipped for that case,
+ * after checking that its generator refuses it.
  */
 class GeneratedDescriptionsMatrixTest {
 
     private static final DfdlGenerator DFDL = new DfdlGenerator();
     private static final DrbGenerator DRB = new DrbGenerator();
     private static final KaitaiGenerator KAITAI = new KaitaiGenerator();
+    private static final KaitaiSampleRunner KAITAI_RUNNER = new KaitaiSampleRunner(120);
 
     @TempDir
     Path tmp;
@@ -111,6 +113,15 @@ class GeneratedDescriptionsMatrixTest {
                 new Case("FITS template", FormatTemplates.fits().toFormatDescription(), fitsBytes(), null),
                 new Case("telemetry template", FormatTemplates.telemetry().toFormatDescription(), telemetryBytes(),
                         telemetryLines()),
+                new Case("bit fields and a record of a stated size (DFDL, Kaitai)", bits(), bitsBytes(),
+                        List.of("bits.version = 5", "bits.flags = 19", "bits.count = 7", "bits.block.value = 258",
+                                "bits.block.label = hi", "bits.wide = 2748", "bits.rest = 13", "bits.on = 1",
+                                "bits.pad = 0", "bits.trailer = 9")),
+                new Case("quoted CSV, nil values and number formats (DFDL)", quotedCsv(),
+                        ("\"Smith, J\",\"1,234.50\",NA\n\"Say \"\"hi\"\"\",-2.00,ok\n").getBytes(StandardCharsets.US_ASCII),
+                        List.of("ledger.row[0].name = Smith, J", "ledger.row[0].amount = 1234.5", "ledger.row[0].note = <nil>",
+                                "ledger.row[1].name = Say \"hi\"", "ledger.row[1].amount = -2", "ledger.row[1].note = ok")),
+                new Case("offsets and compression (Kaitai)", archive(), archiveBytes(), archiveLines()),
                 new Case("CSV template", FormatTemplates.csv().toFormatDescription(),
                         "AB12,32,-45\nXY9,33,215\n".getBytes(StandardCharsets.US_ASCII),
                         List.of("weather_station_readings_csv_example.reading[0].station = AB12",
@@ -127,16 +138,22 @@ class GeneratedDescriptionsMatrixTest {
         assertThat(DescriptionValidator.validate(c.format())).as("the description is valid").isEmpty();
 
         Map<String, List<String>> results = new LinkedHashMap<>();
-        results.put("DFDL (Daffodil)", align(c, decodeDfdl(c)));
-        results.put("DRB (Java)", align(c, decodeDrb(c)));
-        StructureNode python = decodeDrbPython(c);
-        if (python != null) {
-            results.put("drb-python", align(c, python));
+        if (supports(c, DescriptionLanguage.DFDL, () -> DFDL.generate(c.format()))) {
+            results.put("DFDL (Daffodil)", align(c, decodeDfdl(c)));
         }
-        StructureNode kaitai = decodeKaitai(c);
-        if (kaitai != null) {
-            results.put("Kaitai Struct", align(c, kaitai));
+        if (supports(c, DescriptionLanguage.DRB, () -> DRB.generateSdfSchema(c.format()))) {
+            results.put("DRB (Java)", align(c, decodeDrb(c)));
         }
+        if (supports(c, DescriptionLanguage.DRB_PYTHON, () -> DRB.pythonModule(c.format(), "MatrixFactory"))) {
+            StructureNode python = decodeDrbPython(c);
+            if (python != null) {
+                results.put("drb-python", align(c, python));
+            }
+        }
+        if (supports(c, DescriptionLanguage.KAITAI, () -> KAITAI.generate(c.format()))) {
+            results.put("Kaitai Struct", decodeKaitai(c));
+        }
+        assertThat(results).as("engines that can decode this case").isNotEmpty();
 
         List<String> expected = c.expected() != null ? c.expected() : results.get("DFDL (Daffodil)");
         results.forEach((engine, lines) -> {
@@ -204,70 +221,33 @@ class GeneratedDescriptionsMatrixTest {
         return root[0];
     }
 
-    private StructureNode decodeKaitai(Case c) throws Exception {
-        List<String> compiler = kaitaiCompiler();
-        if (compiler == null) {
-            return null;
-        }
-        Path ksy = Files.writeString(tmp.resolve(c.format().root().name() + ".ksy"), KAITAI.generate(c.format()));
-        Path src = Files.createDirectories(tmp.resolve("kaitai-src"));
-        List<String> command = new ArrayList<>(compiler);
-        command.addAll(List.of("-t", "java", "--java-package", "matrix", "--outdir", src.toString(), ksy.toString()));
-        Process ksc = new ProcessBuilder(command).redirectErrorStream(true).start();
-        String output = new String(ksc.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        assertThat(ksc.waitFor(120, TimeUnit.SECONDS)).isTrue();
-        assertThat(ksc.exitValue()).as("kaitai-struct-compiler: " + output).isZero();
-
-        Path classes = Files.createDirectories(tmp.resolve("kaitai-classes"));
-        List<String> sources;
-        try (Stream<Path> files = Files.walk(src)) {
-            sources = files.filter(p -> p.toString().endsWith(".java")).map(Path::toString).toList();
-        }
-        List<String> javac = new ArrayList<>(List.of("-nowarn", "-d", classes.toString(),
-                "-cp", System.getProperty("java.class.path")));
-        javac.addAll(sources);
-        ByteArrayOutputStream javacErrors = new ByteArrayOutputStream();
-        int status = ToolProvider.getSystemJavaCompiler().run(null, null, javacErrors, javac.toArray(String[]::new));
-        assertThat(status).as("javac: " + javacErrors).isZero();
-
-        String className = "matrix." + pascal(c.format().root().name());
-        try (URLClassLoader loader = new URLClassLoader(new URL[] {classes.toUri().toURL()}, getClass().getClassLoader())) {
-            Class<? extends KaitaiStruct> type = loader.loadClass(className).asSubclass(KaitaiStruct.class);
-            return new KaitaiStructureRepInfo(new KaitaiFormatSpecification(type)).apply(sample(c));
-        }
+    /** Through the bundled Kaitai Struct compiler, as RepInfo Tools' sample test runs it. */
+    private List<String> decodeKaitai(Case c) throws Exception {
+        return KAITAI_RUNNER.withDecoded(KAITAI.generate(c.format()), c.format().root().name(), c.sample(),
+                node -> align(c, node));
     }
 
-    /** The Kaitai Struct compiler command, or null when it isn't installed. */
-    private static List<String> kaitaiCompiler() {
-        String configured = System.getenv("KAITAI_COMPILER");
-        List<Path> candidates = new ArrayList<>();
-        if (configured != null && !configured.isBlank()) {
-            candidates.add(Path.of(configured));
+    /**
+     * Whether {@code language} can express everything the case uses; if it
+     * can't, checks that its generator refuses the description rather than
+     * quietly leaving something out.
+     */
+    private static boolean supports(Case c, DescriptionLanguage language, Runnable generate) {
+        if (Feature.unsupported(c.format(), language).isEmpty()) {
+            return true;
         }
-        candidates.add(Path.of("C:\\Program Files (x86)\\kaitai-struct-compiler\\bin\\kaitai-struct-compiler.bat"));
-        candidates.add(Path.of("/usr/bin/kaitai-struct-compiler"));
-        candidates.add(Path.of("/usr/local/bin/kaitai-struct-compiler"));
-        for (Path p : candidates) {
-            if (Files.isRegularFile(p)) {
-                return p.toString().endsWith(".bat") ? List.of("cmd", "/c", p.toString()) : List.of(p.toString());
-            }
+        try {
+            generate.run();
+        } catch (Feature.UnsupportedFeatureException expected) {
+            return false;
         }
-        return null;
+        throw new AssertionError(language.label() + " generated a description using features it can't express");
     }
 
     private static DigitalObjectRefImpl sample(Case c) {
         return new DigitalObjectRefImpl(new ByteArrayInputStream(c.sample()));
     }
 
-    private static String pascal(String snake) {
-        StringBuilder sb = new StringBuilder();
-        for (String part : snake.split("_")) {
-            if (!part.isEmpty()) {
-                sb.append(Character.toUpperCase(part.charAt(0))).append(part.substring(1));
-            }
-        }
-        return sb.toString();
-    }
 
     // ---- reference formats and samples ----
 
@@ -320,6 +300,79 @@ class GeneratedDescriptionsMatrixTest {
                 p + "[1].packet_type = 2", p + "[1].body -> science", p + "[1].body.science.temperature = 30000",
                 p + "[1].body.science.sample_pairs = 1", p + "[1].body.science.samples[0] = -1",
                 p + "[1].body.science.samples[1] = 5", p + "[1].checksum = 48879");
+    }
+
+    /**
+     * Bit fields (3 + 5 bits in one byte, 12 + 4 across two, a one-bit flag,
+     * which Kaitai reads as a boolean) and a 6-byte record whose elements use 4.
+     */
+    static FormatDescription bits() {
+        RecordDescription block = RecordDescription.of("block", List.of(field("value", PrimitiveType.UINT16, null),
+                field("label", PrimitiveType.STRING, new Expression.IntLiteral(2)))).withSize(Expression.parse("count - 1"));
+        return new FormatDescription("bits", "", ByteOrder.BIG_ENDIAN, List.of(), RecordDescription.of("bits", List.of(
+                bitField("version", 3), bitField("flags", 5), field("count", PrimitiveType.UINT8, null), block,
+                bitField("wide", 12), bitField("rest", 4), bitField("on", 1), bitField("pad", 7),
+                field("trailer", PrimitiveType.UINT8, null))));
+    }
+
+    static byte[] bitsBytes() {
+        return new byte[] {(byte) 0b1011_0011, 7, 1, 2, 'h', 'i', (byte) 0xEE, (byte) 0xEE,
+                (byte) 0xAB, (byte) 0xCD, (byte) 0x80, 9};
+    }
+
+    private static FieldDescription bitField(String name, int bits) {
+        return field(name, PrimitiveType.BITS, new Expression.IntLiteral(bits));
+    }
+
+    /** RFC 4180-style quoting, a nil value, and numbers with grouping separators. */
+    static FormatDescription quotedCsv() {
+        RecordDescription row = RecordDescription.of("row", List.of(
+                        field("name", PrimitiveType.STRING, null),
+                        field("amount", PrimitiveType.FLOAT64, null).withNumberFormat(new NumberFormat("#,##0.00", ".", ",")),
+                        field("note", PrimitiveType.STRING, null).withNilValue("NA")))
+                .withText(RecordDescription.TextLayout.CSV.withQuote("\"")).withOccurrence(new Occurrence.UntilEnd());
+        return new FormatDescription("ledger", "", ByteOrder.BIG_ENDIAN, List.of("csv"),
+                RecordDescription.of("ledger", List.of(row)));
+    }
+
+    /** A header, a zlib-compressed record of a stated size, and an index found by its offset. */
+    static FormatDescription archive() {
+        RecordDescription data = RecordDescription.of("data", List.of(field("count", PrimitiveType.UINT8, null),
+                        field("values", PrimitiveType.UINT16, null).withOccurrence(new Occurrence.Repeated(Expression.parse("count")))))
+                .withSize(Expression.parse("compressed_size")).withCompression(RecordDescription.Compression.ZLIB);
+        RecordDescription index = RecordDescription.of("index", List.of(
+                field("magic", PrimitiveType.STRING, new Expression.IntLiteral(4)), field("entries", PrimitiveType.UINT8, null)))
+                .withOffset(Expression.parse("index_offset"));
+        return new FormatDescription("archive", "", ByteOrder.BIG_ENDIAN, List.of(), RecordDescription.of("archive", List.of(
+                field("index_offset", PrimitiveType.UINT32, null), field("compressed_size", PrimitiveType.UINT16, null),
+                data, index)));
+    }
+
+    static byte[] archiveBytes() {
+        byte[] compressed = zlib(new byte[] {3, 0, 1, 0, 2, 0, 3});
+        int indexOffset = 6 + compressed.length + 2;
+        ByteBuffer b = ByteBuffer.allocate(indexOffset + 5);
+        b.putInt(indexOffset).putShort((short) compressed.length).put(compressed).put(new byte[2])
+                .put("IDX!".getBytes(StandardCharsets.US_ASCII)).put((byte) 5);
+        return b.array();
+    }
+
+    static List<String> archiveLines() {
+        byte[] compressed = zlib(new byte[] {3, 0, 1, 0, 2, 0, 3});
+        return List.of("archive.index_offset = " + (6 + compressed.length + 2),
+                "archive.compressed_size = " + compressed.length, "archive.data.count = 3",
+                "archive.data.values[0] = 1", "archive.data.values[1] = 2", "archive.data.values[2] = 3",
+                "archive.index.magic = IDX!", "archive.index.entries = 5");
+    }
+
+    static byte[] zlib(byte[] data) {
+        Deflater deflater = new Deflater();
+        deflater.setInput(data);
+        deflater.finish();
+        byte[] buffer = new byte[256];
+        int n = deflater.deflate(buffer);
+        deflater.end();
+        return java.util.Arrays.copyOf(buffer, n);
     }
 
     static FormatDescription csv() {

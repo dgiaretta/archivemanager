@@ -4,9 +4,11 @@ import info.oais.archive.manager.model.format.FormatDefinition;
 import info.oais.archive.manager.model.format.FormatDefinitionKind;
 import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.infomodel.structure.description.ChoiceDescription;
+import info.oais.infomodel.structure.description.DescriptionLanguage;
 import info.oais.infomodel.structure.description.Descriptions;
 import info.oais.infomodel.structure.description.ElementDescription;
 import info.oais.infomodel.structure.description.Expression;
+import info.oais.infomodel.structure.description.Feature;
 import info.oais.infomodel.structure.description.FieldDescription;
 import info.oais.infomodel.structure.description.FormatDescription;
 import info.oais.infomodel.structure.description.Occurrence;
@@ -31,9 +33,18 @@ import java.util.Set;
  * become {@code str} fields ending at their separator (Kaitai keeps numbers in
  * text as text). Each element's semantics go into its {@code doc}.
  *
+ * <p>Beyond the core model it also generates the Kaitai-capable
+ * {@link Feature}s: bit fields ({@code bN}), records of a stated size
+ * ({@code size:}, read as a substream), zlib-compressed records
+ * ({@code process: zlib}) and elements at an absolute offset (an
+ * {@code instances:} entry with {@code pos:}). A description using a
+ * DFDL-only feature is refused.
+ *
  * <p>Hand-built text, not a generic YAML serializer: Kaitai's own
  * {@code meta}/{@code seq}/{@code types} idiom is kept exactly, and every
- * user-entered string is written as a single-quoted YAML scalar.
+ * user-entered string is written as a single-quoted YAML scalar - names
+ * too, since YAML would read an unquoted {@code on}, {@code no} or
+ * {@code null} as a boolean or null rather than a name.
  */
 @Component
 public class KaitaiGenerator {
@@ -44,15 +55,19 @@ public class KaitaiGenerator {
     }
 
     public String generate(FormatDescription format) {
+        Feature.requireSupported(format, DescriptionLanguage.KAITAI);
         Scope scope = new Scope(format);
         Map<String, String> typeNames = typeNames(format.root());
         StringBuilder sb = new StringBuilder();
         sb.append("meta:\n");
-        sb.append("  id: ").append(format.root().name()).append('\n');
+        sb.append("  id: ").append(yamlQuote(format.root().name())).append('\n');
         sb.append("  endian: ").append(format.defaultByteOrder() == ByteOrder.LITTLE_ENDIAN ? "le" : "be").append('\n');
         sb.append("  encoding: ASCII\n");
+        if (Feature.used(format).containsKey(Feature.BIT_FIELDS)) {
+            sb.append("  bit-endian: be\n");
+        }
         if (!format.notes().isBlank()) {
-            sb.append("doc: ").append(yamlQuote(format.notes())).append('\n');
+            sb.append("doc: ").append(yamlQuote(javadocSafe(format.notes()))).append('\n');
         }
         appendSeq(sb, format.root(), "", format, scope, typeNames);
 
@@ -62,7 +77,7 @@ public class KaitaiGenerator {
             sb.append("types:\n");
             for (ElementDescription t : types) {
                 RecordDescription r = (RecordDescription) t;
-                sb.append("  ").append(typeNames.get(r.id())).append(":\n");
+                sb.append("  ").append(yamlQuote(typeNames.get(r.id()))).append(":\n");
                 appendDoc(sb, r.semantics(), "    ");
                 appendSeq(sb, r, "    ", format, scope, typeNames);
             }
@@ -74,39 +89,70 @@ public class KaitaiGenerator {
                            Scope scope, Map<String, String> typeNames) {
         sb.append(indent).append("seq:\n");
         List<ElementDescription> children = record.children();
+        List<ElementDescription> atOffsets = new java.util.ArrayList<>();
         for (int i = 0; i < children.size(); i++) {
             ElementDescription e = children.get(i);
-            String in = indent + "    ";
-            sb.append(indent).append("  - id: ").append(e.name()).append('\n');
-            if (e instanceof FieldDescription f) {
-                if (record.isText()) {
-                    boolean last = i == children.size() - 1;
-                    String delimiter = last ? record.text().recordTerminator() : record.text().fieldSeparator();
-                    sb.append(in).append("type: str\n");
-                    sb.append(in).append("terminator: ").append((int) delimiter.charAt(0)).append('\n');
-                    if (last) {
-                        // A last line with no newline still ends the last field.
-                        sb.append(in).append("eos-error: false\n");
-                    }
-                } else {
-                    appendFieldType(sb, f, in, format.defaultByteOrder(), scope);
-                }
-            } else if (e instanceof RecordDescription r) {
-                sb.append(in).append("type: ").append(typeNames.get(r.id())).append('\n');
-            } else if (e instanceof ChoiceDescription c) {
-                sb.append(in).append("type:\n");
-                sb.append(in).append("  switch-on: ")
-                        .append(yamlQuote(c.discriminator().render(EngineSyntax.kaitai(scope, c.id())))).append('\n');
-                sb.append(in).append("  cases:\n");
-                for (ChoiceDescription.Branch b : c.branches()) {
-                    String key = b.isIntegerKey() ? b.key().strip()
-                            : yamlQuote("\"" + b.key().replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
-                    sb.append(in).append("    ").append(key).append(": ").append(typeNames.get(b.record().id())).append('\n');
-                }
+            if (offsetOf(e) != null) {
+                atOffsets.add(e);
+                continue;
             }
-            appendOccurrence(sb, e, in, scope);
-            appendDoc(sb, e.semantics(), in);
+            sb.append(indent).append("  - id: ").append(yamlQuote(e.name())).append('\n');
+            appendElementBody(sb, record, i, indent + "    ", format, scope, typeNames);
         }
+        if (!atOffsets.isEmpty()) {
+            // Read out of sequence: Kaitai "instances", read from their position when first asked for.
+            sb.append(indent).append("instances:\n");
+            for (ElementDescription e : atOffsets) {
+                sb.append(indent).append("  ").append(yamlQuote(e.name())).append(":\n");
+                sb.append(indent).append("    pos: ").append(expr(offsetOf(e), e, scope)).append('\n');
+                appendElementBody(sb, record, children.indexOf(e), indent + "    ", format, scope, typeNames);
+            }
+        }
+    }
+
+    private static Expression offsetOf(ElementDescription e) {
+        return e instanceof FieldDescription f ? f.offset() : e instanceof RecordDescription r ? r.offset() : null;
+    }
+
+    /** An element's type, size, repetition and doc, at indent {@code in}. */
+    private void appendElementBody(StringBuilder sb, RecordDescription record, int i, String in,
+                                   FormatDescription format, Scope scope, Map<String, String> typeNames) {
+        List<ElementDescription> children = record.children();
+        ElementDescription e = children.get(i);
+        if (e instanceof FieldDescription f) {
+            if (record.isText()) {
+                boolean last = i == children.size() - 1;
+                String delimiter = last ? record.text().recordTerminator() : record.text().fieldSeparator();
+                sb.append(in).append("type: str\n");
+                sb.append(in).append("terminator: ").append((int) delimiter.charAt(0)).append('\n');
+                if (last) {
+                    // A last line with no newline still ends the last field.
+                    sb.append(in).append("eos-error: false\n");
+                }
+            } else {
+                appendFieldType(sb, f, in, format.defaultByteOrder(), scope);
+            }
+        } else if (e instanceof RecordDescription r) {
+            sb.append(in).append("type: ").append(yamlQuote(typeNames.get(r.id()))).append('\n');
+            if (r.size() != null) {
+                sb.append(in).append("size: ").append(expr(r.size(), r, scope)).append('\n');
+            }
+            if (r.compression() == RecordDescription.Compression.ZLIB) {
+                sb.append(in).append("process: zlib\n");
+            }
+        } else if (e instanceof ChoiceDescription c) {
+            sb.append(in).append("type:\n");
+            sb.append(in).append("  switch-on: ")
+                    .append(yamlQuote(c.discriminator().render(EngineSyntax.kaitai(scope, c.id())))).append('\n');
+            sb.append(in).append("  cases:\n");
+            for (ChoiceDescription.Branch b : c.branches()) {
+                String key = b.isIntegerKey() ? b.key().strip()
+                        : yamlQuote("\"" + b.key().replace("\\", "\\\\").replace("\"", "\\\"") + "\"");
+                sb.append(in).append("    ").append(key).append(": ").append(yamlQuote(typeNames.get(b.record().id()))).append('\n');
+            }
+        }
+        appendOccurrence(sb, e, in, scope);
+        appendDoc(sb, e.semantics(), in);
     }
 
     private void appendFieldType(StringBuilder sb, FieldDescription f, String in, ByteOrder defaultOrder, Scope scope) {
@@ -130,6 +176,7 @@ public class KaitaiGenerator {
                 sb.append(in).append("size: ").append(expr(f.length(), f, scope)).append('\n');
             }
             case BYTES -> sb.append(in).append("size: ").append(expr(f.length(), f, scope)).append('\n');
+            case BITS -> sb.append(in).append("type: b").append(((Expression.IntLiteral) f.length()).value()).append('\n');
         }
     }
 
@@ -154,7 +201,7 @@ public class KaitaiGenerator {
     private void appendDoc(StringBuilder sb, Semantics s, String in) {
         String doc = describe(s);
         if (!doc.isEmpty()) {
-            sb.append(in).append("doc: ").append(yamlQuote(doc)).append('\n');
+            sb.append(in).append("doc: ").append(yamlQuote(javadocSafe(doc))).append('\n');
         }
         if (s.conceptUri() != null) {
             sb.append(in).append("doc-ref: ").append(yamlQuote(s.conceptUri().toString())).append('\n');
@@ -213,6 +260,15 @@ public class KaitaiGenerator {
             }
         }
         return names;
+    }
+
+    /**
+     * The Kaitai Struct compiler copies a {@code doc} into a Java comment, and
+     * RepInfo Tools compiles that Java; a {@code *}{@code /} in the text would end
+     * the comment early.
+     */
+    private static String javadocSafe(String doc) {
+        return doc.replace("*/", "* /");
     }
 
     /** A YAML single-quoted scalar: only {@code '} itself needs escaping (doubled). */

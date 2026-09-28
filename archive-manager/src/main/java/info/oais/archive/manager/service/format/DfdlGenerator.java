@@ -4,8 +4,11 @@ import info.oais.archive.manager.model.format.FormatDefinition;
 import info.oais.archive.manager.model.format.FormatDefinitionKind;
 import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.infomodel.structure.description.ChoiceDescription;
+import info.oais.infomodel.structure.description.DescriptionLanguage;
+import info.oais.infomodel.structure.description.Descriptions;
 import info.oais.infomodel.structure.description.ElementDescription;
 import info.oais.infomodel.structure.description.Expression;
+import info.oais.infomodel.structure.description.Feature;
 import info.oais.infomodel.structure.description.FieldDescription;
 import info.oais.infomodel.structure.description.FormatDescription;
 import info.oais.infomodel.structure.description.Occurrence;
@@ -31,6 +34,15 @@ import org.springframework.stereotype.Component;
  * schema that leaves any of them unset. {@code DfdlSampleRunnerTest} and
  * {@code GeneratedDescriptionsMatrixTest} compile this output with a real
  * Daffodil to keep that honest.
+ *
+ * <p>Beyond the core model it also generates the DFDL-capable
+ * {@link Feature}s: bit fields ({@code dfdl:lengthUnits="bits"}), records of
+ * a stated size (an explicit-length complex element, whose unused bytes
+ * Daffodil skips), and, in delimited text, nil values
+ * ({@code nillable}/{@code dfdl:nilValue}), quoted values (an escape-block
+ * escape scheme, doubled quotes inside) and number formats
+ * ({@code dfdl:textNumberPattern} and separators). A description using a
+ * Kaitai-only feature is refused.
  */
 @Component
 public class DfdlGenerator {
@@ -41,6 +53,7 @@ public class DfdlGenerator {
     }
 
     public String generate(FormatDescription format) {
+        Feature.requireSupported(format, DescriptionLanguage.DFDL);
         Scope scope = new Scope(format);
         String namespace = "urn:archive-manager:format:" + format.root().name();
         StringBuilder root = new StringBuilder();
@@ -71,17 +84,48 @@ public class DfdlGenerator {
                                      documentFinalTerminatorCanBeMissing="yes"/>
                       </dfdl:defineFormat>
                       <dfdl:format ref="tns:binaryDefaults"/>
-                    </xs:appinfo>
+                %s    </xs:appinfo>
                   </xs:annotation>
                 %s
                 %s</xs:schema>
                 """.formatted(namespace, namespace,
-                format.defaultByteOrder() == ByteOrder.LITTLE_ENDIAN ? "littleEndian" : "bigEndian", notes, root);
+                format.defaultByteOrder() == ByteOrder.LITTLE_ENDIAN ? "littleEndian" : "bigEndian",
+                escapeSchemes(format), notes, root);
+    }
+
+    /** One escape scheme per quote character used by a delimited-text record: a quoted block, "" inside it for ". */
+    private static String escapeSchemes(FormatDescription format) {
+        StringBuilder sb = new StringBuilder();
+        java.util.Set<String> quotes = new java.util.TreeSet<>();
+        for (ElementDescription e : Descriptions.all(format.root())) {
+            if (e instanceof RecordDescription r && r.isText() && r.text().quote() != null) {
+                quotes.add(r.text().quote());
+            }
+        }
+        for (String q : quotes) {
+            String literal = dfdlLiteral(q, false);
+            sb.append("      <dfdl:defineEscapeScheme name=\"").append(escapeSchemeName(q)).append("\">\n")
+                    .append("        <dfdl:escapeScheme escapeKind=\"escapeBlock\" escapeBlockStart=\"").append(literal)
+                    .append("\" escapeBlockEnd=\"").append(literal).append("\" escapeEscapeCharacter=\"").append(literal)
+                    .append("\" extraEscapedCharacters=\"\" generateEscapeBlock=\"whenNeeded\"/>\n")
+                    .append("      </dfdl:defineEscapeScheme>\n");
+        }
+        return sb.toString();
+    }
+
+    private static String escapeSchemeName(String quote) {
+        return "quoted_" + (int) quote.charAt(0);
     }
 
     private void appendRecordElement(StringBuilder sb, RecordDescription r, String in, FormatDescription format,
                                      Scope scope, boolean isRoot) {
-        sb.append(in).append("<xs:element name=\"").append(r.name()).append("\" dfdl:lengthKind=\"implicit\"");
+        sb.append(in).append("<xs:element name=\"").append(r.name()).append('"');
+        if (r.size() != null) {
+            // A record of a stated size: its elements are read within it, and bytes they don't use are skipped.
+            sb.append(" dfdl:lengthKind=\"explicit\" dfdl:length=\"").append(length(r.size(), r, scope)).append('"');
+        } else {
+            sb.append(" dfdl:lengthKind=\"implicit\"");
+        }
         if (r.isText()) {
             sb.append(" dfdl:representation=\"text\" dfdl:terminator=\"")
                     .append(dfdlLiteral(r.text().recordTerminator(), true)).append('"');
@@ -90,7 +134,10 @@ public class DfdlGenerator {
             appendOccurrence(sb, r, scope);
         }
         sb.append(">\n");
-        appendDoc(sb, r.semantics(), in + "  ");
+        // A record repeated to the end of the data is only tried while data is left: otherwise a
+        // text record that can be empty (e.g. one text field) "parses" at the very end, forever.
+        appendDoc(sb, r.semantics(), in + "  ", !isRoot && r.occurrence() instanceof Occurrence.UntilEnd
+                ? "<dfdl:assert testKind=\"pattern\" testPattern=\"(?s).\" message=\"No data left\"/>" : null);
         sb.append(in).append("  <xs:complexType>\n");
         sb.append(in).append("    <xs:sequence");
         if (r.isText()) {
@@ -113,7 +160,7 @@ public class DfdlGenerator {
         } else if (e instanceof ChoiceDescription c) {
             appendChoice(sb, c, in, format, scope);
         } else {
-            appendField(sb, (FieldDescription) e, parent.isText(), in, format, scope);
+            appendField(sb, (FieldDescription) e, parent, in, format, scope);
         }
     }
 
@@ -138,17 +185,40 @@ public class DfdlGenerator {
         sb.append(in).append("</xs:element>\n");
     }
 
-    private void appendField(StringBuilder sb, FieldDescription f, boolean inText, String in,
+    private void appendField(StringBuilder sb, FieldDescription f, RecordDescription parent, String in,
                              FormatDescription format, Scope scope) {
+        boolean inText = parent.isText();
         sb.append(in).append("<xs:element name=\"").append(f.name()).append("\" type=\"").append(xsType(f)).append('"');
         if (inText) {
             sb.append(" dfdl:representation=\"text\" dfdl:lengthKind=\"delimited\"");
             if (f.type().isNumeric()) {
-                sb.append(" dfdl:textNumberRep=\"standard\" dfdl:textNumberPattern=\"")
-                        .append(f.type().isInteger() ? "#0" : "#0.###############") .append('"');
+                if (f.numberFormat() != null) {
+                    sb.append(" dfdl:textNumberRep=\"standard\" dfdl:textNumberPattern=\"")
+                            .append(xmlEscape(f.numberFormat().pattern()))
+                            .append("\" dfdl:textStandardDecimalSeparator=\"")
+                            .append(dfdlLiteral(f.numberFormat().decimalSeparator(), false)).append('"');
+                    if (f.numberFormat().groupingSeparator() != null) {
+                        sb.append(" dfdl:textStandardGroupingSeparator=\"")
+                                .append(dfdlLiteral(f.numberFormat().groupingSeparator(), false)).append('"');
+                    }
+                } else {
+                    sb.append(" dfdl:textNumberRep=\"standard\" dfdl:textNumberPattern=\"")
+                            .append(f.type().isInteger() ? "#0" : "#0.###############").append('"');
+                }
+            }
+            if (parent.text().quote() != null) {
+                sb.append(" dfdl:escapeSchemeRef=\"tns:").append(escapeSchemeName(parent.text().quote())).append('"');
+            }
+            if (f.nilValue() != null) {
+                sb.append(" nillable=\"true\" dfdl:nilKind=\"literalValue\" dfdl:nilValueDelimiterPolicy=\"none\""
+                        + " dfdl:nilValue=\"")
+                        .append(f.nilValue().isEmpty() ? "%ES;" : dfdlLiteral(f.nilValue(), false)).append('"');
             }
         } else {
             switch (f.type()) {
+                case BITS -> sb.append(" dfdl:lengthUnits=\"bits\" dfdl:length=\"")
+                        .append(((Expression.IntLiteral) f.length()).value())
+                        .append("\" dfdl:alignment=\"1\" dfdl:alignmentUnits=\"bits\" dfdl:byteOrder=\"bigEndian\"");
                 case STRING -> sb.append(" dfdl:representation=\"text\" dfdl:length=\"")
                         .append(length(f.length(), f, scope)).append('"');
                 case BYTES -> sb.append(" dfdl:length=\"").append(length(f.length(), f, scope)).append('"');
@@ -187,7 +257,7 @@ public class DfdlGenerator {
         }
     }
 
-    private String length(Expression length, FieldDescription f, Scope scope) {
+    private String length(Expression length, ElementDescription f, Scope scope) {
         if (length instanceof Expression.IntLiteral lit) {
             return Long.toString(lit.value());
         }
@@ -208,16 +278,33 @@ public class DfdlGenerator {
             case FLOAT64 -> "xs:double";
             case STRING -> "xs:string";
             case BYTES -> "xs:hexBinary";
+            case BITS -> {
+                long bits = ((Expression.IntLiteral) f.length()).value();
+                yield bits <= 8 ? "xs:unsignedByte" : bits <= 16 ? "xs:unsignedShort"
+                        : bits <= 32 ? "xs:unsignedInt" : "xs:unsignedLong";
+            }
         };
     }
 
     private void appendDoc(StringBuilder sb, Semantics s, String in) {
+        appendDoc(sb, s, in, null);
+    }
+
+    /** The element's annotation: its semantics as documentation, plus any DFDL {@code appinfo} statement. */
+    private void appendDoc(StringBuilder sb, Semantics s, String in, String dfdlStatement) {
         String doc = KaitaiGenerator.describe(s);
-        if (!doc.isEmpty()) {
-            sb.append(in).append("<xs:annotation>\n");
-            sb.append(in).append("  <xs:documentation>").append(xmlEscape(doc)).append("</xs:documentation>\n");
-            sb.append(in).append("</xs:annotation>\n");
+        if (doc.isEmpty() && dfdlStatement == null) {
+            return;
         }
+        sb.append(in).append("<xs:annotation>\n");
+        if (!doc.isEmpty()) {
+            sb.append(in).append("  <xs:documentation>").append(xmlEscape(doc)).append("</xs:documentation>\n");
+        }
+        if (dfdlStatement != null) {
+            sb.append(in).append("  <xs:appinfo source=\"http://www.ogf.org/dfdl/\">").append(dfdlStatement)
+                    .append("</xs:appinfo>\n");
+        }
+        sb.append(in).append("</xs:annotation>\n");
     }
 
     /**

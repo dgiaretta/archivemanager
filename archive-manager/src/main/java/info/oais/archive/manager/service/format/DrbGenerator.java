@@ -6,6 +6,8 @@ import info.oais.archive.manager.model.format.FormatDefinitionKind;
 import info.oais.archive.manager.model.format.Hdf5Node;
 import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.infomodel.structure.description.ChoiceDescription;
+import info.oais.infomodel.structure.description.DescriptionLanguage;
+import info.oais.infomodel.structure.description.Feature;
 import info.oais.infomodel.structure.description.ElementDescription;
 import info.oais.infomodel.structure.description.Expression;
 import info.oais.infomodel.structure.description.FieldDescription;
@@ -202,6 +204,7 @@ public class DrbGenerator {
 
     /** The drb-python driver module for {@code format}, defining {@code factoryClassName}. */
     public String pythonModule(FormatDescription format, String factoryClassName) {
+        Feature.requireSupported(format, DescriptionLanguage.DRB_PYTHON);
         return INTERPRETER + """
 
                 DESCRIPTION = %s
@@ -412,6 +415,7 @@ public class DrbGenerator {
 
     /** The DRB SDF schema for {@code format} (see the {@code FormatDefinition} overload for what it contains). */
     public String generateSdfSchema(FormatDescription format) {
+        Feature.requireSupported(format, DescriptionLanguage.DRB);
         Scope scope = new Scope(format);
         StringBuilder root = new StringBuilder();
         sdfRecord(root, format.root(), "  ", format, scope, false, null);

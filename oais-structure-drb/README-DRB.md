@@ -8,6 +8,22 @@ repository's own `third-party/maven-repo` (DRB is not on Maven Central) - see
 `third-party/README.md` for the licence, the sources jar, and which of DRB's
 own dependencies are and aren't used.
 
+## What DRB is used for
+
+DRB was developed by GAEL Systems for ESA as a federated "virtual
+filesystem": one navigable tree over heterogeneous Earth Observation data
+products, used in Sentinel ground-segment tooling. It is typically used for:
+
+- satellite product containers that combine many files (the SAFE format);
+- netCDF, HDF5, JPEG2000 satellite imagery, DIMAP, GeoTIFF;
+- XML metadata, and ZIP/TAR archives wrapping any of the above.
+
+This module uses DRB 2.5.13's SDF schemas and its built-in XML support; the
+format implementations for most of the products above were separate DRB
+packages and are not included here. This project's own examples (a binary
+"point" record and a CSV table, the same as in the DFDL and Kaitai modules)
+are in `src/test/resources`.
+
 ## Two ways to interpret a Digital Object
 
 `DrbFormatSpecification` selects one:

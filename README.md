@@ -524,6 +524,6 @@ Before publishing or sharing the repository externally:
 
 - confirm the license is correct and included in the repo
 - verify Java and Maven requirements are documented clearly
-- confirm external engine dependencies are noted for each adapter
+- keep `third-party/` (DRB's LGPL licence texts and sources jar) alongside any distribution that bundles DRB; archive-manager's jar also bundles the GPL-3.0 Kaitai Struct compiler as a separate program, with its sources jar (see `third-party/README.md`)
 - keep `third-party/` (DRB's LGPL licence texts and sources jar) alongside any distribution that bundles DRB
 - run the full reactor build from the project root

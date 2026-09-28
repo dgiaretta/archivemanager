@@ -1,0 +1,8 @@
+# The bundled Kaitai Struct compiler's classpath, in order (see pom.xml).
+kaitai-struct-compiler_2.13-0.11.jar
+scala-library-2.13.13.jar
+scopt_2.13-4.1.0.jar
+fastparse_2.13-2.3.3.jar
+sourcecode_2.13-0.2.3.jar
+geny_2.13-0.6.10.jar
+snakeyaml-2.0.jar

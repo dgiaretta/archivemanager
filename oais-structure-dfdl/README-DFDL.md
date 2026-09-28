@@ -19,10 +19,35 @@ example, and `oais-structure-demo` for more; archive-manager's RepInfo Tools
 also generates DFDL schemas from its engine-neutral description (counts as
 `dfdl:occursCount`, conditions and choices as `dfdl:choiceDispatchKey`/
 `dfdl:choiceBranchKey` and occurrence expressions, CSV records with
-`dfdl:separator`/`dfdl:terminator`).
+`dfdl:separator`/`dfdl:terminator`; and, when DFDL is among the chosen
+languages, bit fields with `dfdl:lengthUnits="bits"`, explicit-length
+records, nil values with `nillable`/`dfdl:nilValue`, quoted CSV values with
+an escape-block `dfdl:defineEscapeScheme`, and `dfdl:textNumberPattern`
+number formats).
 
 `new DfdlFormatSpecification(schemaUri)` points the adapter at a schema; the
 schema's default root element is parsed.
+
+## What DFDL is used for
+
+This project's own examples are deliberately small (a binary "point" record
+and a CSV table, kept identical across the DFDL, Kaitai and DRB modules so
+their results can be compared). DFDL itself is used for much more. It was
+built for the text and binary *record* formats that predate XML and JSON,
+for example:
+
+- financial messaging: SWIFT MT, ISO 20022, FIX;
+- legacy mainframe data: fixed-width and EBCDIC files described by COBOL
+  copybooks;
+- healthcare: HL7 v2 (pipe-delimited messages);
+- defence and government: military message formats (USMTF, VMF) and EDI
+  (X12);
+- scientific data and telemetry: NASA/JPL has used DFDL for spacecraft
+  instrument telemetry, one of the use cases that shaped the standard.
+
+This list is a starting point, not exhaustive. The DFDL Schemas project on
+GitHub (https://github.com/DFDLSchemas) publishes open DFDL schemas for many
+of these formats.
 
 ## How the adapter works
 
@@ -82,6 +107,15 @@ Daffodil:
   line has no newline lose that line -- silently, since Daffodil ignores
   unparsed data; an infix separator between rows instead produces an empty
   extra row from a final newline.
+- **Guard a record repeated to the end of the data** with
+  `<dfdl:assert testKind="pattern" testPattern="(?s)." .../>`. A text record
+  that can be empty (e.g. a single text field) otherwise parses successfully
+  at the very end of the data, and Daffodil stops with "consumed no data and
+  is stuck in an infinite loop". The pattern assertion only lets another
+  record start while at least one byte is left.
+- **Bit fields** need `dfdl:lengthUnits="bits"` with
+  `dfdl:alignmentUnits="bits"`; a byte-sized element after them is aligned
+  to the next whole byte by the default one-byte alignment.
 
 ## Known limitations
 

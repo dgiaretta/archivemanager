@@ -34,7 +34,11 @@ import info.oais.infomodel.structure.StructureNodeKind;
  *       text (so numbers in delimited text arrive as strings from some
  *       engines);</li>
  *   <li>Daffodil can't carry NUL characters, so trailing NULs are dropped
- *       from text.</li>
+ *       from text;</li>
+ *   <li>Kaitai Struct reads a one-bit field as a boolean; a nil value
+ *       ({@link FieldDescription#nilValue()}) arrives as no value, an empty
+ *       one, or the nil text itself, and becomes
+ *       {@link AlignedNode.Presence#NIL}.</li>
  * </ul>
  */
 public final class StructureAligner {
@@ -100,6 +104,14 @@ public final class StructureAligner {
 			out.add(new AlignedNode(f, null, AlignedNode.Presence.PRESENT, bytes, List.of(),
 					spanOf(matches).orElse(null)));
 			return out;
+		}
+		if (d instanceof FieldDescription f && f.nilValue() != null && !matches.isEmpty()) {
+			Object raw = matches.get(0).getValue().orElse(null);
+			if (raw == null || raw.toString().isEmpty() || raw.toString().equals(f.nilValue())) {
+				out.add(new AlignedNode(f, null, AlignedNode.Presence.NIL, null, List.of(),
+						matches.get(0).getSourceRange().orElse(null)));
+				return out;
+			}
 		}
 		boolean absent = matches.isEmpty()
 				|| (matches.get(0).getKind() == StructureNodeKind.LEAF && matches.get(0).getValue().isEmpty()
@@ -171,10 +183,14 @@ public final class StructureAligner {
 			return null;
 		}
 		if (type.isInteger()) {
+			if (raw instanceof Boolean bit) {
+				// Kaitai Struct reads a one-bit field as a boolean.
+				return bit ? 1L : 0L;
+			}
 			Object value = coerceInteger(raw);
 			// Java has no unsigned 64-bit type, so some engines report uint64 values past
 			// Long.MAX_VALUE as negative; read them back as unsigned.
-			if (!type.isSigned() && value instanceof Long l && l < 0) {
+			if (!type.isSigned() && type.fixedWidth() > 0 && value instanceof Long l && l < 0) {
 				return BigInteger.valueOf(l).add(BigInteger.ONE.shiftLeft(8 * type.fixedWidth()));
 			}
 			return value;

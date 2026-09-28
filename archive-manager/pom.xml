@@ -75,13 +75,20 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
-    <!-- Lets GeneratedDescriptionsMatrixTest run a generated .ksy through the
-         Kaitai adapter (when the Kaitai Struct compiler is installed). -->
+    <!-- The Kaitai adapter, which RepInfo Tools uses to run a generated .ksy
+         against an uploaded sample file (KaitaiSampleRunner): the .ksy is
+         compiled by the bundled Kaitai Struct compiler (see the
+         maven-dependency-plugin below), then the generated Java by the JDK's
+         compiler or, on a JRE, the Eclipse compiler (ecj, EPL-2.0). -->
     <dependency>
       <groupId>info.oais.infomodel</groupId>
       <artifactId>oais-structure-kaitai</artifactId>
       <version>${oais.structure.version}</version>
-      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.eclipse.jdt</groupId>
+      <artifactId>ecj</artifactId>
+      <version>3.40.0</version>
     </dependency>
 
     <!-- CSV parsing for the NAM "Bulk Upload Spreadsheet" (Eternal SIP metadata) import.
@@ -207,6 +214,53 @@
       <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
+      </plugin>
+      <!-- The Kaitai Struct compiler (GPL-3.0) and its libraries, bundled as
+           plain files under kaitai-compiler/ - not on the application's
+           classpath. KaitaiSampleRunner extracts them and runs the compiler
+           as a separate Java process, so it stays a separate program from
+           archive-manager. Its sources jar goes alongside, with the licence
+           text in ../third-party/licenses. The list must match
+           src/main/resources/kaitai-compiler/classpath.txt. -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>bundle-kaitai-compiler</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>copy</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.outputDirectory}/kaitai-compiler</outputDirectory>
+              <artifactItems>
+                <artifactItem><groupId>io.kaitai</groupId><artifactId>kaitai-struct-compiler_2.13</artifactId><version>0.11</version></artifactItem>
+                <artifactItem><groupId>org.scala-lang</groupId><artifactId>scala-library</artifactId><version>2.13.13</version></artifactItem>
+                <artifactItem><groupId>com.github.scopt</groupId><artifactId>scopt_2.13</artifactId><version>4.1.0</version></artifactItem>
+                <artifactItem><groupId>com.lihaoyi</groupId><artifactId>fastparse_2.13</artifactId><version>2.3.3</version></artifactItem>
+                <artifactItem><groupId>com.lihaoyi</groupId><artifactId>sourcecode_2.13</artifactId><version>0.2.3</version></artifactItem>
+                <artifactItem><groupId>com.lihaoyi</groupId><artifactId>geny_2.13</artifactId><version>0.6.10</version></artifactItem>
+                <artifactItem><groupId>org.yaml</groupId><artifactId>snakeyaml</artifactId><version>2.0</version></artifactItem>
+                <!-- For compiling the generated Java against (the app itself has it on its classpath). -->
+                <artifactItem><groupId>io.kaitai</groupId><artifactId>kaitai-struct-runtime</artifactId><version>0.11</version></artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+          <execution>
+            <id>bundle-kaitai-compiler-sources</id>
+            <phase>generate-resources</phase>
+            <goals>
+              <goal>copy</goal>
+            </goals>
+            <configuration>
+              <outputDirectory>${project.build.outputDirectory}/META-INF/third-party/kaitai-struct-compiler</outputDirectory>
+              <artifactItems>
+                <artifactItem><groupId>io.kaitai</groupId><artifactId>kaitai-struct-compiler_2.13</artifactId><version>0.11</version><classifier>sources</classifier></artifactItem>
+              </artifactItems>
+            </configuration>
+          </execution>
+        </executions>
       </plugin>
       <!--
         Generates a browsable HTML API doc site from the /** ... */ source

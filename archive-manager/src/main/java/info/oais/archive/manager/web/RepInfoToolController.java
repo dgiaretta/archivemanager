@@ -15,12 +15,16 @@ import info.oais.archive.manager.service.format.DrbSampleRunner;
 import info.oais.archive.manager.service.format.FormatDescriptionRdfService;
 import info.oais.archive.manager.service.format.FormatTemplates;
 import info.oais.archive.manager.service.format.KaitaiGenerator;
+import info.oais.archive.manager.service.format.KaitaiSampleRunner;
 import info.oais.archive.manager.service.format.SampleDecodeResult;
 import info.oais.archive.manager.service.format.FormatIdentifiers;
 import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.infomodel.structure.description.Descriptions;
 import info.oais.infomodel.structure.description.ChoiceDescription;
+import info.oais.infomodel.structure.description.DescriptionLanguage;
 import info.oais.infomodel.structure.description.DescriptionValidator;
+import info.oais.infomodel.structure.description.Feature;
+import info.oais.infomodel.structure.description.NumberFormat;
 import info.oais.infomodel.structure.description.FormatDescription;
 import info.oais.infomodel.structure.description.RecordDescription;
 import info.oais.infomodel.structure.description.ElementDescription;
@@ -77,11 +81,12 @@ public class RepInfoToolController {
     private final DfdlSampleRunner dfdlSampleRunner;
     private final DrbPythonSampleRunner drbPythonSampleRunner;
     private final DrbSampleRunner drbSampleRunner;
+    private final KaitaiSampleRunner kaitaiSampleRunner;
 
     public RepInfoToolController(ArchiveService archive, KaitaiGenerator kaitaiGenerator, DfdlGenerator dfdlGenerator,
                                   DrbGenerator drbGenerator, FormatDescriptionRdfService rdfService,
                                   DfdlSampleRunner dfdlSampleRunner, DrbPythonSampleRunner drbPythonSampleRunner,
-                                  DrbSampleRunner drbSampleRunner) {
+                                  DrbSampleRunner drbSampleRunner, KaitaiSampleRunner kaitaiSampleRunner) {
         this.archive = archive;
         this.kaitaiGenerator = kaitaiGenerator;
         this.dfdlGenerator = dfdlGenerator;
@@ -90,6 +95,7 @@ public class RepInfoToolController {
         this.dfdlSampleRunner = dfdlSampleRunner;
         this.drbPythonSampleRunner = drbPythonSampleRunner;
         this.drbSampleRunner = drbSampleRunner;
+        this.kaitaiSampleRunner = kaitaiSampleRunner;
     }
 
     @GetMapping
@@ -135,13 +141,24 @@ public class RepInfoToolController {
             return "redirect:/repinfo-tools";
         }
         model.addAttribute("def", def);
-        model.addAttribute("fieldTypes", PrimitiveType.values());
+        model.addAttribute("fieldTypes", java.util.Arrays.stream(PrimitiveType.values())
+                .filter(t -> t != PrimitiveType.BITS || def.allows(Feature.BIT_FIELDS)).toList());
         model.addAttribute("byteOrders", ByteOrder.values());
         model.addAttribute("nodeKinds", Hdf5NodeKind.values());
+        model.addAttribute("languages", DescriptionLanguage.values());
+        Map<String, Boolean> allow = new LinkedHashMap<>();
+        Map<String, String> featureLanguages = new LinkedHashMap<>();
+        for (Feature feature : Feature.values()) {
+            allow.put(feature.name(), def.allows(feature));
+            featureLanguages.put(feature.name(), feature.languagesText());
+        }
+        model.addAttribute("allow", allow);
+        model.addAttribute("featureLanguages", featureLanguages);
+        model.addAttribute("features", Feature.values());
         if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
             FormatDescription format = def.toFormatDescription();
-            model.addAttribute("rows", DescriptionEditorView.rows(format));
-            model.addAttribute("problemCount", DescriptionValidator.validate(format).size());
+            model.addAttribute("rows", DescriptionEditorView.rows(format, def.getTargets()));
+            model.addAttribute("problemCount", DescriptionValidator.validate(format, def.getTargets()).size());
             if (element != null) {
                 DescriptionEditorView.form(format, element).ifPresent(f -> model.addAttribute("form", f));
             }
@@ -210,20 +227,34 @@ public class RepInfoToolController {
                 String lengthText = form.getOrDefault("length", "").strip();
                 Expression length = type.needsLength() && !lengthText.isEmpty() ? Expression.parse(lengthText) : null;
                 String order = form.getOrDefault("byteOrder", "");
+                // Options for features the chosen languages don't offer aren't on the form: keep what's there.
+                String nilValue = form.containsKey("nilShown")
+                        ? (form.containsKey("nil") ? form.getOrDefault("nilValue", "") : null) : f.nilValue();
+                NumberFormat numberFormat = form.containsKey("numberPattern")
+                        ? (form.get("numberPattern").isBlank() ? null : new NumberFormat(form.get("numberPattern").strip(),
+                                form.getOrDefault("decimalSeparator", "."), form.getOrDefault("groupingSeparator", "")))
+                        : f.numberFormat();
                 updated = new FieldDescription(id, name, type, length, order.isBlank() ? null : ByteOrder.valueOf(order),
-                        occurrence, semantics);
+                        occurrence, semantics, optionalExpression(form, "position", f.offset()), nilValue, numberFormat);
             } else if (existing instanceof ChoiceDescription c) {
                 updated = new ChoiceDescription(id, name, Expression.parse(required(form.get("discriminator"),
                         "What the choice is made on")), c.branches(), occurrence, semantics);
             } else {
                 RecordDescription r = (RecordDescription) existing;
+                String quote = form.containsKey("quote") ? form.get("quote").strip()
+                        : r.isText() ? r.text().quote() : null;
                 RecordDescription.TextLayout text = form.containsKey("text")
                         ? new RecordDescription.TextLayout(
                                 DescriptionEditorView.unescapeControl(required(form.get("fieldSeparator"), "The field separator")),
-                                DescriptionEditorView.unescapeControl(required(form.get("recordTerminator"), "The record terminator")))
+                                DescriptionEditorView.unescapeControl(required(form.get("recordTerminator"), "The record terminator")),
+                                quote)
                         : null;
+                RecordDescription.Compression compression = form.containsKey("zlibShown")
+                        ? (form.containsKey("zlib") ? RecordDescription.Compression.ZLIB : null) : r.compression();
                 boolean branch = DescriptionEditorView.branchKeyOf(def.getRoot(), id) != null;
-                updated = new RecordDescription(id, name, r.children(), text, branch ? Occurrence.ONCE : occurrence, semantics);
+                updated = new RecordDescription(id, name, r.children(), text, branch ? Occurrence.ONCE : occurrence, semantics,
+                        optionalExpression(form, "recordSize", r.size()), compression,
+                        optionalExpression(form, "position", r.offset()));
                 if (branch) {
                     String newKey = required(form.get("branchKey"), "The value selecting this branch");
                     def.editRoot(rootRecord -> rekeyBranch(rootRecord, id, newKey));
@@ -266,6 +297,15 @@ public class RepInfoToolController {
             }
         }
         return root;
+    }
+
+    /** An optional expression from the form; the existing one when the form doesn't offer it. */
+    private static Expression optionalExpression(Map<String, String> form, String param, Expression existing) {
+        if (!form.containsKey(param)) {
+            return existing;
+        }
+        String text = form.get(param).strip();
+        return text.isEmpty() ? null : Expression.parse(text);
     }
 
     private static Occurrence occurrence(String kind, String expression) {
@@ -333,13 +373,18 @@ public class RepInfoToolController {
     @PostMapping("/details")
     public String updateDetails(@RequestParam String name, @RequestParam(required = false) String notes,
                                  @RequestParam(required = false) String fileExtensions,
-                                 @RequestParam ByteOrder defaultByteOrder, HttpSession session) {
+                                 @RequestParam ByteOrder defaultByteOrder,
+                                 @RequestParam(required = false) List<DescriptionLanguage> targets,
+                                 HttpSession session) {
         FormatDefinition def = draft(session);
         if (def != null) {
             def.setName(name);
             def.setNotes(notes);
             def.setFileExtensions(fileExtensions);
             def.setDefaultByteOrder(defaultByteOrder);
+            if (targets != null) {
+                def.setTargets(java.util.EnumSet.copyOf(targets));
+            }
         }
         return "redirect:/repinfo-tools/edit";
     }
@@ -459,6 +504,30 @@ public class RepInfoToolController {
         return "repinfo-tools/preview";
     }
 
+    /**
+     * Same as {@link #testDfdl}, but compiles the draft's generated
+     * {@code .ksy} with the bundled Kaitai Struct compiler and runs it (see
+     * {@link KaitaiSampleRunner}); takes a few seconds.
+     */
+    @PostMapping("/test-kaitai")
+    public String testKaitai(@RequestParam("sample") MultipartFile sample, HttpSession session, Model model)
+            throws IOException {
+        FormatDefinition def = draft(session);
+        if (def == null) {
+            return "redirect:/repinfo-tools";
+        }
+        populatePreview(def, model);
+        String ksy = (String) model.getAttribute("kaitai");
+        if (ksy == null) {
+            return "redirect:/repinfo-tools/preview";
+        }
+        SampleDecodeResult result = sample.isEmpty()
+                ? SampleDecodeResult.failure(EMPTY_SAMPLE)
+                : kaitaiSampleRunner.run(def.toFormatDescription(), ksy, sample.getBytes());
+        addSampleResult(model, "kaitaiTest", result, sample);
+        return "repinfo-tools/preview";
+    }
+
     private static final String EMPTY_SAMPLE = "Choose a non-empty sample file to test against.";
 
     private void addSampleResult(Model model, String attribute, SampleDecodeResult result, MultipartFile sample) {
@@ -469,14 +538,40 @@ public class RepInfoToolController {
 
     private void populatePreview(FormatDefinition def, Model model) {
         model.addAttribute("def", def);
-        model.addAttribute("kaitai", kaitaiGenerator.generate(def));
-        model.addAttribute("dfdl", dfdlGenerator.generate(def));
-        model.addAttribute("drbPython", drbGenerator.generate(def, DrbTarget.PYTHON));
+        Map<String, String> notGenerated = new LinkedHashMap<>();
+        model.addAttribute("kaitai", generated(def, DescriptionLanguage.KAITAI, "kaitai", notGenerated,
+                () -> kaitaiGenerator.generate(def)));
+        model.addAttribute("dfdl", generated(def, DescriptionLanguage.DFDL, "dfdl", notGenerated,
+                () -> dfdlGenerator.generate(def)));
+        model.addAttribute("drbPython", generated(def, DescriptionLanguage.DRB_PYTHON, "drbPython", notGenerated,
+                () -> drbGenerator.generate(def, DrbTarget.PYTHON)));
         model.addAttribute("drbPythonPackage", drbGenerator.pythonDistributionName(def));
         model.addAttribute("drbPythonVersion", drbPythonSampleRunner.drbVersion().orElse(null));
         model.addAttribute("drbPythonUnavailable", drbPythonSampleRunner.notAvailableMessage());
-        model.addAttribute("drbJava", drbGenerator.generate(def, DrbTarget.JAVA));
+        model.addAttribute("drbJava", generated(def, DescriptionLanguage.DRB, "drbJava", notGenerated,
+                () -> drbGenerator.generate(def, DrbTarget.JAVA)));
+        model.addAttribute("notGenerated", notGenerated);
         model.addAttribute("allEntities", archive.listAllEntities());
+    }
+
+    /**
+     * A generator's output, or null (with the reason under {@code key} in
+     * {@code notGenerated}) when a byte layout isn't meant for that language,
+     * or uses a feature it can't express.
+     */
+    private static String generated(FormatDefinition def, DescriptionLanguage language, String key,
+                                    Map<String, String> notGenerated, java.util.function.Supplier<String> generate) {
+        if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT && !def.targets(language)) {
+            notGenerated.put(key, "Not generated: " + language.label()
+                    + " isn't one of this description's languages (see Details in the editor).");
+            return null;
+        }
+        try {
+            return generate.get();
+        } catch (Feature.UnsupportedFeatureException e) {
+            notGenerated.put(key, e.getMessage());
+            return null;
+        }
     }
 
     @GetMapping("/download/{format}")
@@ -485,6 +580,15 @@ public class RepInfoToolController {
         if (def == null) {
             return ResponseEntity.notFound().build();
         }
+        try {
+            return downloadGenerated(format, def);
+        } catch (Feature.UnsupportedFeatureException e) {
+            return ResponseEntity.status(409).contentType(MediaType.TEXT_PLAIN)
+                    .body(new ByteArrayResource(e.getMessage().getBytes(StandardCharsets.UTF_8)));
+        }
+    }
+
+    private ResponseEntity<ByteArrayResource> downloadGenerated(String format, FormatDefinition def) {
         String text;
         String filename;
         MediaType mediaType;
@@ -544,13 +648,17 @@ public class RepInfoToolController {
         Map<String, String> generated = new LinkedHashMap<>();
         if (formats != null) {
             for (String format : formats) {
-                switch (format) {
-                    case "kaitai" -> generated.put("Kaitai Struct", kaitaiGenerator.generate(def));
-                    case "dfdl" -> generated.put("DFDL", dfdlGenerator.generate(def));
-                    case "drb-python" -> generated.put("DRB (Python, drb-python)", drbGenerator.generate(def, DrbTarget.PYTHON));
-                    case "drb-java" -> generated.put(def.getKind() == FormatDefinitionKind.BYTE_LAYOUT
-                            ? "DRB SDF schema (Java, fr.gael.drb)" : "DRB (Java, fr.gael.drb)", drbGenerator.generate(def, DrbTarget.JAVA));
-                    default -> { }
+                try {
+                    switch (format) {
+                        case "kaitai" -> generated.put("Kaitai Struct", kaitaiGenerator.generate(def));
+                        case "dfdl" -> generated.put("DFDL", dfdlGenerator.generate(def));
+                        case "drb-python" -> generated.put("DRB (Python, drb-python)", drbGenerator.generate(def, DrbTarget.PYTHON));
+                        case "drb-java" -> generated.put(def.getKind() == FormatDefinitionKind.BYTE_LAYOUT
+                                ? "DRB SDF schema (Java, fr.gael.drb)" : "DRB (Java, fr.gael.drb)", drbGenerator.generate(def, DrbTarget.JAVA));
+                        default -> { }
+                    }
+                } catch (Feature.UnsupportedFeatureException e) {
+                    // Not offered on the preview page for this description; nothing to save.
                 }
             }
         }

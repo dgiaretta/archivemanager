@@ -7,10 +7,31 @@
     <p class="breadcrumb"><a th:href="@{/repinfo-tools/edit}">&larr; Back to editor</a></p>
     <h1 th:text="${def.name}">Format description</h1>
 
+    <section class="editor-section" th:if="${!notGenerated.isEmpty()}">
+        <h2>Languages not generated</h2>
+        <ul>
+            <li th:each="n : ${notGenerated}" th:text="${n.value}">Not generated</li>
+        </ul>
+    </section>
+
     <section class="editor-section" th:if="${kaitai != null}">
         <h2>Kaitai Struct (.ksy)</h2>
         <a class="button-link" th:href="@{/repinfo-tools/download/kaitai}">Download .ksy &rarr;</a>
         <pre class="sparql" th:text="${kaitai}">...</pre>
+
+        <h3 id="kaitai-test">Test against a sample file</h3>
+        <p class="muted">
+            Compiles the description above with the Kaitai Struct compiler (bundled with this
+            application and run as a separate program), then decodes the sample with the result,
+            via the <code>oais-structure-kaitai</code> adapter. It takes a few seconds. The file is
+            only used for this one request; nothing is stored.
+        </p>
+        <form th:action="@{/repinfo-tools/test-kaitai} + '#kaitai-test'" method="post" enctype="multipart/form-data" class="form">
+            <input type="file" name="sample" required/>
+            <button type="submit">Decode sample</button>
+        </form>
+
+        <th:block th:if="${kaitaiTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${kaitaiTest})}"></div></th:block>
     </section>
 
     <section class="editor-section" th:if="${dfdl != null}">
@@ -33,7 +54,7 @@
         <th:block th:if="${dfdlTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${dfdlTest})}"></div></th:block>
     </section>
 
-    <section class="editor-section" th:if="${kaitai == null and dfdl == null}">
+    <section class="editor-section" th:if="${kaitai == null and dfdl == null and def.kind.name() != 'BYTE_LAYOUT'}">
         <p class="muted">
             Kaitai and DFDL describe a sequential byte layout, which this HDF5-style logical
             schema isn't -- see the DRB output below, or add a separate byte-layout description

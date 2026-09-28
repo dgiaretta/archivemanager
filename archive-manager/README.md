@@ -523,6 +523,31 @@ wanted.
     into the generated descriptions as documentation (Kaitai `doc`/`doc-ref`,
     `xs:documentation` in DFDL and DRB, node attributes in drb-python) and
     into the archive as Semantic Representation Information (see *Saving*).
+  - **Languages, and what only some of them can do.** A format's details
+    include the **languages to generate** (`FormatDefinition.getTargets()`):
+    Kaitai Struct, DFDL, Java DRB and drb-python, all four by default. With
+    all four, the description is limited to the core every language can
+    express. Choosing fewer unlocks the **features** (`Feature`, in
+    `oais-structure-api`) that all the chosen languages support:
+
+    | Feature | Languages |
+    |---|---|
+    | Bit fields (`BITS`, 1 to 64 bits, most significant bit first) | DFDL, Kaitai Struct |
+    | Records of a stated size (elements read within it, unused bytes skipped) | DFDL, Kaitai Struct |
+    | Nil values in delimited text (e.g. `NA`, or an empty field) | DFDL |
+    | Quoted values in delimited text (RFC 4180 style, `""` inside) | DFDL |
+    | Number formats in delimited text (e.g. `#,##0.00`, decimal and grouping separators) | DFDL |
+    | Elements at an absolute offset (read out of sequence, e.g. an index) | Kaitai Struct |
+    | zlib-compressed records | Kaitai Struct |
+
+    The editor only offers a feature's options when every chosen language
+    supports it; if the languages change afterwards, `DescriptionValidator`
+    flags each element using something one of them can't express, a
+    generator asked for such a language refuses
+    (`Feature.UnsupportedFeatureException`), and the preview page lists each
+    language not generated and why. Choosing Kaitai Struct also rules out
+    element names that are Java reserved words (e.g. `class`), since its
+    descriptions are compiled to Java.
   - The definition being built lives in the HTTP session
     (`RepInfoToolController`, a session-scoped `FormatDefinition`), not the
     archive, until you explicitly save it. The editor shows the description
@@ -613,8 +638,20 @@ wanted.
     type in both byte orders, raw bytes, and the FITS template through real
     DRB.
 
-    Kaitai has no such test: `oais-structure-kaitai` needs a Java class
-    generated ahead of time by the Kaitai Struct compiler.
+    The Kaitai Struct section has one too (`POST /repinfo-tools/test-kaitai`,
+    `KaitaiSampleRunner`), with no setup needed. A `.ksy` isn't read at run
+    time, so the runner first compiles it: the **Kaitai Struct compiler is
+    bundled** in the jar (under `kaitai-compiler/`, copied there by the
+    `maven-dependency-plugin` from Maven Central) and run as a **separate
+    Java process** with the app's own `java`. It's GPL-3.0, so it's kept a
+    separate program rather than linked into the app; its source jar ships in
+    the jar too (see `../third-party/README.md`). The Java it writes is then
+    compiled in-process, by the JDK's compiler, or by the bundled Eclipse
+    compiler (`ecj`, EPL-2.0) when the app runs on a JRE, and loaded in its own
+    class loader. It takes a few seconds; the compiler is stopped after
+    `archive.kaitai.timeout-seconds` (default 120). It's compiled with
+    `--debug`, so the result shows byte positions. `KaitaiSampleRunnerTest`
+    covers both Java compilers.
 
     Every engine names and nests what it decodes a little differently
     (Kaitai camel-cases names, DRB turns raw bytes into runs of values, some
@@ -629,8 +666,9 @@ wanted.
     engine that silently stops early would otherwise look like a success.
     `GeneratedDescriptionsMatrixTest` decodes the same samples -- including
     the built-in templates -- with DFDL, Java DRB, drb-python (when
-    `DRB_PYTHON` is set) and Kaitai (when the Kaitai Struct compiler is
-    installed; `KAITAI_COMPILER` to point at it) and checks that they agree.
+    `DRB_PYTHON` is set) and Kaitai (through the bundled compiler) and checks
+    that they agree. Cases using a feature are decoded by the languages that
+    support it, after checking that the others' generators refuse it.
   - **Saving** (`FormatDescriptionRdfService`) writes real OAIS structure via
     `EditService`'s existing primitives only: one overall
     `im:SemanticRepresentationInformation` per save, plus one
@@ -1172,14 +1210,16 @@ what "the data can be in Dhivehi and renders/searches correctly" required.
   needs internet access in the browser. If you're running somewhere offline,
   download `vis-network.min.js` and change the `<script src="...">` in
   `templates/graph/view.html` to point at a local copy under `static/js/`.
-- **What RepInfo Tools' description model deliberately leaves out.** It
-  covers what all four engines can express the same way: sequences, counts,
+- **What RepInfo Tools' description model leaves out.** Its core covers
+  what all four engines can express the same way: sequences, counts,
   lengths and conditions computed from earlier fields, choices on a
-  discriminator, and simple delimited text. It does not (yet) cover
-  bit-level fields, absolute offsets/seeking (e.g. a table of contents
-  pointing elsewhere in the file), compressed or encrypted sections,
-  checksum validation, quoted/escaped CSV, or text numbers in custom
-  formats. Such a format can still be described with the engine's own
-  language by hand (see the `README-*.md` of each adapter module); the
-  parts the model does cover can be generated first and extended.
+  discriminator, and simple delimited text. Bit fields, records of a stated
+  size, nil values, quoted text, number formats, absolute offsets and zlib
+  compression are there for the languages that support them (see
+  *Languages, and what only some of them can do*). Not covered at all yet:
+  checksum validation, encryption, other compression schemes, and
+  delimited text other than one record per line. Such a format can still be
+  described with the engine's own language by hand (see the `README-*.md`
+  of each adapter module); the parts the model does cover can be generated
+  first and extended.
 

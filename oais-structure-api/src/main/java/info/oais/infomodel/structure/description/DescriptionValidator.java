@@ -1,15 +1,18 @@
 package info.oais.infomodel.structure.description;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
  * Checks a {@link FormatDescription} for everything that would make it
- * ambiguous or impossible to generate for every engine. Returns problems
- * rather than throwing, so an editor can show them next to the elements
- * they're about.
+ * ambiguous or impossible to generate. Returns problems rather than
+ * throwing, so an editor can show them next to the elements they're about.
+ * {@link #validate(FormatDescription, Collection)} also checks that the
+ * languages it's meant for can express every {@link Feature} it uses.
  */
 public final class DescriptionValidator {
 
@@ -18,6 +21,17 @@ public final class DescriptionValidator {
 	}
 
 	private static final String NAME_PATTERN = "[a-z_][a-z0-9_]*";
+
+	/**
+	 * Java's reserved words: the Kaitai Struct compiler names Java fields and
+	 * methods after elements without renaming these, so the Java wouldn't compile.
+	 */
+	private static final Set<String> JAVA_RESERVED = Set.of("abstract", "assert", "boolean", "break", "byte", "case",
+			"catch", "char", "class", "const", "continue", "default", "do", "double", "else", "enum", "extends",
+			"final", "finally", "float", "for", "goto", "if", "implements", "import", "instanceof", "int",
+			"interface", "long", "native", "new", "package", "private", "protected", "public", "return", "short",
+			"static", "strictfp", "super", "switch", "synchronized", "this", "throw", "throws", "transient", "try",
+			"void", "volatile", "while", "true", "false", "null", "var", "yield", "record");
 
 	private DescriptionValidator() {
 	}
@@ -28,13 +42,79 @@ public final class DescriptionValidator {
 		if (!(format.root().occurrence() instanceof Occurrence.Once)) {
 			problems.add(new Problem(format.root().id(), "The whole file (the root record) must occur once."));
 		}
+		if (format.root().offset() != null || format.root().size() != null || format.root().compression() != null) {
+			problems.add(new Problem(format.root().id(),
+					"The whole file (the root record) can't have an offset, a stated size or compression."));
+		}
 		checkRecord(format.root(), scope, problems);
+		return problems;
+	}
+
+	/**
+	 * {@link #validate(FormatDescription)}, plus a problem for each element
+	 * using a feature one of {@code targets} can't express.
+	 */
+	public static List<Problem> validate(FormatDescription format, Collection<DescriptionLanguage> targets) {
+		List<Problem> problems = validate(format);
+		if (targets.contains(DescriptionLanguage.KAITAI)) {
+			for (ElementDescription e : Descriptions.all(format.root())) {
+				if (e == format.root()) {
+					continue;
+				}
+				if (JAVA_RESERVED.contains(e.name())) {
+					problems.add(new Problem(e.id(), "'" + e.name() + "' is a reserved word in Java, which Kaitai Struct"
+							+ " descriptions are compiled to; choose another name (e.g. '" + e.name() + "_value')."));
+				} else if (e.name().startsWith("_")) {
+					problems.add(new Problem(e.id(), "Kaitai Struct keeps names starting with '_' for itself (e.g. _io);"
+							+ " choose a name that doesn't start with '_'."));
+				}
+			}
+		}
+		for (Map.Entry<Feature, List<ElementDescription>> used : Feature.used(format).entrySet()) {
+			Feature feature = used.getKey();
+			List<String> missing = targets.stream().filter(l -> !feature.supportedBy(l))
+					.map(DescriptionLanguage::label).toList();
+			if (missing.isEmpty()) {
+				continue;
+			}
+			for (ElementDescription e : used.getValue()) {
+				problems.add(new Problem(e.id(), "'" + e.name() + "' uses " + feature.label() + ", which "
+						+ String.join(" and ", missing) + " can't express (" + feature.languagesText()
+						+ " only). Remove it, or generate only for " + feature.languagesText() + "."));
+			}
+		}
 		return problems;
 	}
 
 	private static void checkRecord(RecordDescription record, Scope scope, List<Problem> problems) {
 		checkName(record, problems);
 		checkOccurrence(record, scope, problems);
+		checkOffset(record, scope, problems);
+		if (record.size() != null) {
+			checkNumeric(record, record.size(), "size", scope, problems);
+			if (record.isText()) {
+				problems.add(new Problem(record.id(), "A delimited-text record is ended by its terminator, so '"
+						+ record.name() + "' can't also have a stated size."));
+			}
+		}
+		if (record.compression() != null) {
+			if (record.size() == null) {
+				problems.add(new Problem(record.id(), "'" + record.name()
+						+ "' is compressed, so it needs its (compressed) size in bytes."));
+			}
+			if (record.isText()) {
+				problems.add(new Problem(record.id(), "A delimited-text record can't be compressed."));
+			}
+		}
+		if (record.isText() && record.text().quote() != null) {
+			String q = record.text().quote();
+			if (q.length() != 1) {
+				problems.add(new Problem(record.id(), "The quote in '" + record.name() + "' must be one character."));
+			} else if (record.text().fieldSeparator().contains(q) || record.text().recordTerminator().contains(q)) {
+				problems.add(new Problem(record.id(), "The quote in '" + record.name()
+						+ "' can't also be a separator."));
+			}
+		}
 		if (record.children().isEmpty()) {
 			problems.add(new Problem(record.id(), "'" + record.name() + "' has no elements yet."));
 		}
@@ -72,18 +152,56 @@ public final class DescriptionValidator {
 		if (f.type() == PrimitiveType.BYTES) {
 			problems.add(new Problem(f.id(), "'" + f.name() + "' can't be raw bytes in a delimited-text record."));
 		}
+		if (f.type() == PrimitiveType.BITS) {
+			problems.add(new Problem(f.id(), "'" + f.name() + "' can't be a bit field in a delimited-text record."));
+		}
 		if (!(f.occurrence() instanceof Occurrence.Once)) {
 			problems.add(new Problem(f.id(), "Fields in a delimited-text record occur once each; repeat the record instead."));
+		}
+		if (f.offset() != null) {
+			problems.add(new Problem(f.id(), "Fields in a delimited-text record are read in order, so '" + f.name()
+					+ "' can't have an offset."));
 		}
 	}
 
 	private static void checkField(FieldDescription f, boolean inText, Scope scope, List<Problem> problems) {
 		checkName(f, problems);
 		checkOccurrence(f, scope, problems);
+		checkOffset(f, scope, problems);
 		if (inText) {
 			if (f.length() != null) {
 				problems.add(new Problem(f.id(), "'" + f.name()
 						+ "' is in a delimited-text record, so its delimiters end it; remove its length."));
+			}
+			if (f.numberFormat() != null) {
+				if (!f.type().isNumeric()) {
+					problems.add(new Problem(f.id(), "'" + f.name() + "' isn't a number, so it can't have a number format."));
+				}
+				NumberFormat nf = f.numberFormat();
+				if (nf.pattern().isBlank()) {
+					problems.add(new Problem(f.id(), "The number format of '" + f.name() + "' needs a pattern, e.g. #,##0.00."));
+				}
+				if (nf.decimalSeparator().length() != 1
+						|| (nf.groupingSeparator() != null && nf.groupingSeparator().length() != 1)) {
+					problems.add(new Problem(f.id(), "The decimal and grouping separators of '" + f.name()
+							+ "' must be one character each."));
+				} else if (nf.decimalSeparator().equals(nf.groupingSeparator())) {
+					problems.add(new Problem(f.id(), "The decimal and grouping separators of '" + f.name()
+							+ "' must differ."));
+				}
+			}
+			return;
+		}
+		if (f.nilValue() != null) {
+			problems.add(new Problem(f.id(), "Only fields in a delimited-text record can have a nil value; for '"
+					+ f.name() + "', describe a value meaning 'no data' as its fill value instead."));
+		}
+		if (f.numberFormat() != null) {
+			problems.add(new Problem(f.id(), "Only numbers in a delimited-text record can have a number format."));
+		}
+		if (f.type() == PrimitiveType.BITS) {
+			if (!(f.length() instanceof Expression.IntLiteral lit) || lit.value() < 1 || lit.value() > 64) {
+				problems.add(new Problem(f.id(), "'" + f.name() + "' needs a number of bits from 1 to 64."));
 			}
 			return;
 		}
@@ -127,6 +245,18 @@ public final class DescriptionValidator {
 				problems.add(new Problem(b.record().id(), "A branch occurs once; repeat the choice instead."));
 			}
 			checkRecord(b.record(), scope, problems);
+		}
+	}
+
+	private static void checkOffset(ElementDescription e, Scope scope, List<Problem> problems) {
+		Expression offset = e instanceof FieldDescription f ? f.offset()
+				: e instanceof RecordDescription r ? r.offset() : null;
+		if (offset == null) {
+			return;
+		}
+		checkNumeric(e, offset, "offset", scope, problems);
+		if (!(e.occurrence() instanceof Occurrence.Once)) {
+			problems.add(new Problem(e.id(), "'" + e.name() + "' is read at an offset, so it occurs once."));
 		}
 	}
 

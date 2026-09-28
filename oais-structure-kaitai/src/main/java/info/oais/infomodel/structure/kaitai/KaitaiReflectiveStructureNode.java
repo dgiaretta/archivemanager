@@ -268,7 +268,9 @@ public final class KaitaiReflectiveStructureNode implements StructureNode {
 				&& !m.isSynthetic()
 				&& !m.isBridge()
 				&& !void.class.equals(m.getReturnType())
-				&& !RESERVED_METHOD_NAMES.contains(m.getName());
+				&& !RESERVED_METHOD_NAMES.contains(m.getName())
+				// Kaitai's own bookkeeping, e.g. _raw_body (the undecoded bytes of a sized or compressed type).
+				&& !m.getName().startsWith("_");
 	}
 
 	private static Object invoke(Method m, Object target) {

@@ -1,6 +1,8 @@
 package info.oais.archive.manager.model.format;
 
 import info.oais.infomodel.structure.description.ByteOrder;
+import info.oais.infomodel.structure.description.DescriptionLanguage;
+import info.oais.infomodel.structure.description.Feature;
 import info.oais.infomodel.structure.description.FormatDescription;
 import info.oais.infomodel.structure.description.Occurrence;
 import info.oais.infomodel.structure.description.RecordDescription;
@@ -8,7 +10,9 @@ import info.oais.infomodel.structure.description.Semantics;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.function.UnaryOperator;
 
 /**
@@ -39,6 +43,7 @@ public class FormatDefinition implements Serializable {
     private ByteOrder defaultByteOrder = ByteOrder.BIG_ENDIAN;
     private List<String> fileExtensions = new ArrayList<>();
     private RecordDescription root = emptyRoot();
+    private Set<DescriptionLanguage> targets = EnumSet.allOf(DescriptionLanguage.class);
     private final List<Hdf5Node> nodes = new ArrayList<>();
 
     public String getName() {
@@ -101,6 +106,30 @@ public class FormatDefinition implements Serializable {
      * The byte layout's structure: a record standing for the whole file.
      * Meaningful only when {@code kind == BYTE_LAYOUT}.
      */
+    /**
+     * The description languages to generate. All of them by default, which
+     * limits the description to the core every language can express;
+     * choosing fewer makes the {@link Feature}s they all support available.
+     */
+    public Set<DescriptionLanguage> getTargets() {
+        return EnumSet.copyOf(targets);
+    }
+
+    /** @param targets at least one language; an empty set means all of them */
+    public void setTargets(Set<DescriptionLanguage> targets) {
+        this.targets = targets == null || targets.isEmpty() ? EnumSet.allOf(DescriptionLanguage.class)
+                : EnumSet.copyOf(targets);
+    }
+
+    public boolean targets(DescriptionLanguage language) {
+        return targets.contains(language);
+    }
+
+    /** Whether every chosen language can express {@code feature}, so the editor can offer it. */
+    public boolean allows(Feature feature) {
+        return feature.supportedByAll(targets);
+    }
+
     public RecordDescription getRoot() {
         return root;
     }

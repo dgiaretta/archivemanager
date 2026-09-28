@@ -2,6 +2,7 @@ package info.oais.archive.manager.web;
 
 import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.infomodel.structure.description.ChoiceDescription;
+import info.oais.infomodel.structure.description.DescriptionLanguage;
 import info.oais.infomodel.structure.description.DescriptionValidator;
 import info.oais.infomodel.structure.description.ElementDescription;
 import info.oais.infomodel.structure.description.Expression;
@@ -12,6 +13,7 @@ import info.oais.infomodel.structure.description.RecordDescription;
 import info.oais.infomodel.structure.description.Semantics;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,8 +41,9 @@ final class DescriptionEditorView {
                List<String> problems, boolean root, boolean container, boolean first, boolean last) {
     }
 
-    static List<Row> rows(FormatDescription format) {
-        Map<String, List<String>> problems = DescriptionValidator.validate(format).stream()
+    /** @param targets the languages the description is meant for: problems include features they can't express */
+    static List<Row> rows(FormatDescription format, Collection<DescriptionLanguage> targets) {
+        Map<String, List<String>> problems = DescriptionValidator.validate(format, targets).stream()
                 .collect(Collectors.groupingBy(p -> p.elementId() == null ? "" : p.elementId(), LinkedHashMap::new,
                         Collectors.mapping(DescriptionValidator.Problem::message, Collectors.toList())));
         List<Row> rows = new ArrayList<>();
@@ -63,7 +66,7 @@ final class DescriptionEditorView {
                 rows.add(new Row(f.id(), depth, "field", f.name(), fieldSummary(f, record.isText(), format),
                         semanticsSummary(f.semantics()), own, false, false, first, last));
             } else if (e instanceof RecordDescription r) {
-                rows.add(new Row(r.id(), depth, "record", r.name(), "record" + textSummary(r)
+                rows.add(new Row(r.id(), depth, "record", r.name(), "record" + textSummary(r) + recordExtras(r)
                         + occurrenceSummary(r.occurrence()), semanticsSummary(r.semantics()), own, false, true, first, last));
                 addChildren(rows, r, depth + 1, format, problems);
             } else if (e instanceof ChoiceDescription c) {
@@ -87,6 +90,14 @@ final class DescriptionEditorView {
         StringBuilder sb = new StringBuilder(f.type().name());
         if (inText) {
             sb.append(", as text");
+            if (f.numberFormat() != null) {
+                sb.append(" like ").append(f.numberFormat().pattern());
+            }
+            if (f.nilValue() != null) {
+                sb.append(f.nilValue().isEmpty() ? ", empty means no value" : ", \"" + f.nilValue() + "\" means no value");
+            }
+        } else if (f.type() == info.oais.infomodel.structure.description.PrimitiveType.BITS && f.length() != null) {
+            sb.append(", ").append(f.length().text()).append(" bits");
         } else if (f.length() != null) {
             sb.append(", ").append(f.length() instanceof Expression.IntLiteral lit
                     ? lit.value() + " bytes" : "length " + f.length().text());
@@ -94,12 +105,31 @@ final class DescriptionEditorView {
             ByteOrder order = f.byteOrder() == null ? format.defaultByteOrder() : f.byteOrder();
             sb.append(order == ByteOrder.LITTLE_ENDIAN ? ", little-endian" : ", big-endian");
         }
+        if (f.offset() != null) {
+            sb.append(", at offset ").append(f.offset().text());
+        }
         return sb + occurrenceSummary(f.occurrence());
     }
 
     private static String textSummary(RecordDescription r) {
         return r.isText() ? ", delimited text: fields separated by " + show(r.text().fieldSeparator())
-                + ", ended by " + show(r.text().recordTerminator()) : "";
+                + ", ended by " + show(r.text().recordTerminator())
+                + (r.text().quote() == null ? "" : ", values may be quoted with " + show(r.text().quote())) : "";
+    }
+
+    private static String recordExtras(RecordDescription r) {
+        StringBuilder sb = new StringBuilder();
+        if (r.size() != null) {
+            sb.append(r.size() instanceof Expression.IntLiteral lit ? ", " + lit.value() + " bytes"
+                    : ", size " + r.size().text());
+        }
+        if (r.compression() != null) {
+            sb.append(", zlib-compressed");
+        }
+        if (r.offset() != null) {
+            sb.append(", at offset ").append(r.offset().text());
+        }
+        return sb.toString();
     }
 
     static String occurrenceSummary(Occurrence o) {
@@ -141,16 +171,26 @@ final class DescriptionEditorView {
             case ";" -> "a semicolon";
             case "|" -> "a vertical bar";
             case " " -> "a space";
+            case "\"" -> "double quotes";
+            case "'" -> "single quotes";
             default -> "\"" + delimiter + "\"";
         };
     }
 
-    /** The element being edited, as the edit form's values. */
+    /**
+     * The element being edited, as the edit form's values.
+     *
+     * @param inText    for a field: whether it's in a delimited-text record
+     * @param position  where it's read, for an element at an absolute offset (not {@code offset},
+     *                  which is the semantics' additive offset)
+     */
     record Form(String id, String kind, boolean root, String name, String type, String length, String byteOrder,
                 String occurs, String occursExpr, String discriminator, String branchKey,
                 boolean text, String fieldSeparator, String recordTerminator,
                 String semanticName, String definition, String units, String unitsUri, String conceptUri,
-                String codes, String scale, String offset, String fillValue, String validMin, String validMax) {
+                String codes, String scale, String offset, String fillValue, String validMin, String validMax,
+                boolean inText, String position, boolean nil, String nilValue, String numberPattern,
+                String decimalSeparator, String groupingSeparator, String recordSize, boolean zlib, String quote) {
     }
 
     static Optional<Form> form(FormatDescription format, String id) {
@@ -196,9 +236,27 @@ final class DescriptionEditorView {
                     s.scale() == null ? "" : s.scale().toPlainString(),
                     s.offset() == null ? "" : s.offset().toPlainString(), nz(s.fillValue()),
                     s.validMin() == null ? "" : s.validMin().toPlainString(),
-                    s.validMax() == null ? "" : s.validMax().toPlainString()));
+                    s.validMax() == null ? "" : s.validMax().toPlainString(),
+                    f != null && parentIsText(root, f.id()),
+                    f != null && f.offset() != null ? f.offset().text() : r != null && r.offset() != null ? r.offset().text() : "",
+                    f != null && f.nilValue() != null, f == null ? "" : nz(f.nilValue()),
+                    f == null || f.numberFormat() == null ? "" : f.numberFormat().pattern(),
+                    f == null || f.numberFormat() == null ? "." : f.numberFormat().decimalSeparator(),
+                    f == null || f.numberFormat() == null ? "" : nz(f.numberFormat().groupingSeparator()),
+                    r == null || r.size() == null ? "" : r.size().text(),
+                    r != null && r.compression() != null,
+                    r != null && r.isText() ? nz(r.text().quote()) : ""));
         }
         return Optional.empty();
+    }
+
+    private static boolean parentIsText(RecordDescription root, String id) {
+        for (ElementDescription e : info.oais.infomodel.structure.description.Descriptions.all(root)) {
+            if (e instanceof RecordDescription r && r.isText() && r.children().stream().anyMatch(c -> c.id().equals(id))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** The key selecting the branch whose record has this id, or null if it isn't a branch record. */
