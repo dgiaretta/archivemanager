@@ -180,7 +180,11 @@
                 semantics, metadata and checks (values outside their valid range or code list), and
                 can carry a Python add-in written by hand &mdash; code the driver calls to decrypt or
                 decompress a file, or to check a CRC. Being code, an add-in is only run in sample
-                tests if the server is set up to allow it.</li>
+                tests if the server is set up to allow it. Each description can also <em>write
+                back</em>: decode a sample and write it again with the same description, to check
+                that the result is byte-for-byte identical (the description is then enough to
+                re-create the file), or to write a copy with some values changed
+                (<code>/header/count = 3</code>) and download it.</li>
         </ul>
     </section>
 

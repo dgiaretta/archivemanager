@@ -94,6 +94,19 @@ out and everything else still works, just without positions.
 - **In memory.** The Digital Object is read fully into a byte buffer before
   parsing.
 
+## Writing data back
+
+`KaitaiStructureRepInfo` is a `WritableStructureRepInfo`, for classes compiled with Kaitai Struct's
+read-write mode (`kaitai-struct-compiler -w`, Java and Python only, 0.11 and later); a read-only class
+is refused with that explanation. `write(dataObject, changes)` reads the data, fetches the lazily read
+instances, sets the changed values through the generated setters (path steps name fields as in the
+`.ksy`, `sample_count`, or as the accessor does, `sampleCount`; `[n]` picks an element of a repeated
+field), has each changed object check itself (`_check()`, which refuses e.g. a repeat count that no
+longer matches its list, or a string that no longer fits its size), and writes everything with
+`_write`. Kaitai writes into a stream of a fixed size, and an element repeated or sized to the end of
+the data must end exactly where the stream does, so the writer starts from the data's own size and
+adjusts it by what Kaitai reports. Unused bytes inside a type of stated `size` are written as zeros.
+
 ## Known limitations
 
 - Descriptions can't be loaded at run time: every format needs its class

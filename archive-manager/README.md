@@ -706,6 +706,28 @@ wanted.
     generated drivers through real drb-python when one is available -- set
     `DRB_PYTHON` to its interpreter -- and is skipped otherwise.
 
+    **Writing back.** Each engine's section also has a "Write back" form
+    (`POST /repinfo-tools/write-back/{kaitai,dfdl,drb-java,drb-python}`): the
+    sample is decoded with that section's description (generated or written
+    by hand), written back with it, and compared with the sample
+    (`RoundTrip`). Unchanged, identical bytes show the description is enough
+    to re-create the file from its values. Changes are `path = value` lines
+    (`/packet[2]/temp = 1000`, a value in double quotes keeps its spaces),
+    naming elements as the sample test shows them; counts and lengths must be
+    changed to match, or the engine refuses. The written file can then be
+    downloaded (`GET /repinfo-tools/write-back/download`; kept in the session
+    until the next write). DFDL, Kaitai Struct and Java DRB write through the
+    adapters' `WritableStructureRepInfo` (Kaitai compiles the `.ksy` again in
+    read-write mode, `-w`); drb-python through the driver's `write` add-on,
+    which re-encodes the decoded nodes by the description -- text values
+    unchanged are written exactly as read -- and, with a hand-written add-in,
+    calls its `restore(data)` to undo `prepare()` (e.g. encrypt again; without
+    one the result is compared with what `prepare()` produced).
+    `GeneratedDescriptionsMatrixTest` writes every reference sample back with
+    every engine and expects identical bytes, except where noted: unused bytes
+    in a record of a stated size (DFDL, Kaitai write zeros) and a last line
+    without its newline (DFDL writes one).
+
     The Java DRB section has one too (`POST /repinfo-tools/test-drb-java`,
     `DrbSampleRunner`), in-process with no setup needed: the generated SDF
     schema is applied by DRB through the sibling `oais-structure-drb`

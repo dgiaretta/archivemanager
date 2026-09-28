@@ -1,6 +1,7 @@
 package info.oais.archive.manager.service.format;
 
 import info.oais.infomodel.implementation.DigitalObjectRefImpl;
+import info.oais.infomodel.structure.ElementPath;
 import info.oais.infomodel.structure.StructureNode;
 import info.oais.infomodel.structure.description.FormatDescription;
 import info.oais.infomodel.structure.kaitai.KaitaiFormatSpecification;
@@ -30,6 +31,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.stream.Stream;
@@ -124,13 +126,40 @@ public class KaitaiSampleRunner {
      */
     public <T> T withDecoded(String ksy, String rootName, byte[] sample, Function<StructureNode, T> use)
             throws IOException, CompileException {
+        return withRepInfo(ksy, rootName, false,
+                repInfo -> use.apply(repInfo.apply(new DigitalObjectRefImpl(new ByteArrayInputStream(sample)))));
+    }
+
+    /**
+     * Writes {@code sample} back with the {@code .ksy}, compiled with Kaitai
+     * Struct's read-write mode ({@code -w}): decodes it, applies
+     * {@code changes} and encodes it again (see {@code KaitaiStructureRepInfo#write}).
+     *
+     * @param rootName the {@code .ksy}'s {@code meta/id}
+     */
+    public WriteBackResult write(String ksy, String rootName, byte[] sample, Map<ElementPath, String> changes) {
+        try {
+            byte[] written = withRepInfo(ksy, rootName, true,
+                    repInfo -> repInfo.write(new DigitalObjectRefImpl(new ByteArrayInputStream(sample)), changes));
+            return WriteBackResult.of(sample, written, null);
+        } catch (CompileException e) {
+            return WriteBackResult.failure(e.getMessage());
+        } catch (IOException | UncheckedIOException e) {
+            return WriteBackResult.failure("Could not run the Kaitai Struct compiler: " + e.getMessage());
+        } catch (RuntimeException e) {
+            return WriteBackResult.failure(WriteBackResult.message(e));
+        }
+    }
+
+    private <T> T withRepInfo(String ksy, String rootName, boolean readWrite, Function<KaitaiStructureRepInfo, T> use)
+            throws IOException, CompileException {
         Path work = Files.createTempDirectory("repinfo-kaitai-");
         try {
             Path src = Files.createDirectories(work.resolve("src"));
             Path classes = Files.createDirectories(work.resolve("classes"));
             Path ksyFile = Files.writeString(work.resolve(rootName + ".ksy"), ksy, StandardCharsets.UTF_8);
             synchronized (this) {
-                compileKsy(ksyFile, src);
+                compileKsy(ksyFile, src, readWrite);
                 compileJava(src, classes);
             }
             try (URLClassLoader loader = new URLClassLoader(new URL[] {classes.toUri().toURL()},
@@ -141,16 +170,14 @@ public class KaitaiSampleRunner {
                 } catch (ClassNotFoundException e) {
                     throw new CompileException("The Kaitai Struct compiler didn't produce a class for '" + rootName + "'.");
                 }
-                StructureNode root = new KaitaiStructureRepInfo(new KaitaiFormatSpecification(type))
-                        .apply(new DigitalObjectRefImpl(new ByteArrayInputStream(sample)));
-                return use.apply(root);
+                return use.apply(new KaitaiStructureRepInfo(new KaitaiFormatSpecification(type)));
             }
         } finally {
             deleteRecursively(work);
         }
     }
 
-    private void compileKsy(Path ksyFile, Path outDir) throws IOException, CompileException {
+    private void compileKsy(Path ksyFile, Path outDir, boolean readWrite) throws IOException, CompileException {
         Path tools = tools();
         List<String> classpath = new ArrayList<>();
         for (String jar : compilerJars()) {
@@ -158,7 +185,7 @@ public class KaitaiSampleRunner {
         }
         List<String> command = List.of(javaExecutable(), "-Xmx256m", "-cp",
                 String.join(java.io.File.pathSeparator, classpath), "io.kaitai.struct.JavaMain",
-                "-t", "java", "--debug", "--java-package", PACKAGE, "--outdir", outDir.toString(), ksyFile.toString());
+                "-t", "java", readWrite ? "--read-write" : "--debug", "--java-package", PACKAGE, "--outdir", outDir.toString(), ksyFile.toString());
         Process process = new ProcessBuilder(command).redirectErrorStream(true).start();
         byte[] output;
         try (InputStream in = process.getInputStream()) {

@@ -1,8 +1,12 @@
 package info.oais.infomodel.structure.dfdl;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -13,15 +17,20 @@ import org.apache.daffodil.japi.DataProcessor;
 import org.apache.daffodil.japi.Diagnostic;
 import org.apache.daffodil.japi.ParseResult;
 import org.apache.daffodil.japi.ProcessorFactory;
+import org.apache.daffodil.japi.UnparseResult;
+import org.apache.daffodil.japi.infoset.W3CDOMInfosetInputter;
 import org.apache.daffodil.japi.infoset.W3CDOMInfosetOutputter;
 import org.apache.daffodil.japi.io.InputSourceDataInputStream;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
+import org.w3c.dom.Node;
 
 import info.oais.infomodel.structure.AbstractExecutableStructureRepInfo;
 import info.oais.infomodel.structure.ByteRange;
+import info.oais.infomodel.structure.ElementPath;
 import info.oais.infomodel.structure.StructureInterpretationException;
 import info.oais.infomodel.structure.StructureNode;
+import info.oais.infomodel.structure.WritableStructureRepInfo;
 import info.oais.infomodel.interfaces.DigitalObject;
 
 /**
@@ -65,8 +74,15 @@ import info.oais.infomodel.interfaces.DigitalObject;
  * having source ranges, the straightforward fix is to make the second parse
  * conditional (a flag on {@link DfdlFormatSpecification}, say) - left out
  * here to keep this adapter's first cut at source ranges simple.</p>
+ *
+ * <p><b>Writing back:</b> {@link #write} parses into Daffodil's DOM infoset,
+ * sets the changed elements' text, and re-encodes the whole infoset with
+ * Daffodil's unparser. Everything the schema describes is re-encoded from
+ * its value, so lengths and counts can change if the elements giving them
+ * are changed to match. Bytes after the data the schema describes aren't
+ * part of the infoset, so they aren't written.</p>
  */
-public final class DfdlStructureRepInfo extends AbstractExecutableStructureRepInfo {
+public final class DfdlStructureRepInfo extends AbstractExecutableStructureRepInfo implements WritableStructureRepInfo {
 
 	private volatile DataProcessor dataProcessor;
 
@@ -110,6 +126,75 @@ public final class DfdlStructureRepInfo extends AbstractExecutableStructureRepIn
 		long trailing = bytes.length - (result.location().bytePos1b() - 1);
 		return new DomStructureNode(root, extras.rangesByPath(), extras.typedValuesByPath(), List.of(),
 				Map.of(StructureNode.TRAILING_BYTES, trailing));
+	}
+
+	@Override
+	public byte[] write(DigitalObject original, Map<ElementPath, String> changes) {
+		DataProcessor processor = dataProcessor();
+		byte[] bytes;
+		try (InputStream in = original.getObject()) {
+			bytes = in.readAllBytes();
+		} catch (IOException e) {
+			throw new StructureInterpretationException("Unable to read the data to write back", e);
+		}
+		W3CDOMInfosetOutputter outputter = new W3CDOMInfosetOutputter();
+		ParseResult parsed = processor.parse(new InputSourceDataInputStream(new ByteArrayInputStream(bytes)), outputter);
+		if (parsed.isError()) {
+			throw new StructureInterpretationException(
+					describeDiagnostics("DFDL parse failed against " + getFormatSpecification(), parsed.getDiagnostics()));
+		}
+		Document document = outputter.getResult();
+		for (Map.Entry<ElementPath, String> change : changes.entrySet()) {
+			Element element = find(document.getDocumentElement(), change.getKey());
+			if (!childElements(element, null).isEmpty()) {
+				throw new StructureInterpretationException(change.getKey() + " is a group of elements, not a value");
+			}
+			element.removeAttributeNS(XSI, "nil");
+			element.setTextContent(change.getValue());
+		}
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		UnparseResult result;
+		try (WritableByteChannel channel = Channels.newChannel(out)) {
+			result = processor.unparse(new W3CDOMInfosetInputter(document), channel);
+		} catch (IOException e) {
+			throw new StructureInterpretationException("Unable to write back", e);
+		} catch (RuntimeException e) {
+			throw new StructureInterpretationException("DFDL unparse failed against " + getFormatSpecification()
+					+ ": " + e.getMessage(), e);
+		}
+		if (result.isError()) {
+			throw new StructureInterpretationException(
+					describeDiagnostics("DFDL unparse failed against " + getFormatSpecification(), result.getDiagnostics()));
+		}
+		return out.toByteArray();
+	}
+
+	private static final String XSI = "http://www.w3.org/2001/XMLSchema-instance";
+
+	private static Element find(Element root, ElementPath path) {
+		Element current = root;
+		for (ElementPath.Step step : path.steps()) {
+			List<Element> named = childElements(current, step.name());
+			if (named.size() < step.index()) {
+				throw new StructureInterpretationException(path.notFound(step, named.size()));
+			}
+			current = named.get(step.index() - 1);
+		}
+		return current;
+	}
+
+	/** {@code parent}'s child elements called {@code localName}, or all of them if it's null. */
+	private static List<Element> childElements(Element parent, String localName) {
+		List<Element> result = new ArrayList<>();
+		for (Node n = parent.getFirstChild(); n != null; n = n.getNextSibling()) {
+			if (n instanceof Element e) {
+				String name = e.getLocalName() != null ? e.getLocalName() : e.getNodeName();
+				if (localName == null || localName.equals(name)) {
+					result.add(e);
+				}
+			}
+		}
+		return result;
 	}
 
 	/**

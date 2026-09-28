@@ -148,6 +148,14 @@ flowchart LR
 At a high level, the core OAIS model stays generic, while adapter modules map engine-specific
 parsing outputs into a single `StructureNode` representation that can be consumed uniformly.
 
+The adapters also **write data back** (`WritableStructureRepInfo`, implemented by all three): decode
+a Digital Object, change values named by element path (`/header/count`, `/row[2]/y`), and encode the
+result with the same description - DFDL through Daffodil's unparser, Kaitai Struct through its
+read-write mode (`ksc -w`), DRB by writing values in place through its SDF blocks. Writing back
+unchanged is a round trip (`WritableStructureRepInfo.roundTrip`, `RoundTrip`): identical bytes are
+direct evidence that a description is complete and encodes every value the way the data stores it,
+i.e. that the Representation Information is enough to re-create the file from its values.
+
 ## Module-by-module overview
 
 - `oaiscore`  

@@ -91,6 +91,23 @@ These came up while generating schemas from archive-manager's descriptions:
   schemas you trust; archive-manager refuses hand-written schemas that do
   either before running them.
 
+## Writing data back
+
+`DrbStructureRepInfo` is a `WritableStructureRepInfo` when it has an SDF schema: DRB's SDF blocks
+support `setValue`, which writes a value back where it was read from, into a copy of the data (the
+temporary file is writable, so DRB opens it read-write). `write(dataObject, changes)` writes *every*
+value again - its new value, or the one just read - so writing back unchanged
+(`roundTrip(dataObject)`) tests that DRB encodes every value the way it's stored. Bytes the schema
+doesn't describe are kept as they were, so an identical round trip here doesn't show that the schema
+covers every byte (decoding reports trailing bytes for that). A delimited value can change length -
+DRB moves what follows - but one of fixed length can't: DRB pads a short text value and cuts a long
+one without complaint, so the adapter reads the written data back and refuses a change that didn't
+come out as asked.
+
+DRB 2.5.13 writes a 4-byte float big-endian even when the schema says `LSB` (it swaps integers and
+doubles, but not floats); the adapter notes each float whose stored bytes read as little-endian and
+writes it little-endian itself once DRB has finished.
+
 ## Known DRB limitations
 
 - `xs:hexBinary`/`xs:base64Binary` decode as nothing; describe raw bytes as

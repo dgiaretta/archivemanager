@@ -118,7 +118,8 @@ public final class HandWrittenDescriptions {
                     "drb-python-decompress.py"),
             new Example("drb-python-aes", DescriptionLanguage.DRB_PYTHON, "AES decryption",
                     "prepare() decrypts the file with AES-256 in CTR mode, the key coming from the server's "
-                            + "environment. Needs the cryptography package next to drb-python.",
+                            + "environment, and restore() encrypts it again when it's written back. Needs the "
+                            + "cryptography package next to drb-python.",
                     "drb-python-aes.py"));
 
     /** A new drb-python add-in: every hook, documented, none doing anything yet. */
@@ -146,6 +147,12 @@ public final class HandWrittenDescriptions {
             def metadata(root):
                 \"\"\"More metadata, merged into the metadata add-on's result.\"\"\"
                 return {}
+
+
+            def restore(data):
+                \"\"\"When writing the file back: undo prepare() (e.g. encrypt again), so the
+                written file matches the original. Returns the bytes to write.\"\"\"
+                return data
             """;
 
     public static List<Example> examples(DescriptionLanguage language) {

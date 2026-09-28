@@ -1,6 +1,7 @@
 package info.oais.archive.manager.service.format;
 
 import info.oais.infomodel.implementation.DigitalObjectRefImpl;
+import info.oais.infomodel.structure.ElementPath;
 import info.oais.infomodel.structure.StructureNode;
 import info.oais.infomodel.structure.description.FormatDescription;
 import info.oais.infomodel.structure.dfdl.DfdlFormatSpecification;
@@ -12,6 +13,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 
 /**
  * Runs a generated DFDL schema (see {@link DfdlGenerator}) against a sample
@@ -57,6 +59,33 @@ public class DfdlSampleRunner {
                 message += "\n" + e.getCause().getMessage();
             }
             return SampleDecodeResult.failure(message);
+        } finally {
+            if (schemaFile != null) {
+                try {
+                    Files.deleteIfExists(schemaFile);
+                } catch (IOException ignored) {
+                    // A leftover temp file isn't worth failing the request over.
+                }
+            }
+        }
+    }
+
+    /**
+     * Writes {@code sample} back with the schema: decodes it, applies
+     * {@code changes} and encodes it again (see {@code DfdlStructureRepInfo#write}).
+     */
+    public WriteBackResult write(String schema, byte[] sample, Map<ElementPath, String> changes) {
+        Path schemaFile = null;
+        try {
+            schemaFile = Files.createTempFile("repinfo-tools-", ".dfdl.xsd");
+            Files.writeString(schemaFile, schema, StandardCharsets.UTF_8);
+            DfdlStructureRepInfo repInfo = new DfdlStructureRepInfo(new DfdlFormatSpecification(schemaFile.toUri()));
+            byte[] written = repInfo.write(new DigitalObjectRefImpl(new ByteArrayInputStream(sample)), changes);
+            return WriteBackResult.of(sample, written, null);
+        } catch (IOException e) {
+            return WriteBackResult.failure("Could not write the schema to a temporary file: " + e.getMessage());
+        } catch (RuntimeException e) {
+            return WriteBackResult.failure(WriteBackResult.message(e));
         } finally {
             if (schemaFile != null) {
                 try {

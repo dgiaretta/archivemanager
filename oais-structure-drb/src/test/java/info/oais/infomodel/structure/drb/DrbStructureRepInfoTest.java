@@ -1,5 +1,6 @@
 package info.oais.infomodel.structure.drb;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -14,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import info.oais.infomodel.implementation.DigitalObjectRefImpl;
 import info.oais.infomodel.structure.ByteRange;
+import info.oais.infomodel.structure.ElementPath;
 import info.oais.infomodel.structure.StructureInterpreterFactory;
 import info.oais.infomodel.structure.StructureInterpretationException;
 import info.oais.infomodel.structure.StructureNode;
@@ -76,6 +78,38 @@ class DrbStructureRepInfoTest {
 	@Test
 	void reportsAFailureWhenTheDataIsTooShortForTheSchema() {
 		assertThrows(StructureInterpretationException.class, () -> apply("/point-le.drb.xsd", new byte[3]));
+	}
+
+	@Test
+	void writesValuesBackInPlace() throws Exception {
+		byte[] bytes = ByteBuffer.allocate(20).order(ByteOrder.LITTLE_ENDIAN)
+				.putInt(42).putInt(-7).putDouble(2.5).put("abcd".getBytes(StandardCharsets.US_ASCII)).array();
+		DrbStructureRepInfo repInfo = new DrbStructureRepInfo(
+				new DrbFormatSpecification(getClass().getResource("/point-le.drb.xsd").toURI()));
+
+		assertTrue(repInfo.roundTrip(new DigitalObjectRefImpl(new ByteArrayInputStream(bytes))).identical());
+
+		byte[] changed = repInfo.write(new DigitalObjectRefImpl(new ByteArrayInputStream(bytes)),
+				java.util.Map.of(ElementPath.parse("/y"), "1000", ElementPath.parse("/label"), "wxyz"));
+		assertArrayEquals(ByteBuffer.allocate(20).order(ByteOrder.LITTLE_ENDIAN)
+				.putInt(42).putInt(1000).putDouble(2.5).put("wxyz".getBytes(StandardCharsets.US_ASCII)).array(), changed);
+
+		byte[] csv = "42,-7,hi\n7,13,demo\n".getBytes(StandardCharsets.US_ASCII);
+		DrbStructureRepInfo csvRepInfo = new DrbStructureRepInfo(
+				new DrbFormatSpecification(getClass().getResource("/csv-points.drb.xsd").toURI()));
+		assertTrue(csvRepInfo.roundTrip(new DigitalObjectRefImpl(new ByteArrayInputStream(csv))).identical());
+		assertEquals("42,-7,hi\n7,99,demo\n", new String(csvRepInfo.write(
+				new DigitalObjectRefImpl(new ByteArrayInputStream(csv)),
+				java.util.Map.of(ElementPath.parse("/row[2]/y"), "99")), StandardCharsets.US_ASCII));
+		// A delimited value can change length; one of fixed length can't.
+		assertEquals("42,-7,longer\n7,13,demo\n", new String(csvRepInfo.write(
+				new DigitalObjectRefImpl(new ByteArrayInputStream(csv)),
+				java.util.Map.of(ElementPath.parse("/row[1]/label"), "longer")), StandardCharsets.US_ASCII));
+		StructureInterpretationException tooLong = assertThrows(StructureInterpretationException.class,
+				() -> repInfo.write(new DigitalObjectRefImpl(new ByteArrayInputStream(bytes)),
+						java.util.Map.of(ElementPath.parse("/label"), "abcdef")));
+		assertEquals("/label: DRB wrote 'abcd' rather than 'abcdef' - the value doesn't fit the element's length or type",
+				tooLong.getMessage());
 	}
 
 	private StructureNode apply(String schemaResource, byte[] bytes) throws Exception {

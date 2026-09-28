@@ -57,8 +57,10 @@ public class DrbPythonSampleRunner {
             import importlib.util, json, os, sys
             from drb.drivers.file.file import DrbFileFactory
 
+            import base64
             package_dir, sample_path, factory_name, max_rows = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
             addon_prefix = sys.argv[5] if len(sys.argv) > 5 else ""
+            changes_path = sys.argv[6] if len(sys.argv) > 6 else ""
             rows = []
 
             def describe(value):
@@ -100,6 +102,16 @@ public class DrbPythonSampleRunner {
                 sys.modules[spec.name] = module
                 spec.loader.exec_module(module)
                 root = getattr(module, factory_name)().create(DrbFileFactory().create(sample_path))
+                if changes_path:
+                    changes = json.load(open(changes_path, encoding="utf-8"))
+                    written = root.get_impl(bytes, addon_prefix + "_write", changes=changes)
+                    # Without restore(), what prepare() did can't be undone: compare with what it produced.
+                    reference = None
+                    if module._hook("prepare") is not None and module._hook("restore") is None:
+                        reference = base64.b64encode(root.decoded_bytes).decode("ascii")
+                    print(json.dumps({"written": base64.b64encode(written).decode("ascii"), "reference": reference,
+                                      "error": None}))
+                    sys.exit(0)
                 complete = walk(root, 0)
                 trailing = getattr(root, "trailing_bytes", None)
                 print(json.dumps({"rows": rows, "truncated": not complete, "error": None, "trailing": trailing,
@@ -107,6 +119,21 @@ public class DrbPythonSampleRunner {
             except Exception as ex:
                 print(json.dumps({"rows": [], "truncated": False, "error": type(ex).__name__ + ": " + str(ex)}))
             """;
+
+    /**
+     * What writing a sample back produced.
+     *
+     * @param written   the written bytes, or null on failure
+     * @param reference what to compare them with instead of the sample, when a hand-written add-in's
+     *                  {@code prepare()} changed the bytes before decoding and there's no {@code restore()}
+     *                  to undo it: the bytes {@code prepare()} produced. Null otherwise.
+     * @param error     why it failed, or null
+     */
+    public record WriteOutcome(byte[] written, byte[] reference, String error) {
+        static WriteOutcome failure(String error) {
+            return new WriteOutcome(null, null, error);
+        }
+    }
 
     /** Parses an add-in without running it: syntax errors, and which hooks it defines at the top level. */
     private static final String CHECK_SCRIPT = """
@@ -122,7 +149,7 @@ public class DrbPythonSampleRunner {
             """;
 
     /** The hooks a hand-written add-in can define; see {@code drb-python/interpreter.py}. */
-    public static final List<String> ADD_IN_HOOKS = List.of("prepare", "check", "metadata");
+    public static final List<String> ADD_IN_HOOKS = List.of("prepare", "check", "metadata", "restore");
 
     /**
      * What a drb-python run produced: the decoded tree, and what the driver's
@@ -245,6 +272,54 @@ public class DrbPythonSampleRunner {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             return new Outcome(SampleDecodeResult.failure("Interrupted while waiting for drb-python."), null);
+        } finally {
+            deleteQuietly(dir);
+        }
+    }
+
+    /**
+     * Writes {@code sample} back with the driver's {@code write} add-on: decodes
+     * it, applies {@code changes} (element path -> new value as text) and
+     * encodes it again with the same description.
+     */
+    public WriteOutcome write(String driverModule, String addIn, String factoryName, String addonPrefix, byte[] sample,
+                              Map<String, String> changes) {
+        if (drbVersion().isEmpty()) {
+            return WriteOutcome.failure(notAvailableMessage());
+        }
+        if (addIn != null && !runsAddIns) {
+            return WriteOutcome.failure(ADD_INS_NOT_RUN);
+        }
+        Path dir = null;
+        try {
+            dir = Files.createTempDirectory("repinfo-tools-drb-");
+            Path packageDir = Files.createDirectory(dir.resolve("generated_drb_driver"));
+            Files.writeString(packageDir.resolve("__init__.py"), driverModule, StandardCharsets.UTF_8);
+            if (addIn != null) {
+                Files.writeString(packageDir.resolve("addin.py"), addIn, StandardCharsets.UTF_8);
+            }
+            Path runner = Files.writeString(dir.resolve("run_sample.py"), RUNNER_SCRIPT, StandardCharsets.UTF_8);
+            Path samplePath = Files.write(dir.resolve("sample.bin"), sample);
+            Path changesPath = Files.writeString(dir.resolve("changes.json"), json.writeValueAsString(changes),
+                    StandardCharsets.UTF_8);
+            ProcessOutput output = runPython(dir, List.of(resolvedExecutable, "-X", "utf8", "-W", "ignore",
+                    runner.toString(), packageDir.toString(), samplePath.toString(), factoryName,
+                    String.valueOf(SampleDecodeResult.MAX_ROWS), addonPrefix, changesPath.toString()));
+            if (output.error() != null) {
+                return WriteOutcome.failure(output.error());
+            }
+            JsonNode node = json.readTree(output.stdout());
+            if (node.hasNonNull("error")) {
+                return WriteOutcome.failure(node.get("error").asText());
+            }
+            java.util.Base64.Decoder base64 = java.util.Base64.getDecoder();
+            return new WriteOutcome(base64.decode(node.get("written").asText()),
+                    node.hasNonNull("reference") ? base64.decode(node.get("reference").asText()) : null, null);
+        } catch (IOException e) {
+            return WriteOutcome.failure("Could not run drb-python: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return WriteOutcome.failure("Interrupted while waiting for drb-python.");
         } finally {
             deleteQuietly(dir);
         }
@@ -377,6 +452,16 @@ public class DrbPythonSampleRunner {
             Thread.currentThread().interrupt();
             return Optional.empty();
         }
+    }
+
+    /** Keeps only characters that are safe in a file name on every OS; never a path. Empty if nothing is left. */
+    public static String safeName(String fileName) {
+        String base = fileName == null ? "" : fileName.replaceAll(".*[/\\\\]", "");
+        base = base.replaceAll("[^A-Za-z0-9._-]", "_").replaceAll("^[.]+", "");
+        if (base.length() > 80) {
+            base = base.substring(base.length() - 80);
+        }
+        return base.isEmpty() ? "sample.bin" : base;
     }
 
     /** Keeps only characters that are safe in a file name on every OS; never a path. */

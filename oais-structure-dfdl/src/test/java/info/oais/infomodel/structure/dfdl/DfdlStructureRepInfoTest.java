@@ -1,16 +1,22 @@
 package info.oais.infomodel.structure.dfdl;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
 import info.oais.infomodel.implementation.DigitalObjectRefImpl;
 import info.oais.infomodel.interfaces.DigitalObject;
+import info.oais.infomodel.structure.ElementPath;
+import info.oais.infomodel.structure.StructureInterpretationException;
 import info.oais.infomodel.structure.StructureNode;
 
 /**
@@ -38,6 +44,24 @@ class DfdlStructureRepInfoTest {
 		assertEquals("42", point.valueAt("x").orElseThrow().toString());
 		assertEquals("-7", point.valueAt("y").orElseThrow().toString());
 		assertEquals("hi", point.valueAt("label").orElseThrow().toString());
+	}
+
+	@Test
+	void writesAPointRecordBackUnchangedAndChanged() throws Exception {
+		DfdlStructureRepInfo structureRepInfo = new DfdlStructureRepInfo(new DfdlFormatSpecification(
+				getClass().getResource("/point.dfdl.xsd").toURI()));
+		byte[] bytes = pointBytes(42, -7, "hi");
+
+		assertTrue(structureRepInfo.roundTrip(new DigitalObjectRefImpl(new ByteArrayInputStream(bytes))).identical());
+
+		byte[] changed = structureRepInfo.write(new DigitalObjectRefImpl(new ByteArrayInputStream(bytes)),
+				Map.of(ElementPath.parse("/y"), "1000", ElementPath.parse("/label"), "ok"));
+		assertArrayEquals(pointBytes(42, 1000, "ok"), changed);
+
+		StructureInterpretationException missing = assertThrows(StructureInterpretationException.class,
+				() -> structureRepInfo.write(new DigitalObjectRefImpl(new ByteArrayInputStream(bytes)),
+						Map.of(ElementPath.parse("/z"), "1")));
+		assertEquals("There's no element /z: nothing is called 'z' there", missing.getMessage());
 	}
 
 	private static byte[] pointBytes(int x, int y, String label) throws Exception {

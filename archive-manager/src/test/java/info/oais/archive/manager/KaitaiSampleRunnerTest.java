@@ -3,6 +3,8 @@ package info.oais.archive.manager;
 import info.oais.archive.manager.service.format.KaitaiGenerator;
 import info.oais.archive.manager.service.format.KaitaiSampleRunner;
 import info.oais.archive.manager.service.format.SampleDecodeResult;
+import info.oais.archive.manager.service.format.WriteBackResult;
+import info.oais.infomodel.structure.ElementPath;
 import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.infomodel.structure.description.Expression;
 import info.oais.infomodel.structure.description.FieldDescription;
@@ -59,6 +61,27 @@ class KaitaiSampleRunnerTest {
 
         assertThat(result.error()).isNull();
         assertThat(result.rows()).extracting(SampleDecodeResult.TreeRow::value).contains("ok");
+    }
+
+    @Test
+    void writesBackWithKaitaiStructsReadWriteMode() {
+        FormatDescription format = awkwardNames();
+        KaitaiSampleRunner runner = new KaitaiSampleRunner(120);
+        byte[] sample = {1, 2, 3, 4, 'o', 'k'};
+
+        WriteBackResult unchanged = runner.write(generator.generate(format), "awkward", sample, java.util.Map.of());
+        assertThat(unchanged.error()).isNull();
+        assertThat(unchanged.roundTrip().identical()).isTrue();
+
+        WriteBackResult changed = runner.write(generator.generate(format), "awkward", sample, java.util.Map.of(
+                ElementPath.parse("/on"), "200", ElementPath.parse("/text"), "no"));
+        assertThat(changed.written()).containsExactly(1, 200, 3, 4, 'n', 'o');
+
+        WriteBackResult tooLong = runner.write(generator.generate(format), "awkward", sample, java.util.Map.of(
+                ElementPath.parse("/text"), "yes"));
+        assertThat(tooLong.error()).contains("Check failed: text, expected: 2, actual: 3");
+        assertThat(runner.write(generator.generate(format), "awkward", sample, java.util.Map.of(
+                ElementPath.parse("/nothing"), "1")).error()).contains("There's no element /nothing");
     }
 
     @Test

@@ -14,14 +14,16 @@ attributes carry its byte "offset" and "length", and its semantics
 ("semantic_name", "definition", "units", "units_uri", "concept_uri"); a coded
 value also gets its "meaning", and a scaled value its "physical_value".
 
-Three drb-python add-ons (the "drb.addon" entry points) give a decoded file's
-meaning as a whole - see _semantics, _metadata and _checks below. Each is
-registered as "<ADDON_PREFIX>_<kind>" and applies to nodes of this driver's
-topic:
+Four drb-python add-ons (the "drb.addon" entry points) give a decoded file's
+meaning as a whole, and write it back - see _semantics, _metadata, _checks and
+_write below. Each is registered as "<ADDON_PREFIX>_<kind>" and applies to
+nodes of this driver's topic:
 
     node.get_impl(list, ADDON_PREFIX + "_semantics")  # every value, with its meaning
     node.get_impl(dict, ADDON_PREFIX + "_metadata")   # name -> value
     node.get_impl(list, ADDON_PREFIX + "_checks")     # problems found, if any
+    node.get_impl(bytes, ADDON_PREFIX + "_write", changes={"/header/count": "3"})
+                                                      # the file written back, with changes
 
 A hand-written add-in - a module "addin" next to this one - can plug code into
 the driver for what the description can't say. Every hook is optional:
@@ -29,6 +31,7 @@ the driver for what the description can't say. Every hook is optional:
     prepare(data: bytes) -> bytes   before decoding: decrypt, decompress, ...
     check(root) -> list of str      after decoding: checksums, CRCs, ...
     metadata(root) -> dict          more metadata, merged into _metadata's
+    restore(data: bytes) -> bytes   when writing back: undo prepare(), e.g. encrypt
 
 "root" is the decoded file; root.original_bytes are the file's bytes and
 root.decoded_bytes what prepare() returned (the bytes the description read).
@@ -138,6 +141,7 @@ class _Reader:
         self.data = data
         self.pos = 0
         self.default_order = default_order
+        self.last_delimiter = b""
 
     def take(self, n: int, what: str) -> bytes:
         if n < 0:
@@ -159,9 +163,11 @@ class _Reader:
         if best is None:
             chunk = self.data[self.pos:]
             self.pos = len(self.data)
+            self.last_delimiter = b""
             return chunk
         chunk = self.data[self.pos:best[0]]
         self.pos = best[0] + len(best[1])
+        self.last_delimiter = best[1]
         return chunk
 
     def at_end(self) -> bool:
@@ -229,7 +235,13 @@ def _read_one(desc: dict, reader: _Reader, scope: _Scope, text: Optional[Tuple[b
             scope.values[desc["name"]] = value
         attrs = {"offset": start, "length": reader.pos - start, "type": desc["type"]}
         attrs.update(_semantic_attributes(desc, value))
-        return _Node(desc["name"], value, None, attrs)
+        node = _Node(desc["name"], value, None, attrs)
+        # What writing back needs: the text exactly as read, and what ended it.
+        node._read_value = value
+        if text is not None:
+            node._raw_text = reader.data[start:reader.pos - len(reader.last_delimiter)]
+            node._delimiter = reader.last_delimiter
+        return node
     if kind == "record":
         children = _read_record(desc, reader, _Scope(scope))
         attrs = {"offset": start, "length": reader.pos - start}
@@ -274,6 +286,143 @@ def _read_field(desc: dict, reader: _Reader, scope: _Scope, text: Optional[Tuple
     return chunk.decode("ascii", errors="replace") if kind == "string" else bytes(chunk)
 
 
+def _encode(root: "_FormatNode") -> bytes:
+    """The decoded file written back from its nodes' values, by the same description."""
+    out = bytearray()
+    _write_record(DESCRIPTION["root"], root.children, out, _Scope(None), "/")
+    return bytes(out)
+
+
+def _write_record(desc: dict, nodes: List[DrbNode], out: bytearray, scope: _Scope, path: str) -> None:
+    text = None
+    if desc.get("text"):
+        text = (desc["text"][0].encode("ascii"), desc["text"][1].encode("ascii"))
+    children = desc["children"]
+    i = 0
+    for position, child in enumerate(children):
+        taken = []
+        while i < len(nodes) and nodes[i].name == child["name"]:
+            taken.append(nodes[i])
+            i += 1
+        _check_count(child, len(taken), scope, path)
+        for node in taken:
+            _write_one(child, node, out, scope, text, position == len(children) - 1, path + child["name"])
+    if i < len(nodes):
+        raise ValueError(f"{path}{nodes[i].name} isn't where the description expects it")
+
+
+def _check_count(desc: dict, count: int, scope: _Scope, path: str) -> None:
+    occurs = desc.get("occurs")
+    if occurs is None:
+        expected = 1
+    elif occurs[0] == "optional":
+        expected = 1 if _eval(occurs[1], scope) else 0
+    elif occurs[0] == "repeat":
+        expected = int(_eval(occurs[1], scope))
+    else:
+        return
+    if count != expected:
+        raise ValueError(f"{path}{desc['name']}: the description says there should be {expected}, "
+                         f"but there {'is' if count == 1 else 'are'} {count}")
+
+
+def _write_one(desc: dict, node: DrbNode, out: bytearray, scope: _Scope, text: Optional[Tuple[bytes, bytes]],
+               last: bool, path: str) -> None:
+    kind = desc["kind"]
+    if kind == "field":
+        out += _encode_field(desc, node, scope, text, last, path)
+        if desc.get("occurs") is None:
+            scope.values[desc["name"]] = node.value
+        return
+    if kind == "record":
+        _write_record(desc, node.children, out, _Scope(scope), path + "/")
+        return
+    key = _eval(desc["on"], scope)
+    branch = node.children[0]
+    for branch_key, record in desc["branches"]:
+        if record["name"] == branch.name:
+            if not (branch_key == key or str(branch_key) == str(key)):
+                raise ValueError(f"{path}: the value {key!r} selects another branch than {branch.name!r}")
+            _write_one(record, branch, out, scope, None, False, path + "/" + branch.name)
+            return
+    raise ValueError(f"{path}: {branch.name!r} isn't one of its branches")
+
+
+def _encode_field(desc: dict, node: DrbNode, scope: _Scope, text: Optional[Tuple[bytes, bytes]], last: bool,
+                  path: str) -> bytes:
+    kind, value = desc["type"], node.value
+    if text is not None:
+        raw = getattr(node, "_raw_text", None)
+        if raw is not None and value == getattr(node, "_read_value", None):
+            body = raw
+        else:
+            body = (repr(value) if isinstance(value, float) else str(value)).encode("ascii")
+            if raw is not None and raw.endswith(b"\r"):
+                body += b"\r"
+        delimiter = getattr(node, "_delimiter", None)
+        return body + (delimiter if delimiter is not None else text[1] if last else text[0])
+    if kind in _STRUCT:
+        order = desc.get("order") or DESCRIPTION["order"]
+        try:
+            return struct.pack((">" if order == "big" else "<") + _STRUCT[kind], value)
+        except struct.error as ex:
+            raise ValueError(f"{path}: {value!r} doesn't fit a {kind} ({ex})") from ex
+    data = value.encode("ascii") if kind == "string" else bytes(value)
+    length = int(_eval(desc["length"], scope))
+    if len(data) != length:
+        raise ValueError(f"{path}: the value is {len(data)} bytes, but its length is {length}")
+    return data
+
+
+def _node_at(root: DrbNode, path: str) -> DrbNode:
+    current = root
+    for step in [s for s in path.strip().strip("/").split("/")]:
+        match = re.fullmatch(r"([^\[\]]+)(?:\[(\d+)\])?", step.strip())
+        if match is None:
+            raise ValueError(f"'{step}' isn't a path step")
+        name, index = match.group(1), int(match.group(2) or 1)
+        named = [c for c in current.children if c.name == name]
+        if len(named) < index:
+            raise ValueError(f"There's no element {path}: "
+                             + (f"nothing is called '{name}' there" if not named
+                                else f"there {'is only 1' if len(named) == 1 else f'are only {len(named)}'} called '{name}'"))
+        current = named[index - 1]
+    return current
+
+
+def _typed(node: DrbNode, text: str, path: str) -> Any:
+    kind = node.attributes.get(("type", None))
+    try:
+        if kind in _STRUCT:
+            return float(text) if kind.startswith("float") else int(text.strip())
+        if kind == "bytes" and text.strip().startswith("0x"):
+            return bytes.fromhex(text.strip()[2:])
+        return text.encode("ascii") if kind == "bytes" else text
+    except ValueError as ex:
+        raise ValueError(f"{path}: {text!r} isn't a valid {kind}") from ex
+
+
+def _write(node: DrbNode, changes: Optional[Dict[str, str]] = None, **kwargs) -> bytes:
+    """The file written back by the same description, with changes (element path -> new value as text).
+    Counts, conditions, choices and lengths must still agree with the values, or this refuses. Bytes
+    after the described data aren't written. With an add-in, its restore() then undoes prepare()."""
+    root = _format_node(node)
+    previous = []
+    try:
+        for path, text in (changes or {}).items():
+            target = _node_at(root, path)
+            if target.children or target.attributes.get(("type", None)) is None:
+                raise ValueError(f"{path} is a group of elements, not a value")
+            previous.append((target, target.value))
+            target.value = _typed(target, text, path)
+        written = _encode(root)
+    finally:
+        for target, value in reversed(previous):
+            target.value = value
+    restore = _hook("restore")
+    return restore(written) if restore is not None else written
+
+
 _ADDIN: List[Any] = []
 
 
@@ -314,7 +463,7 @@ class _FormatNode(WrappedNode):
             child.parent = self
         self.trailing_bytes = len(self.decoded_bytes) - reader.pos
         # Also when the factory is used directly, without drb's resolver attaching the add-ons.
-        for addon in (SemanticsAddon, MetadataAddon, ChecksAddon):
+        for addon in (SemanticsAddon, MetadataAddon, ChecksAddon, WriteAddon):
             self.add_impl(addon.return_type(), addon.KIND, addon.identifier())
 
     @property
@@ -462,3 +611,12 @@ class ChecksAddon(_GeneratedAddon):
     """Problems found (a list of str; empty if none)."""
     KIND = staticmethod(_checks)
     RETURNS = list
+
+
+class WriteAddon(_GeneratedAddon):
+    """The file written back (bytes), with changes={path: value}."""
+    KIND = staticmethod(_write)
+    RETURNS = bytes
+
+    def apply(self, node: DrbNode, **kwargs) -> Any:
+        return _write(node, **kwargs)

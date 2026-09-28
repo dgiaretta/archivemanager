@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import info.oais.infomodel.structure.ByteRange;
+import info.oais.infomodel.structure.ElementPath;
 import info.oais.infomodel.structure.DefaultStructureNode;
 import info.oais.infomodel.structure.StructureInterpretationException;
 import info.oais.infomodel.structure.StructureNode;
@@ -103,6 +104,145 @@ final class DrbApi {
 				for (int i = opened.size() - 1; i >= 0; i--) {
 					close(opened.get(i));
 				}
+			}
+		}
+	}
+
+	/**
+	 * Writes values back into {@code data} in place, through DRB's SDF
+	 * blocks: every value the schema describes is written again (its new
+	 * value from {@code changes}, else the one just read), each at its own
+	 * offset and length -- so writing back unchanged data tests that DRB
+	 * encodes every value the way it's stored.
+	 *
+	 * @param data    a writable copy of the data, changed in place
+	 * @param schema  the DRB SDF schema
+	 * @param changes new values, as text DRB converts to each element's type
+	 * @return the file's bytes once written
+	 */
+	static byte[] write(Path data, Path schema, Map<ElementPath, String> changes) throws Exception {
+		byte[] original = java.nio.file.Files.readAllBytes(data);
+		List<long[]> floatFixes = new ArrayList<>();
+		synchronized (LOCK) {
+			List<Object> opened = new ArrayList<>();
+			try {
+				Api api = Api.get();
+				Object dataNode = api.open(data);
+				opened.add(dataNode);
+				Object schemaFile = api.open(schema);
+				opened.add(schemaFile);
+				Object schemaNode = api.xmlOpen.invoke(api.xmlFactory.getConstructor().newInstance(), schemaFile);
+				opened.add(schemaNode);
+				Object root = api.sdfOpen.invoke(api.sdfFactory.getConstructor().newInstance(), dataNode, schemaNode,
+						schema.toAbsolutePath().toString());
+				if (root != null && (Integer) api.getChildrenCount.invoke(root) == 1) {
+					opened.add(root);
+					root = api.getChildAt.invoke(root, 0);
+				}
+				if (root == null) {
+					throw new StructureInterpretationException("DRB could not apply the SDF schema " + schema
+							+ " to the data - DRB's own messages about why are in the application log");
+				}
+				opened.add(root);
+				Map<String, String> remaining = new java.util.LinkedHashMap<>();
+				for (Map.Entry<ElementPath, String> change : changes.entrySet()) {
+					Object target = find(api, root, change.getKey());
+					if ((Integer) api.getChildrenCount.invoke(target) > 0) {
+						throw new StructureInterpretationException(change.getKey() + " is a group of elements, not a value");
+					}
+					remaining.put(change.getKey().toString(), change.getValue());
+				}
+				int[] count = new int[1];
+				writeValues(api, root, "", remaining, count, original, floatFixes);
+			} catch (InvocationTargetException e) {
+				Throwable cause = e.getCause() == null ? e : e.getCause();
+				throw new StructureInterpretationException("DRB couldn't write the data back: " + cause, cause);
+			} finally {
+				for (int i = opened.size() - 1; i >= 0; i--) {
+					close(opened.get(i));
+				}
+			}
+		}
+		byte[] written = java.nio.file.Files.readAllBytes(data);
+		for (long[] fix : floatFixes) {
+			java.nio.ByteBuffer.wrap(written, (int) fix[0], 4).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+					.putInt((int) fix[1]);
+		}
+		return written;
+	}
+
+	/**
+	 * DRB 2.5.13 writes a 4-byte float big-endian even when the schema says
+	 * LSB (it swaps integers and doubles, but not floats). A float whose
+	 * stored bytes read as little-endian, and not as big-endian, is noted
+	 * here -- offset and the bits to write -- and written little-endian once
+	 * DRB has finished.
+	 */
+	private static void noteLittleEndianFloat(Api api, Object node, Object newValue, byte[] original,
+			List<long[]> fixes) throws Exception {
+		if (!"FLOAT_ID".equals(api.valueTypeName((Integer) api.getValueType.invoke(node)))) {
+			return;
+		}
+		Map<String, Object> attributes = attributes(api, node);
+		if (!(attributes.get("offset") instanceof Number offset) || !(attributes.get("length") instanceof Number length)
+				|| length.longValue() != 4 || offset.longValue() < 0 || offset.longValue() + 4 > original.length) {
+			return;
+		}
+		float read = Float.parseFloat(String.valueOf(api.getValue.invoke(node)).strip());
+		java.nio.ByteBuffer stored = java.nio.ByteBuffer.wrap(original, (int) offset.longValue(), 4);
+		float little = stored.duplicate().order(java.nio.ByteOrder.LITTLE_ENDIAN).getFloat();
+		float big = stored.duplicate().order(java.nio.ByteOrder.BIG_ENDIAN).getFloat();
+		if (Float.compare(little, read) == 0 && Float.compare(big, read) != 0) {
+			float value = Float.parseFloat(String.valueOf(newValue).strip());
+			fixes.add(new long[] {offset.longValue(), Float.floatToIntBits(value)});
+		}
+	}
+
+	private static Object find(Api api, Object root, ElementPath path) throws Exception {
+		Object current = root;
+		for (ElementPath.Step step : path.steps()) {
+			Object match = null;
+			int seen = 0;
+			int children = (Integer) api.getChildrenCount.invoke(current);
+			for (int i = 0; i < children && match == null; i++) {
+				Object child = api.getChildAt.invoke(current, i);
+				if (step.name().equals(String.valueOf(api.getName.invoke(child))) && ++seen == step.index()) {
+					match = child;
+				}
+			}
+			if (match == null) {
+				throw new StructureInterpretationException(path.notFound(step, seen));
+			}
+			current = match;
+		}
+		return current;
+	}
+
+	private static void writeValues(Api api, Object node, String path, Map<String, String> changes, int[] count,
+			byte[] original, List<long[]> floatFixes) throws Exception {
+		int children = (Integer) api.getChildrenCount.invoke(node);
+		Map<String, Integer> seen = new java.util.HashMap<>();
+		List<Object> childNodes = new ArrayList<>();
+		for (int i = 0; i < children; i++) {
+			Object child = api.getChildAt.invoke(node, i);
+			childNodes.add(child);
+		}
+		for (Object child : childNodes) {
+			if (++count[0] > MAX_NODES) {
+				throw new StructureInterpretationException("The data has more than " + MAX_NODES + " elements");
+			}
+			String name = String.valueOf(api.getName.invoke(child));
+			int index = seen.merge(name, 1, Integer::sum);
+			String childPath = path + "/" + name + (index > 1 ? "[" + index + "]" : "");
+			if ((Integer) api.getChildrenCount.invoke(child) > 0) {
+				writeValues(api, child, childPath, changes, count, original, floatFixes);
+				continue;
+			}
+			String changed = changes.get(childPath);
+			Object value = changed != null ? api.text(changed) : api.getValue.invoke(child);
+			if (value != null) {
+				noteLittleEndianFloat(api, child, value, original, floatFixes);
+				api.setValue(child, value);
 			}
 		}
 	}
@@ -280,6 +420,21 @@ final class DrbApi {
 				instance = api;
 			}
 			return api;
+		}
+
+		String valueTypeName(int valueType) {
+			return valueTypeNames.getOrDefault(valueType, "");
+		}
+
+		/** A DRB text value, which DRB converts to each element's own type when it's set. */
+		Object text(String value) throws ReflectiveOperationException {
+			return Class.forName("fr.gael.drb.value.String").getConstructor(String.class).newInstance(value);
+		}
+
+		void setValue(Object node, Object value) throws ReflectiveOperationException {
+			Method setValue = node.getClass().getMethod("setValue", Class.forName("fr.gael.drb.value.Value"));
+			setValue.setAccessible(true);
+			setValue.invoke(node, value);
 		}
 
 		Object open(Path file) throws ReflectiveOperationException {

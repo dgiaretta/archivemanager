@@ -69,7 +69,8 @@ public class DrbGenerator {
         return driverId(def.getName());
     }
 
-    static String driverId(String formatName) {
+    /** {@link #pythonDriverId} for a format called {@code formatName}. */
+    public static String driverId(String formatName) {
         // Capped because the id appears twice in pip's build paths, and a long
         // format name can otherwise break an install on Windows' 260-character path limit.
         String snake = FormatIdentifiers.snakeCase(formatName);
@@ -92,7 +93,7 @@ public class DrbGenerator {
     }
 
     /** The names of the add-ons every generated driver package registers, after its driver id. */
-    public static final List<String> ADDON_KINDS = List.of("semantics", "metadata", "checks");
+    public static final List<String> ADDON_KINDS = List.of("semantics", "metadata", "checks", "write");
 
     /**
      * A complete, pip-installable drb-python driver package for a byte-layout
@@ -187,12 +188,16 @@ public class DrbGenerator {
                     node.get_impl(list, "%s_semantics")  # every value with its meaning
                     node.get_impl(dict, "%s_metadata")   # semantic name -> value
                     node.get_impl(list, "%s_checks")     # problems found; empty if none
+                    node.get_impl(bytes, "%s_write", changes={"/some/field": "42"})
 
                 `semantics` lists every value with its semantic name, definition, units,
                 a code's meaning and a scaled value's physical value. `metadata` gives each
                 value by its semantic name (or element path) as meant: a code's meaning, a
                 physical value, or the value itself. `checks` reports values outside their
-                valid range or code list, and bytes the description doesn't cover.
+                valid range or code list, and bytes the description doesn't cover. `write`
+                writes the file back from its decoded values, with any changes (element path
+                -> new value); counts, conditions and lengths must still agree with the
+                values. Unchanged, it gives the same bytes back if the description is complete.
                 %s""".formatted(pythonDistributionName(def), def.getName(), pythonDistributionName(def),
                 def.getFileExtensions().isEmpty()
                         ? "No file extensions were given, so drb won't pick this driver automatically.\n"
@@ -203,7 +208,7 @@ public class DrbGenerator {
                             node = resolver.create("path/to/file.%s")
                         """.formatted(String.join(", ", def.getFileExtensions().stream().map(e -> "." + e).toList()),
                         def.getFileExtensions().get(0)),
-                id, className, className, id, id, id,
+                id, className, className, id, id, id, id,
                 addIn == null ? "" : """
 
                 ## Hand-written add-in
@@ -211,8 +216,9 @@ public class DrbGenerator {
                 `drb/drivers/%s/addin.py` was written by hand. The driver calls its hooks:
                 `prepare(data)` on the file's bytes before decoding (e.g. to decrypt or
                 decompress them), `check(root)` after decoding (its problems are added to
-                `checks`), and `metadata(root)` (merged into `metadata`). It is Python code
-                that runs whenever the driver is used, so read it before installing.
+                `checks`), `metadata(root)` (merged into `metadata`), and `restore(data)`
+                when writing back (undoing `prepare`). It is Python code that runs whenever
+                the driver is used, so read it before installing.
                 """.formatted(id)));
         return files;
     }

@@ -218,7 +218,7 @@ public final class KaitaiReflectiveStructureNode implements StructureNode {
 	 * generated code) that represent a parsed field, per the conventions
 	 * described in this class's Javadoc.
 	 */
-	private static java.util.stream.Stream<Method> fieldAccessors(Class<?> type) {
+	static java.util.stream.Stream<Method> fieldAccessors(Class<?> type) {
 		List<Method> methods = new ArrayList<>();
 		for (Class<?> c = type; c != null && KaitaiStruct.class.isAssignableFrom(c) && c != KaitaiStruct.class;
 				c = c.getSuperclass()) {

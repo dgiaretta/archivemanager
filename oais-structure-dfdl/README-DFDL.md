@@ -134,6 +134,17 @@ Daffodil:
   `dfdl:alignmentUnits="bits"`; a byte-sized element after them is aligned
   to the next whole byte by the default one-byte alignment.
 
+## Writing data back
+
+`DfdlStructureRepInfo` is a `WritableStructureRepInfo`: `write(dataObject, changes)` parses into
+Daffodil's DOM infoset, sets each changed element's text (`ElementPath` -> value), and re-encodes the
+whole infoset with Daffodil's unparser; `roundTrip(dataObject)` writes it back unchanged and compares.
+Everything the schema describes is re-encoded from its value, so lengths and counts can change if the
+elements giving them are changed to match (or are computed with `dfdl:outputValueCalc`). What the
+infoset doesn't hold isn't written the way it was read: bytes after the described data, unused bytes
+inside an element of explicit length (written as the fill byte), and which of several delimiters or
+terminators the data used (the first is written - e.g. a newline after a last line that had none).
+
 ## Known limitations
 
 - Only the schema's default root element can be used.

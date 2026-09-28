@@ -15,6 +15,7 @@ import info.oais.archive.manager.service.format.DrbSampleRunner;
 import info.oais.archive.manager.service.format.FormatDescriptionRdfService;
 import info.oais.archive.manager.service.format.FormatTemplates;
 import info.oais.archive.manager.service.format.HandWrittenDescriptions;
+import info.oais.archive.manager.service.format.WriteBackResult;
 import info.oais.archive.manager.service.format.KaitaiGenerator;
 import info.oais.archive.manager.service.format.KaitaiSampleRunner;
 import info.oais.archive.manager.service.format.SampleDecodeResult;
@@ -569,6 +570,159 @@ public class RepInfoToolController {
     }
 
     private static final String EMPTY_SAMPLE = "Choose a non-empty sample file to test against.";
+
+    private static final String WRITTEN_KEY = "repinfo-tools-written";
+    /** Written files larger than this aren't kept in the session for downloading. */
+    private static final int MAX_KEPT_BYTES = 32 * 1024 * 1024;
+
+    /** A written file kept in the session until it's downloaded or replaced. */
+    private record WrittenFile(String fileName, byte[] bytes) implements java.io.Serializable {
+    }
+
+    /**
+     * Writes a sample file back with one engine's description (the same text
+     * the preview shows, generated or written by hand): decodes it, applies
+     * the {@code changes} ({@code path = value} lines, none for a round
+     * trip), encodes it again, and compares the result with the sample. The
+     * written file can then be downloaded ({@link #downloadWritten}).
+     *
+     * @param engine {@code kaitai}, {@code dfdl}, {@code drb-java} or {@code drb-python}
+     */
+    @PostMapping("/write-back/{engine}")
+    public String writeBack(@PathVariable String engine, @RequestParam("sample") MultipartFile sample,
+                            @RequestParam(defaultValue = "") String changes, HttpSession session, Model model)
+            throws IOException {
+        FormatDefinition def = draft(session);
+        if (def == null) {
+            return "redirect:/repinfo-tools";
+        }
+        if (def.getKind() != FormatDefinitionKind.BYTE_LAYOUT) {
+            return "redirect:/repinfo-tools/preview";
+        }
+        populatePreview(def, model);
+        session.removeAttribute(WRITTEN_KEY);
+        model.addAttribute("writeBackEngine", engine);
+        model.addAttribute("writeBackChanges", changes);
+        model.addAttribute("sampleFileName", sample.getOriginalFilename());
+        model.addAttribute("sampleFileSize", sample.getSize());
+        Map<info.oais.infomodel.structure.ElementPath, String> parsed;
+        try {
+            parsed = parseChanges(changes);
+        } catch (IllegalArgumentException e) {
+            model.addAttribute("writeBack", WriteBackResult.failure(e.getMessage()));
+            return "repinfo-tools/preview";
+        }
+        model.addAttribute("writeBackChanged", !parsed.isEmpty());
+        byte[] bytes = sample.getBytes();
+        WriteBackResult result = sample.isEmpty() ? WriteBackResult.failure(EMPTY_SAMPLE)
+                : writeBack(engine, def, model, bytes, parsed);
+        if (result == null) {
+            return "redirect:/repinfo-tools/preview";
+        }
+        model.addAttribute("writeBack", result);
+        if (result.ok() && result.written().length <= MAX_KEPT_BYTES) {
+            session.setAttribute(WRITTEN_KEY, new WrittenFile(writtenName(sample.getOriginalFilename(), engine,
+                    !parsed.isEmpty()), result.written()));
+        }
+        return "repinfo-tools/preview";
+    }
+
+    /** The result of writing back with {@code engine}'s description, or null if there's no such description. */
+    private WriteBackResult writeBack(String engine, FormatDefinition def, Model model, byte[] sample,
+                                      Map<info.oais.infomodel.structure.ElementPath, String> changes) {
+        switch (engine) {
+            case "kaitai" -> {
+                String ksy = (String) model.getAttribute("kaitai");
+                if (ksy == null) {
+                    return null;
+                }
+                String rootName = def.handWritten(DescriptionLanguage.KAITAI).isPresent()
+                        ? HandWrittenDescriptions.kaitaiId(ksy) : def.toFormatDescription().root().name();
+                return kaitaiSampleRunner.write(ksy, rootName, sample, changes);
+            }
+            case "dfdl" -> {
+                String dfdl = (String) model.getAttribute("dfdl");
+                return dfdl == null ? null : dfdlSampleRunner.write(dfdl, sample, changes);
+            }
+            case "drb-java" -> {
+                String sdf = (String) model.getAttribute("drbJava");
+                return sdf == null ? null : drbSampleRunner.write(sdf, sample, changes);
+            }
+            case "drb-python" -> {
+                String module = (String) model.getAttribute("drbPython");
+                if (module == null) {
+                    return null;
+                }
+                Map<String, String> byPath = new LinkedHashMap<>();
+                changes.forEach((path, value) -> byPath.put(path.toString(), value));
+                DrbPythonSampleRunner.WriteOutcome outcome = drbPythonSampleRunner.write(module,
+                        def.handWritten(DescriptionLanguage.DRB_PYTHON).orElse(null),
+                        drbGenerator.pythonFactoryClassName(def), drbGenerator.pythonDriverId(def), sample, byPath);
+                if (outcome.error() != null) {
+                    return WriteBackResult.failure(outcome.error());
+                }
+                return outcome.reference() == null ? WriteBackResult.of(sample, outcome.written(), null)
+                        : WriteBackResult.of(outcome.reference(), outcome.written(), "The add-in's prepare() changed "
+                                + "the file's bytes before they were read, and it has no restore() to undo that, so "
+                                + "the written bytes are compared with what prepare() produced, not with the sample.");
+            }
+            default -> {
+                return null;
+            }
+        }
+    }
+
+    /**
+     * {@code path = value} lines: blank lines and lines starting with
+     * {@code #} are skipped; a value in double quotes keeps its spaces.
+     *
+     * @throws IllegalArgumentException naming the line that isn't a change
+     */
+    public static Map<info.oais.infomodel.structure.ElementPath, String> parseChanges(String text) {
+        Map<info.oais.infomodel.structure.ElementPath, String> changes = new LinkedHashMap<>();
+        String[] lines = text.replace("\r\n", "\n").split("\n");
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i].strip();
+            if (line.isEmpty() || line.startsWith("#")) {
+                continue;
+            }
+            int equals = line.indexOf('=');
+            if (equals < 0) {
+                throw new IllegalArgumentException("Line " + (i + 1) + " isn't a change: write path = value, "
+                        + "e.g. /header/count = 3");
+            }
+            String value = line.substring(equals + 1).strip();
+            if (value.length() >= 2 && value.startsWith("\"") && value.endsWith("\"")) {
+                value = value.substring(1, value.length() - 1);
+            }
+            try {
+                changes.put(info.oais.infomodel.structure.ElementPath.parse(line.substring(0, equals)), value);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("Line " + (i + 1) + ": " + e.getMessage());
+            }
+        }
+        return changes;
+    }
+
+    private static String writtenName(String sampleName, String engine, boolean changed) {
+        String base = DrbPythonSampleRunner.safeName(sampleName);
+        int dot = base.lastIndexOf('.');
+        String stem = dot > 0 ? base.substring(0, dot) : base;
+        String extension = dot > 0 ? base.substring(dot) : "";
+        return stem + (changed ? "-changed-" : "-written-") + engine + extension;
+    }
+
+    /** The file the last write-back produced, kept in the session. */
+    @GetMapping("/write-back/download")
+    public ResponseEntity<ByteArrayResource> downloadWritten(HttpSession session) {
+        if (!(session.getAttribute(WRITTEN_KEY) instanceof WrittenFile file)) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.APPLICATION_OCTET_STREAM)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.fileName() + "\"")
+                .body(new ByteArrayResource(file.bytes()));
+    }
 
     private void addSampleResult(Model model, String attribute, SampleDecodeResult result, MultipartFile sample) {
         model.addAttribute(attribute, result);

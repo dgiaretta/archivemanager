@@ -147,6 +147,64 @@ class DrbPythonSampleRunnerTest {
         }
     }
 
+    @Test
+    void writeAddOnWritesTheFileBackWithChanges() {
+        FormatDefinition def = pointRecord(null);
+        byte[] bytes = ByteBuffer.allocate(18).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .putInt(42).putShort((short) -7).putDouble(2.5).put("abcd".getBytes(StandardCharsets.US_ASCII)).array();
+
+        assertThat(write(def, null, bytes, Map.of()).written()).containsExactly(bytes);
+
+        byte[] changed = write(def, null, bytes, Map.of("/y", "1000", "/label", "wxyz")).written();
+        assertThat(changed).containsExactly(ByteBuffer.allocate(18).order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                .putInt(42).putShort((short) 1000).putDouble(2.5).put("wxyz".getBytes(StandardCharsets.US_ASCII)).array());
+
+        assertThat(write(def, null, bytes, Map.of("/label", "abc")).error())
+                .contains("/label: the value is 3 bytes, but its length is 4");
+        assertThat(write(def, null, bytes, Map.of("/y", "70000")).error()).contains("/y: 70000 doesn't fit a int16");
+        assertThat(write(def, null, bytes, Map.of("/w", "1")).error()).contains("There's no element /w");
+    }
+
+    @Test
+    void textIsWrittenBackAsItWasReadUnlessChanged() {
+        byte[] csv = "AB12,032,-45\nXY9,33,215".getBytes(StandardCharsets.US_ASCII);
+        FormatDefinition def = FormatTemplates.csv();
+
+        DrbPythonSampleRunner.WriteOutcome same = write(def, null, csv, Map.of());
+        assertThat(same.error()).isNull();
+        assertThat(new String(same.written(), StandardCharsets.US_ASCII)).isEqualTo("AB12,032,-45\nXY9,33,215");
+        assertThat(new String(write(def, null, csv, Map.of("/reading[2]/temperature", "-12")).written(),
+                StandardCharsets.US_ASCII)).isEqualTo("AB12,032,-45\nXY9,33,-12");
+    }
+
+    @Test
+    void anAddInsRestoreUndoesItsPrepareWhenWritingBack() throws Exception {
+        byte[] iv = new byte[16];
+        Cipher aes = Cipher.getInstance("AES/CTR/NoPadding");
+        aes.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(HexFormat.of().parseHex(
+                "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"), "AES"), new IvParameterSpec(iv));
+        byte[] file = ByteBuffer.allocate(21).put(iv).put(aes.doFinal("hello".getBytes(StandardCharsets.US_ASCII))).array();
+
+        DrbPythonSampleRunner.WriteOutcome encrypted = write(textRecord(), example("drb-python-aes"), file, Map.of());
+        assumeTrue(encrypted.error() == null || !encrypted.error().contains("cryptography"), "no cryptography package");
+        assertThat(encrypted.written()).containsExactly(file);
+        assertThat(encrypted.reference()).isNull();
+
+        // Without restore(), the written bytes are what prepare() produced, and are compared with those.
+        byte[] xz = Base64.getDecoder().decode(
+                "/Td6WFoAAATm1rRGAgAhARYAAAB0L+WjAQAEaGVsbG8AAAAAsTe52+XaHpsAAR0FuC2Arx+2830BAAAAAARZWg==");
+        DrbPythonSampleRunner.WriteOutcome decompressed = write(textRecord(), example("drb-python-decompress"), xz,
+                Map.of("/text", "world"));
+        assertThat(new String(decompressed.written(), StandardCharsets.US_ASCII)).isEqualTo("world");
+        assertThat(new String(decompressed.reference(), StandardCharsets.US_ASCII)).isEqualTo("hello");
+    }
+
+    private static DrbPythonSampleRunner.WriteOutcome write(FormatDefinition def, String addIn, byte[] bytes,
+                                                            Map<String, String> changes) {
+        return addInRunner.write(GENERATOR.generate(def, DrbTarget.PYTHON), addIn, GENERATOR.pythonFactoryClassName(def),
+                GENERATOR.pythonDriverId(def), bytes, changes);
+    }
+
     private static DrbPythonSampleRunner.Outcome run(FormatDefinition def, String addIn, byte[] bytes) {
         return addInRunner.run(GENERATOR.generate(def, DrbTarget.PYTHON), addIn, GENERATOR.pythonFactoryClassName(def),
                 GENERATOR.pythonDriverId(def), bytes, null);

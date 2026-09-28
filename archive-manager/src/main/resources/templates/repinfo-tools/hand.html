@@ -23,6 +23,8 @@
                 CRCs, cross-checks), added to what the <code>checks</code> add-on reports.</li>
             <li><code>metadata(root)</code> &mdash; returns a dict merged into what the
                 <code>metadata</code> add-on returns.</li>
+            <li><code>restore(data)</code> &mdash; when the file is written back: undoes
+                <code>prepare()</code> (e.g. encrypts again), returning the bytes to write.</li>
         </ul>
         <p>
             <code>root.original_bytes</code> are the file's bytes, <code>root.decoded_bytes</code> what

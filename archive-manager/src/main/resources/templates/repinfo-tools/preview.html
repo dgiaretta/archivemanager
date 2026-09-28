@@ -43,6 +43,7 @@
         </form>
 
         <th:block th:if="${kaitaiTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${kaitaiTest})}"></div></th:block>
+        <div th:replace="~{repinfo-tools/write-back :: writeBack('kaitai', 'For this the description is compiled again, in the read-write mode of Kaitai Struct, which takes a few seconds.')}"></div>
     </section>
 
     <section class="editor-section" th:if="${dfdl != null}" id="dfdl-section">
@@ -74,6 +75,7 @@
         </form>
 
         <th:block th:if="${dfdlTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${dfdlTest})}"></div></th:block>
+        <div th:replace="~{repinfo-tools/write-back :: writeBack('dfdl', 'Daffodil re-encodes the whole description (its unparser).')}"></div>
     </section>
 
     <section class="editor-section" th:if="${kaitai == null and dfdl == null and def.kind.name() != 'BYTE_LAYOUT'}">
@@ -99,11 +101,13 @@
                 name, definition and units. The driver module is shown below.
             </p>
             <p class="muted">
-                The package also registers three drb-python add-ons, giving a decoded file's meaning as
-                a whole: <code th:text="${drbPythonAddOns[0]}">am_format_semantics</code> (every value with
+                The package also registers four drb-python add-ons, giving a decoded file's meaning as
+                a whole and writing it back: <code th:text="${drbPythonAddOns[0]}">am_format_semantics</code> (every value with
                 its meaning), <code th:text="${drbPythonAddOns[1]}">am_format_metadata</code> (semantic name
-                &rarr; value) and <code th:text="${drbPythonAddOns[2]}">am_format_checks</code> (values outside
-                their valid range or code list, and bytes not covered), e.g.
+                &rarr; value), <code th:text="${drbPythonAddOns[2]}">am_format_checks</code> (values outside
+                their valid range or code list, and bytes not covered) and
+                <code th:text="${drbPythonAddOns[3]}">am_format_write</code> (the file written back, with any
+                changes), e.g.
                 <code th:text="'node.get_impl(dict, &quot;' + ${drbPythonAddOns[1]} + '&quot;)'">node.get_impl(dict, "am_format_metadata")</code>.
             </p>
             <p class="notice" th:if="${drbPythonAddIn != null}">
@@ -175,6 +179,7 @@
                     </table>
                 </th:block>
             </th:block>
+            <th:block th:if="${drbPythonVersion != null}"><div th:replace="~{repinfo-tools/write-back :: writeBack('drb-python', 'This uses the write add-on of the driver.')}"></div></th:block>
         </th:block>
     </section>
 
@@ -222,6 +227,7 @@
                 <button type="submit">Decode sample</button>
             </form>
             <th:block th:if="${drbJavaTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${drbJavaTest})}"></div></th:block>
+            <div th:replace="~{repinfo-tools/write-back :: writeBack('drb-java', 'DRB writes each value where it was read from: a delimited value can change length, one of fixed length cannot.')}"></div>
         </th:block>
     </section>
 

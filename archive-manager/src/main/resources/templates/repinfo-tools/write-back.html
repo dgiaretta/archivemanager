@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Shared by the "Write back" subsections of preview.html (Kaitai, DFDL, drb-python, DRB). -->
+<div th:fragment="writeBack(engine, note)" th:id="'write-back-' + ${engine}">
+    <h3>Write back</h3>
+    <p class="muted">
+        Decodes a sample file, then writes it back with the description above and compares the
+        two. With no changes this is a round trip: identical bytes mean the description is enough
+        to re-create the file from its decoded values. To write a changed file, give changes as
+        <code>path = value</code> lines, e.g. <code>/header/count = 3</code>, naming elements as in
+        the test above (<code>/sample[2]</code> for the second of a repeated element). Counts and
+        lengths have to be changed to match.
+        <span th:if="${note != null}" th:text="${note}">note</span>
+    </p>
+    <form th:action="@{/repinfo-tools/write-back/{e}(e=${engine})} + '#write-back-' + ${engine}" method="post"
+          enctype="multipart/form-data" class="form">
+        <input type="file" name="sample" required/>
+        <label>Changes (optional)
+            <textarea name="changes" rows="3" class="code-input" spellcheck="false"
+                      th:text="${writeBackEngine == engine ? writeBackChanges : ''}"></textarea>
+        </label>
+        <button type="submit">Write back</button>
+    </form>
+    <th:block th:if="${writeBack != null and writeBackEngine == engine}">
+        <p th:unless="${writeBack.ok()}">
+            <strong th:text="${sampleFileName}">sample.bin</strong>: could not be written back.</p>
+        <pre class="sparql" th:unless="${writeBack.ok()}" th:text="${writeBack.error()}">diagnostics</pre>
+        <th:block th:if="${writeBack.ok()}">
+            <p>
+                <strong th:text="${sampleFileName}">sample.bin</strong>
+                (<span th:text="${sampleFileSize}">0</span> bytes) written back
+                <span th:if="${writeBackChanged}">with the changes</span><span th:unless="${writeBackChanged}">unchanged</span>:
+            </p>
+            <p th:class="${writeBack.roundTrip().identical() or writeBackChanged ? 'notice' : 'notice error'}"
+               th:text="${writeBack.roundTrip().describe()}">Identical</p>
+            <p class="muted" th:if="${!writeBackChanged and writeBack.roundTrip().identical()}">
+                The description accounts for all of the sample and encodes every value the way the
+                sample stores it.
+            </p>
+            <p class="muted" th:if="${!writeBackChanged and !writeBack.roundTrip().identical()}">
+                Something in the sample isn't described, or isn't written back the way it's stored:
+                bytes after the described data aren't written, text numbers may be written in
+                another form (<code>1.50</code> as <code>1.5</code>), and compressed data may compress
+                differently.
+            </p>
+            <p class="muted" th:if="${writeBack.note() != null}" th:text="${writeBack.note()}">note</p>
+            <a class="button-link" th:href="@{/repinfo-tools/write-back/download}">Download the written file &rarr;</a>
+        </th:block>
+    </th:block>
+</div>
+</body>
+</html>

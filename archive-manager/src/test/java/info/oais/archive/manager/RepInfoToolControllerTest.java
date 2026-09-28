@@ -176,6 +176,53 @@ class RepInfoToolControllerTest {
     }
 
     @Test
+    void writesASampleBackUnchangedAndWithChangesThenOffersTheFile() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        buildTelemetry(session);
+        byte[] sample = {0, 1, 2, 0x01, (byte) 0xF4};
+
+        for (String engine : new String[] {"dfdl", "drb-java", "kaitai"}) {
+            mockMvc.perform(multipart("/repinfo-tools/write-back/" + engine)
+                            .file(new MockMultipartFile("sample", "t.bin", "application/octet-stream", sample))
+                            .session(session))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("Identical: all 5 bytes were written back exactly.")));
+        }
+
+        mockMvc.perform(multipart("/repinfo-tools/write-back/dfdl")
+                        .file(new MockMultipartFile("sample", "t.bin", "application/octet-stream", sample))
+                        .param("changes", "# a comment\n/packet/body/science/temp = 1000\n")
+                        .session(session))
+                .andExpect(content().string(containsString("written back\n                <span>with the changes</span>")))
+                .andExpect(content().string(containsString("2 bytes differ, the first at offset 3.")));
+        byte[] written = mockMvc.perform(get("/repinfo-tools/write-back/download").session(session))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string(
+                        "Content-Disposition", "attachment; filename=\"t-changed-dfdl.bin\""))
+                .andReturn().getResponse().getContentAsByteArray();
+        assertThat(written).containsExactly(0, 1, 2, 0x03, (byte) 0xE8);
+
+        mockMvc.perform(multipart("/repinfo-tools/write-back/dfdl")
+                        .file(new MockMultipartFile("sample", "t.bin", "application/octet-stream", sample))
+                        .param("changes", "/packet/kind 3")
+                        .session(session))
+                .andExpect(content().string(containsString("Line 1 isn&#39;t a change: write path = value")));
+        mockMvc.perform(multipart("/repinfo-tools/write-back/drb-java")
+                        .file(new MockMultipartFile("sample", "t.bin", "application/octet-stream", sample))
+                        .param("changes", "/packet/nothing = 3")
+                        .session(session))
+                .andExpect(content().string(containsString("There&#39;s no element /packet/nothing")));
+    }
+
+    @Test
+    void parsesChangesLineByLine() {
+        var changes = info.oais.archive.manager.web.RepInfoToolController.parseChanges("/a = 1\n\n# skipped\n/b[2]/c = \"  spaced  \"\r\n/d =\n");
+        assertThat(changes).containsExactly(
+                java.util.Map.entry(info.oais.infomodel.structure.ElementPath.parse("/a"), "1"),
+                java.util.Map.entry(info.oais.infomodel.structure.ElementPath.parse("/b[2]/c"), "  spaced  "),
+                java.util.Map.entry(info.oais.infomodel.structure.ElementPath.parse("/d"), ""));
+    }
+
+    @Test
     void sampleResultsShowMeaningsBranchesAbsenceAndLeftoverBytes() throws Exception {
         MockHttpSession session = new MockHttpSession();
         buildTelemetry(session);

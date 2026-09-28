@@ -7,6 +7,7 @@ import info.oais.archive.manager.service.format.FormatTemplates;
 import info.oais.archive.manager.service.format.KaitaiGenerator;
 import info.oais.archive.manager.service.format.KaitaiSampleRunner;
 import info.oais.archive.manager.service.format.SampleDecodeResult;
+import info.oais.archive.manager.service.format.WriteBackResult;
 import info.oais.infomodel.implementation.DigitalObjectRefImpl;
 import info.oais.infomodel.structure.DefaultStructureNode;
 import info.oais.infomodel.structure.StructureNode;
@@ -76,11 +77,17 @@ class GeneratedDescriptionsMatrixTest {
     /**
      * @param limitations engines known to decode this case differently, with why - asserted
      *                    to still differ, so a fix in the engine shows up here
+     * @param writeLimitations engines known not to write this case's sample back byte for byte, with why
      */
     record Case(String title, FormatDescription format, byte[] sample, List<String> expected,
-                Map<String, String> limitations) {
+                Map<String, String> limitations, Map<String, String> writeLimitations) {
         Case(String title, FormatDescription format, byte[] sample, List<String> expected) {
             this(title, format, sample, expected, Map.of());
+        }
+
+        Case(String title, FormatDescription format, byte[] sample, List<String> expected,
+             Map<String, String> limitations) {
+            this(title, format, sample, expected, limitations, Map.of());
         }
 
         @Override
@@ -88,6 +95,10 @@ class GeneratedDescriptionsMatrixTest {
             return title;
         }
     }
+
+    /** Why a record of a stated size with unused bytes at its end can't be written back byte for byte. */
+    private static final String UNUSED_BYTES = "the block's last 2 bytes are unused, so they aren't among the decoded "
+            + "values, and are written as zeros";
 
     static Stream<Case> cases() {
         return Stream.of(
@@ -103,7 +114,9 @@ class GeneratedDescriptionsMatrixTest {
                 new Case("CSV rows", csv(), "42,-7,hi\n7,13,demo\n".getBytes(StandardCharsets.US_ASCII), csvLines()),
                 new Case("CSV rows, no final newline", csv(), "42,-7,hi\n7,13,demo".getBytes(StandardCharsets.US_ASCII),
                         csvLines(), Map.of("DRB (Java)", "DRB's sdf:delimiter is a single character with no "
-                        + "end-of-data alternative, so a last line without its newline is dropped")),
+                        + "end-of-data alternative, so a last line without its newline is dropped"),
+                        Map.of("DFDL (Daffodil)", "the infoset doesn't record that the last line had no newline, "
+                                + "and Daffodil's unparser writes one")),
                 new Case("every field type, little-endian", allTypes(), allTypesBytes(),
                         List.of("all_types.int8 = -5", "all_types.uint8 = 250", "all_types.int16 = -300",
                                 "all_types.uint16 = 65000", "all_types.int32 = -70000", "all_types.uint32 = 4000000000",
@@ -116,7 +129,8 @@ class GeneratedDescriptionsMatrixTest {
                 new Case("bit fields and a record of a stated size (DFDL, Kaitai)", bits(), bitsBytes(),
                         List.of("bits.version = 5", "bits.flags = 19", "bits.count = 7", "bits.block.value = 258",
                                 "bits.block.label = hi", "bits.wide = 2748", "bits.rest = 13", "bits.on = 1",
-                                "bits.pad = 0", "bits.trailer = 9")),
+                                "bits.pad = 0", "bits.trailer = 9"), Map.of(),
+                        Map.of("DFDL (Daffodil)", UNUSED_BYTES, "Kaitai Struct", UNUSED_BYTES)),
                 new Case("quoted CSV, nil values and number formats (DFDL)", quotedCsv(),
                         ("\"Smith, J\",\"1,234.50\",NA\n\"Say \"\"hi\"\"\",-2.00,ok\n").getBytes(StandardCharsets.US_ASCII),
                         List.of("ledger.row[0].name = Smith, J", "ledger.row[0].amount = 1234.5", "ledger.row[0].note = <nil>",
@@ -166,6 +180,51 @@ class GeneratedDescriptionsMatrixTest {
                         .isNotEqualTo(expected);
             } else {
                 assertThat(lines).as(engine).containsExactlyElementsOf(expected);
+            }
+        });
+    }
+
+    /**
+     * Write-back: every engine that can decode a case writes its sample back
+     * unchanged, byte for byte -- the round trip that shows the description
+     * is complete and encodes values the way the sample stores them.
+     */
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("cases")
+    void everyEngineWritesTheSampleBackUnchanged(Case c) throws Exception {
+        Map<String, info.oais.infomodel.structure.RoundTrip> results = new LinkedHashMap<>();
+        if (supports(c, DescriptionLanguage.DFDL, () -> DFDL.generate(c.format()))) {
+            Path schema = Files.writeString(tmp.resolve("format.dfdl.xsd"), DFDL.generate(c.format()));
+            results.put("DFDL (Daffodil)",
+                    new DfdlStructureRepInfo(new DfdlFormatSpecification(schema.toUri())).roundTrip(sample(c)));
+        }
+        if (supports(c, DescriptionLanguage.DRB, () -> DRB.generateSdfSchema(c.format()))) {
+            Path schema = Files.writeString(tmp.resolve("format.drb.xsd"), DRB.generateSdfSchema(c.format()));
+            results.put("DRB (Java)",
+                    new DrbStructureRepInfo(new DrbFormatSpecification(schema.toUri())).roundTrip(sample(c)));
+        }
+        if (supports(c, DescriptionLanguage.DRB_PYTHON, () -> DRB.pythonModule(c.format(), "MatrixFactory"))) {
+            String configured = System.getenv("DRB_PYTHON");
+            DrbPythonSampleRunner runner = new DrbPythonSampleRunner(configured == null ? "" : configured);
+            if (runner.drbVersion().isPresent()) {
+                DrbPythonSampleRunner.WriteOutcome outcome = runner.write(DRB.pythonModule(c.format(), "MatrixFactory"),
+                        null, "MatrixFactory", DrbGenerator.driverId(c.format().name()), c.sample(), Map.of());
+                assertThat(outcome.error()).as("drb-python").isNull();
+                results.put("drb-python", info.oais.infomodel.structure.RoundTrip.compare(c.sample(), outcome.written()));
+            }
+        }
+        if (supports(c, DescriptionLanguage.KAITAI, () -> KAITAI.generate(c.format()))) {
+            WriteBackResult written = KAITAI_RUNNER.write(KAITAI.generate(c.format()), c.format().root().name(),
+                    c.sample(), Map.of());
+            assertThat(written.error()).as("Kaitai Struct").isNull();
+            results.put("Kaitai Struct", written.roundTrip());
+        }
+        results.forEach((engine, roundTrip) -> {
+            String limitation = c.writeLimitations().get(engine);
+            if (limitation != null) {
+                assertThat(roundTrip.identical()).as(engine + " (known limitation: " + limitation + ")").isFalse();
+            } else {
+                assertThat(roundTrip.describe()).as(engine).startsWith("Identical");
             }
         });
     }
