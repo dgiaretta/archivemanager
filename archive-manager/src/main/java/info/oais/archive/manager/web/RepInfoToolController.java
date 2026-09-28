@@ -173,7 +173,8 @@ public class RepInfoToolController {
             FormatDescription format = def.toFormatDescription();
             List<DescriptionEditorView.Row> rows = DescriptionEditorView.rows(format, def.getTargets());
             long problemCount = DescriptionValidator.validate(format, def.getTargets()).size();
-            if (!def.getHandWritten().isEmpty() && def.getRoot().children().isEmpty()) {
+            if (def.getHandWritten().keySet().stream().anyMatch(l -> !HandWrittenDescriptions.isAddIn(l))
+                    && def.getRoot().children().isEmpty()) {
                 // Written entirely by hand: the tree is optional, only there for meanings.
                 rows = rows.stream().map(r -> r.root() ? new DescriptionEditorView.Row(r.id(), r.depth(), r.kind(),
                         r.name(), r.summary(), r.semantics(), List.of(), r.root(), r.container(), r.first(), r.last())
@@ -482,8 +483,10 @@ public class RepInfoToolController {
 
     /**
      * Same as {@link #testDfdl}, but runs the draft's generated drb-python
-     * driver in a Python process (see {@link DrbPythonSampleRunner}); needs
-     * drb-python installed on the machine running this app.
+     * driver in a Python process (see {@link DrbPythonSampleRunner}), with its
+     * hand-written add-in if there is one and the server allows it, then shows
+     * what its metadata and checks add-ons return; needs drb-python installed
+     * on the machine running this app.
      */
     @PostMapping("/test-drb-python")
     public String testDrbPython(@RequestParam("sample") MultipartFile sample, HttpSession session, Model model)
@@ -496,12 +499,20 @@ public class RepInfoToolController {
             return "redirect:/repinfo-tools/preview";
         }
         populatePreview(def, model);
-        SampleDecodeResult result = sample.isEmpty()
-                ? SampleDecodeResult.failure(EMPTY_SAMPLE)
-                : DrbPythonSampleRunner.align(def.toFormatDescription(),
-                        drbPythonSampleRunner.run(drbGenerator.generate(def, DrbTarget.PYTHON),
-                                drbGenerator.pythonFactoryClassName(def), sample.getBytes(), sample.getOriginalFilename()));
-        addSampleResult(model, "drbPythonTest", result, sample);
+        String module = (String) model.getAttribute("drbPython");
+        if (module == null) {
+            return "redirect:/repinfo-tools/preview";
+        }
+        if (sample.isEmpty()) {
+            addSampleResult(model, "drbPythonTest", SampleDecodeResult.failure(EMPTY_SAMPLE), sample);
+            return "repinfo-tools/preview";
+        }
+        DrbPythonSampleRunner.Outcome outcome = drbPythonSampleRunner.run(module,
+                def.handWritten(DescriptionLanguage.DRB_PYTHON).orElse(null), drbGenerator.pythonFactoryClassName(def),
+                drbGenerator.pythonDriverId(def), sample.getBytes(), sample.getOriginalFilename());
+        addSampleResult(model, "drbPythonTest", DrbPythonSampleRunner.align(def.toFormatDescription(), outcome.decoded()),
+                sample);
+        model.addAttribute("drbPythonAddOnResults", outcome.addOns());
         return "repinfo-tools/preview";
     }
 
@@ -577,6 +588,10 @@ public class RepInfoToolController {
         model.addAttribute("drbPython", generated(def, DescriptionLanguage.DRB_PYTHON, "drbPython", notGenerated,
                 () -> drbGenerator.generate(def, DrbTarget.PYTHON)));
         model.addAttribute("drbPythonPackage", drbGenerator.pythonDistributionName(def));
+        model.addAttribute("drbPythonAddOns", DrbGenerator.ADDON_KINDS.stream()
+                .map(k -> drbGenerator.pythonDriverId(def) + "_" + k).toList());
+        model.addAttribute("drbPythonAddIn", def.handWritten(DescriptionLanguage.DRB_PYTHON).orElse(null));
+        model.addAttribute("drbPythonRunsAddIns", drbPythonSampleRunner.runsAddIns());
         model.addAttribute("drbPythonVersion", drbPythonSampleRunner.drbVersion().orElse(null));
         model.addAttribute("drbPythonUnavailable", drbPythonSampleRunner.notAvailableMessage());
         model.addAttribute("drbJava", effective(def, DescriptionLanguage.DRB, "drbJava", notGenerated, byHand, outOfDate,
@@ -718,7 +733,9 @@ public class RepInfoToolController {
                                 def.handWritten(DescriptionLanguage.KAITAI).orElseGet(() -> kaitaiGenerator.generate(def)));
                         case "dfdl" -> generated.put(savedLabel(def, DescriptionLanguage.DFDL, "DFDL"),
                                 def.handWritten(DescriptionLanguage.DFDL).orElseGet(() -> dfdlGenerator.generate(def)));
-                        case "drb-python" -> generated.put("DRB (Python, drb-python)", drbGenerator.generate(def, DrbTarget.PYTHON));
+                        case "drb-python" -> generated.put(def.handWritten(DescriptionLanguage.DRB_PYTHON).isPresent()
+                                        ? "DRB (Python, drb-python), with an add-in written by hand"
+                                        : "DRB (Python, drb-python)", drbPythonWithAddIn(def));
                         case "drb-java" -> generated.put(def.getKind() == FormatDefinitionKind.BYTE_LAYOUT
                                         ? savedLabel(def, DescriptionLanguage.DRB, "DRB SDF schema (Java, fr.gael.drb)")
                                         : "DRB (Java, fr.gael.drb)",
@@ -738,16 +755,29 @@ public class RepInfoToolController {
         return "redirect:/resource/" + archive.encodeId(savedIri);
     }
 
+    /** The driver module, followed by the hand-written add-in (its {@code addin.py}) if there is one. */
+    private String drbPythonWithAddIn(FormatDefinition def) {
+        String module = drbGenerator.generate(def, DrbTarget.PYTHON);
+        return def.handWritten(DescriptionLanguage.DRB_PYTHON)
+                .map(addIn -> module + "\n\n# " + "=".repeat(20) + " addin.py, written by hand " + "=".repeat(20)
+                        + "\n\n" + addIn)
+                .orElse(module);
+    }
+
     private static String savedLabel(FormatDefinition def, DescriptionLanguage language, String label) {
         return def.handWritten(language).isPresent() ? label + ", written by hand" : label;
     }
 
-    /** {@code kaitai}, {@code dfdl} or {@code drb}: the languages whose descriptions can be written by hand. */
+    /**
+     * {@code kaitai}, {@code dfdl}, {@code drb}: descriptions written by hand; {@code drb-python}: an add-in
+     * to the generated drb-python driver.
+     */
     private static DescriptionLanguage handLanguage(String path) {
         return switch (path) {
             case "kaitai" -> DescriptionLanguage.KAITAI;
             case "dfdl" -> DescriptionLanguage.DFDL;
             case "drb" -> DescriptionLanguage.DRB;
+            case "drb-python" -> DescriptionLanguage.DRB_PYTHON;
             default -> throw new IllegalArgumentException("Descriptions in '" + path + "' can't be written by hand.");
         };
     }
@@ -757,13 +787,14 @@ public class RepInfoToolController {
             case KAITAI -> "kaitai";
             case DFDL -> "dfdl";
             case DRB -> "drb";
-            default -> throw new IllegalArgumentException(language.label());
+            case DRB_PYTHON -> "drb-python";
         };
     }
 
     /** What {@code language} generates from the tree now, or null (nothing yet, or it can't express it). */
     private String generatedNow(FormatDefinition def, DescriptionLanguage language) {
-        if (def.getRoot().children().isEmpty()) {
+        if (def.getRoot().children().isEmpty() || HandWrittenDescriptions.isAddIn(language)) {
+            // An add-in adds to what's generated rather than replacing it, so it can't fall behind.
             return null;
         }
         return generatedOrNull(() -> switch (language) {
@@ -806,7 +837,10 @@ public class RepInfoToolController {
         }
         DescriptionLanguage lang = handLanguage(language);
         String normalised = text.replace("\r\n", "\n");
-        List<String> problems = HandWrittenDescriptions.check(lang, normalised);
+        List<String> problems = new ArrayList<>(HandWrittenDescriptions.check(lang, normalised));
+        if (problems.isEmpty() && HandWrittenDescriptions.isAddIn(lang)) {
+            problems.addAll(drbPythonSampleRunner.checkAddIn(normalised));
+        }
         if (!problems.isEmpty()) {
             populateHandEditor(def, lang, normalised, problems, model);
             return "repinfo-tools/hand";
@@ -834,6 +868,9 @@ public class RepInfoToolController {
         model.addAttribute("examples", HandWrittenDescriptions.examples(lang));
         model.addAttribute("isHandWritten", def.handWritten(lang).isPresent());
         model.addAttribute("outOfDate", def.handWrittenOutOfDate(lang, generatedNow(def, lang)));
+        model.addAttribute("addIn", HandWrittenDescriptions.isAddIn(lang));
+        model.addAttribute("runsAddIns", drbPythonSampleRunner.runsAddIns());
+        model.addAttribute("hooks", DrbPythonSampleRunner.ADD_IN_HOOKS);
     }
 
     private FormatDefinition draft(HttpSession session) {

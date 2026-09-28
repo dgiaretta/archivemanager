@@ -50,6 +50,27 @@ class DrbGeneratorTest {
     }
 
     @Test
+    void registersTheAddOnsAndCarriesTheHandWrittenAddIn() {
+        FormatDefinition def = FormatTemplates.fits();
+        String id = "am_fits_primary_header";
+        Map<String, String> pkg = generator.pythonDriverPackage(def);
+        assertThat(pkg.get("pyproject.toml")).contains("[project.entry-points.\"drb.addon\"]")
+                .contains(id + "_semantics = \"drb.drivers." + id + ":SemanticsAddon\"")
+                .contains(id + "_metadata = \"drb.drivers." + id + ":MetadataAddon\"")
+                .contains(id + "_checks = \"drb.drivers." + id + ":ChecksAddon\"");
+        String topicId = pkg.get("drb/topics/" + id + "/cortex.ttl").replaceAll("(?s).*drb:id \"([^\"]+)\".*", "$1");
+        assertThat(pkg.get("drb/drivers/" + id + "/__init__.py")).contains("ADDON_PREFIX = \"" + id + "\"")
+                .contains("TOPIC_ID = \"" + topicId + "\"");
+        assertThat(pkg).doesNotContainKey("drb/drivers/" + id + "/addin.py");
+
+        def.setHandWritten(info.oais.infomodel.structure.description.DescriptionLanguage.DRB_PYTHON,
+                "def check(root):\n    return []\n", null);
+        pkg = generator.pythonDriverPackage(def);
+        assertThat(pkg).containsEntry("drb/drivers/" + id + "/addin.py", "def check(root):\n    return []\n");
+        assertThat(pkg.get("README.md")).contains("## Hand-written add-in");
+    }
+
+    @Test
     void escapesUserTextAsPlainAsciiLiterals() {
         assertThat(DrbGenerator.quotedLiteral("a\"b\\c\ndé😀"))
                 .isEqualTo("\"a\\\"b\\\\c\\nd\\u00e9\\U0001f600\"");

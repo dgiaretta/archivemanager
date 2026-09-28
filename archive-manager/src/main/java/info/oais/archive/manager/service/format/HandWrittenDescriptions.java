@@ -47,7 +47,11 @@ import java.util.regex.Pattern;
  *       Daffodil's own built-in schemas (e.g. {@code DFDLGeneralFormat}, the
  *       layer definitions) and nothing else.</li>
  * </ul>
- * drb-python drivers are Python code, so they can't be written by hand here.
+ * For drb-python, what's written by hand is an <em>add-in</em>: Python code
+ * the generated driver calls (see {@code drb-python/interpreter.py}), rather
+ * than a replacement for the driver. Being code, nothing here can make it
+ * safe; {@code DrbPythonSampleRunner} parses it without running it, and runs
+ * it only if the server allows it.
  */
 public final class HandWrittenDescriptions {
 
@@ -102,7 +106,47 @@ public final class HandWrittenDescriptions {
             new Example("drb-multiline", DescriptionLanguage.DRB, "Records of several lines",
                     "Records of two lines each, every field ended by a newline. DRB's SDF schemas have no "
                             + "checksums, encryption or compression.",
-                    "drb-multiline.drb.xsd"));
+                    "drb-multiline.drb.xsd"),
+            new Example("drb-python-crc32", DescriptionLanguage.DRB_PYTHON, "CRC-32 check",
+                    "The file's last four bytes are a CRC-32 of the rest (describe them as the last field). "
+                            + "check() compares them, and metadata() adds the CRC to the metadata add-on. Any "
+                            + "checksum Python can compute works the same way (hashlib has MD5, SHA-2, ...).",
+                    "drb-python-crc32.py"),
+            new Example("drb-python-decompress", DescriptionLanguage.DRB_PYTHON, "xz and bzip2 compression",
+                    "prepare() decompresses the whole file before the element tree is read, recognising xz "
+                            + "(LZMA) and bzip2 by their magic numbers.",
+                    "drb-python-decompress.py"),
+            new Example("drb-python-aes", DescriptionLanguage.DRB_PYTHON, "AES decryption",
+                    "prepare() decrypts the file with AES-256 in CTR mode, the key coming from the server's "
+                            + "environment. Needs the cryptography package next to drb-python.",
+                    "drb-python-aes.py"));
+
+    /** A new drb-python add-in: every hook, documented, none doing anything yet. */
+    private static final String DRB_PYTHON_SKELETON = """
+            \"\"\"
+            Add-in for the generated drb-python driver. Every function is optional;
+            delete the ones you don't need.
+            \"\"\"
+
+
+            def prepare(data):
+                \"\"\"The file's bytes, before the element tree reads them: decrypt or
+                decompress them here. Returns the bytes to read.\"\"\"
+                return data
+
+
+            def check(root):
+                \"\"\"After decoding: checksums, CRCs, cross-checks. root.original_bytes
+                are the file's bytes, root.decoded_bytes what prepare() returned, and
+                root's children the decoded elements (child.name, child.value).
+                Returns a list of problems; empty if there are none.\"\"\"
+                return []
+
+
+            def metadata(root):
+                \"\"\"More metadata, merged into the metadata add-on's result.\"\"\"
+                return {}
+            """;
 
     public static List<Example> examples(DescriptionLanguage language) {
         return EXAMPLES.stream().filter(e -> e.language() == language).toList();
@@ -112,18 +156,17 @@ public final class HandWrittenDescriptions {
         return EXAMPLES;
     }
 
-    /** Whether descriptions in this language can be written by hand (not drb-python, which is code). */
-    public static boolean editable(DescriptionLanguage language) {
-        return language != DescriptionLanguage.DRB_PYTHON;
+    /** Whether what's written by hand for this language is an add-in to the generated driver (drb-python). */
+    public static boolean isAddIn(DescriptionLanguage language) {
+        return language == DescriptionLanguage.DRB_PYTHON;
     }
 
-    /** @return what's wrong with the text, in plain words; empty if it can be used */
+    /**
+     * @return what's wrong with the text, in plain words; empty if it can be used. For a drb-python add-in
+     *         only its size: whether it's valid Python is checked by {@code DrbPythonSampleRunner#checkAddIn}.
+     */
     public static List<String> check(DescriptionLanguage language, String text) {
         List<String> problems = new ArrayList<>();
-        if (!editable(language)) {
-            problems.add(language.label() + " descriptions are program code, so they can't be written by hand here.");
-            return problems;
-        }
         if (text == null || text.isBlank()) {
             problems.add("The description is empty.");
             return problems;
@@ -134,7 +177,7 @@ public final class HandWrittenDescriptions {
         }
         if (language == DescriptionLanguage.KAITAI) {
             checkKaitai(text, problems);
-        } else {
+        } else if (language != DescriptionLanguage.DRB_PYTHON) {
             checkXml(language, text, problems);
         }
         return problems;
@@ -313,6 +356,9 @@ public final class HandWrittenDescriptions {
 
     /** A starting point for a new description in {@code language}, when there's nothing generated yet. */
     public static String skeleton(DescriptionLanguage language) {
+        if (language == DescriptionLanguage.DRB_PYTHON) {
+            return DRB_PYTHON_SKELETON;
+        }
         List<Example> examples = examples(language);
         return examples.isEmpty() ? "" : examples.get(0).text();
     }

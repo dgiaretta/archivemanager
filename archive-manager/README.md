@@ -560,8 +560,19 @@ wanted.
     as Semantic Representation Information, and the preview notes when the
     tree has changed since the text was written. A sample test of a
     hand-written description shows the engine's own tree rather than lining
-    it up with the element tree. drb-python drivers are Python code, so they
-    can't be written by hand here.
+    it up with the element tree.
+
+    For drb-python, what's written by hand is instead a Python **add-in**
+    (`/repinfo-tools/hand/drb-python`, "Write an add-in in Python" in the
+    preview's drb-python section): code the generated driver calls, rather
+    than a replacement for it. It becomes the driver's `addin.py`, and may
+    define any of `prepare(data)` (the file's bytes before the element tree
+    reads them: decrypt or decompress them), `check(root)` (after decoding:
+    checksums, CRCs; its problems are added to the `checks` add-on's) and
+    `metadata(root)` (merged into the `metadata` add-on's result). `root`
+    gives `original_bytes`, `decoded_bytes` and the decoded elements. It's
+    saved to the archive after the driver module (labelled "with an add-in
+    written by hand").
 
     The page has worked examples (`HandWrittenDescriptions`, files in
     `src/main/resources/repinfo-tools/examples/`), each run on sample data by
@@ -569,8 +580,11 @@ wanted.
     and XOR decryption, and with records of several lines; DFDL with header
     assertions and a header checksum, a gzip-compressed section (Daffodil's
     `fixedLength` and `gzip` layers), and records of several lines; DRB with
-    records of several lines. What each language can't do is said there too:
-    neither DFDL nor Kaitai can compute a CRC or decrypt anything but
+    records of several lines; drb-python add-ins checking a CRC-32,
+    decompressing xz and bzip2, and decrypting AES-256-CTR (key from the
+    server's environment; needs the `cryptography` package), run by
+    `DrbPythonSampleRunnerTest`. What each language can't do is said there
+    too: neither DFDL nor Kaitai can compute a CRC or decrypt anything but
     XOR/rotations without custom Java code, and DRB's SDF has no checksums,
     encryption or compression.
 
@@ -585,6 +599,16 @@ wanted.
     Java method through a `java:` namespace) or reading files and URLs
     (`doc()`, `collection()`, `unparsed-text()`, ...), including when spelled
     with character references.
+
+    **A drb-python add-in is Python code, and nothing can make it safe to
+    run.** Saving one only parses it (`DrbPythonSampleRunner.checkAddIn`,
+    Python's `ast`, which doesn't run it) for syntax errors and the hooks.
+    Sample tests run it only if `archive.drb-python.run-hand-written-add-ins`
+    (env `ARCHIVE_DRB_PYTHON_RUN_HAND_WRITTEN_ADD_INS`) is `true`; it's
+    `false` by default, since it lets anyone with the edit password run code
+    on the server as the app's user. When it's off, the add-in can still be
+    written, downloaded in the package and saved, and the sample test says
+    why it won't run.
   - The definition being built lives in the HTTP session
     (`RepInfoToolController`, a session-scoped `FormatDefinition`), not the
     archive, until you explicitly save it. The editor shows the description
@@ -618,7 +642,22 @@ wanted.
       (`cortex.ttl`) matches the definition's **file extensions** (a new,
       optional field in the editor's details -- the FITS template sets
       `fits, fit, fts`), so drb's own resolver picks the driver
-      automatically for those files. User-entered text reaches the Python,
+      automatically for those files.
+
+      The package also registers three **drb-python add-ons** (the
+      `drb.addon` entry point; `SemanticsAddon`, `MetadataAddon` and
+      `ChecksAddon` in the driver module), named after the driver id and
+      applying to files of its topic:
+      `node.get_impl(list, "<id>_semantics")` lists every value with its
+      semantic name, definition, units, code meaning and physical value;
+      `node.get_impl(dict, "<id>_metadata")` gives each value by its semantic
+      name (else its element path) as meant -- a code's meaning, a physical
+      value, `None` for a fill value; and `node.get_impl(list, "<id>_checks")`
+      reports values outside their valid range or code list and bytes the
+      description doesn't cover. They're also attached when the factory is
+      used directly, without drb's resolver.
+
+      User-entered text reaches the Python,
       TOML and Turtle files only as escaped ASCII string literals
       (`DrbGenerator.quotedLiteral`), never as code. A logical-tree
       (HDF5-style) definition still gets a documented schema only -- no HDF5
@@ -656,8 +695,9 @@ wanted.
     The drb-python section has the same test (`POST /repinfo-tools/test-drb-python`,
     `DrbPythonSampleRunner`), for byte-layout definitions: the generated
     driver module is run by drb-python itself, in a separate Python process
-    with a 60-second limit, loaded straight from a temporary file (nothing is
-    pip-installed) and applied through drb's own file node. **This needs
+    with a 60-second limit, loaded straight from a temporary folder (nothing is
+    pip-installed) and applied through drb's own file node; the page then
+    shows what the `metadata` and `checks` add-ons return. **This needs
     Python 3 with drb-python on the machine running the app**
     (`pip install drb`): the app uses `archive.drb-python.executable`
     (env `ARCHIVE_DRB_PYTHON_EXECUTABLE`) if set, otherwise the first of

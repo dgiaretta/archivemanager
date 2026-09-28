@@ -84,7 +84,7 @@
         </p>
     </section>
 
-    <section class="editor-section" th:if="${drbPython != null}">
+    <section class="editor-section" th:if="${drbPython != null}" id="drb-python-section">
         <h2>DRB &mdash; Python (drb-python)</h2>
         <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
             <p class="muted">
@@ -98,6 +98,23 @@
                 Each field becomes a child node carrying its byte offset/length and its semantic
                 name, definition and units. The driver module is shown below.
             </p>
+            <p class="muted">
+                The package also registers three drb-python add-ons, giving a decoded file's meaning as
+                a whole: <code th:text="${drbPythonAddOns[0]}">am_format_semantics</code> (every value with
+                its meaning), <code th:text="${drbPythonAddOns[1]}">am_format_metadata</code> (semantic name
+                &rarr; value) and <code th:text="${drbPythonAddOns[2]}">am_format_checks</code> (values outside
+                their valid range or code list, and bytes not covered), e.g.
+                <code th:text="'node.get_impl(dict, &quot;' + ${drbPythonAddOns[1]} + '&quot;)'">node.get_impl(dict, "am_format_metadata")</code>.
+            </p>
+            <p class="notice" th:if="${drbPythonAddIn != null}">
+                With an add-in written by hand, as <code>addin.py</code> in the package.
+                <a th:href="@{/repinfo-tools/hand/drb-python}">Edit it</a>.
+            </p>
+            <p class="muted" th:if="${drbPythonAddIn == null}">
+                <a th:href="@{/repinfo-tools/hand/drb-python}">Write an add-in in Python</a> &mdash; code the
+                driver calls to decrypt or decompress a file before reading it, or to check checksums
+                and CRCs after.
+            </p>
             <a class="button-link" th:href="@{/repinfo-tools/download/drb-python}">Download driver package (.zip) &rarr;</a>
         </th:block>
         <th:block th:unless="${def.kind.name() == 'BYTE_LAYOUT'}">
@@ -109,13 +126,21 @@
             <a class="button-link" th:href="@{/repinfo-tools/download/drb-python}">Download .py &rarr;</a>
         </th:block>
         <pre class="sparql" th:text="${drbPython}">...</pre>
+        <th:block th:if="${drbPythonAddIn != null}">
+            <h3>addin.py, written by hand</h3>
+            <pre class="sparql" th:text="${drbPythonAddIn}">...</pre>
+        </th:block>
 
         <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
             <h3 id="drb-python-test">Test against a sample file</h3>
             <p class="muted" th:if="${drbPythonVersion != null}">
                 Runs the driver above with drb-python <span th:text="${drbPythonVersion}">2.11</span>
-                on this server and shows the decoded node tree. The file is only used for this one
-                request; nothing is stored.
+                on this server and shows the decoded node tree, then what its metadata and checks
+                add-ons return. The file is only used for this one request; nothing is stored.
+            </p>
+            <p class="notice" th:if="${drbPythonVersion != null and drbPythonAddIn != null and !drbPythonRunsAddIns}">
+                This server doesn't run hand-written add-ins, so the test can't run while there is one
+                (see <code>archive.drb-python.run-hand-written-add-ins</code>).
             </p>
             <p class="muted" th:if="${drbPythonVersion == null}" th:text="${drbPythonUnavailable}">
                 drb-python is not installed on this server.
@@ -126,6 +151,30 @@
                 <button type="submit">Decode sample</button>
             </form>
             <th:block th:if="${drbPythonTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${drbPythonTest})}"></div></th:block>
+            <th:block th:if="${drbPythonAddOnResults != null}">
+                <h4>What the add-ons return</h4>
+                <p class="notice error" th:if="${drbPythonAddOnResults.error() != null}"
+                   th:text="${'The add-ons failed: ' + drbPythonAddOnResults.error()}">error</p>
+                <th:block th:if="${drbPythonAddOnResults.error() == null}">
+                    <p class="muted" th:if="${drbPythonAddOnResults.checks().isEmpty()}">
+                        <code th:text="${drbPythonAddOns[2]}">checks</code>: no problems found.</p>
+                    <th:block th:unless="${drbPythonAddOnResults.checks().isEmpty()}">
+                        <p><code th:text="${drbPythonAddOns[2]}">checks</code> found:</p>
+                        <ul class="notice error">
+                            <li th:each="c : ${drbPythonAddOnResults.checks()}" th:text="${c}">problem</li>
+                        </ul>
+                    </th:block>
+                    <p><code th:text="${drbPythonAddOns[1]}">metadata</code>:</p>
+                    <table class="listing">
+                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <tbody>
+                        <tr th:each="m : ${drbPythonAddOnResults.metadata()}">
+                            <td><code th:text="${m.key}">name</code></td><td th:text="${m.value}">value</td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </th:block>
+            </th:block>
         </th:block>
     </section>
 

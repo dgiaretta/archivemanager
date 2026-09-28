@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Write a description by hand')}"></head>
+<head th:replace="~{fragments :: head('Write by hand')}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
@@ -8,9 +8,42 @@
         <a th:href="@{/repinfo-tools/edit}">&larr; Back to editor</a> &middot;
         <a th:href="@{/repinfo-tools/preview}">Preview</a>
     </p>
-    <h1 th:text="${def.name + ': ' + language.label() + ' by hand'}">Format: DFDL by hand</h1>
+    <h1 th:text="${def.name + ': ' + (addIn ? language.label() + ' add-in' : language.label() + ' by hand')}">Format: DFDL by hand</h1>
 
-    <section class="editor-section">
+    <section class="editor-section" th:if="${addIn}">
+        <p>
+            Write Python code for the generated drb-python driver to call, for what the element tree
+            can't express. The driver still reads the element tree; the add-in plugs in around it,
+            through any of these functions:
+        </p>
+        <ul>
+            <li><code>prepare(data)</code> &mdash; gets the file's bytes before they're read, and returns
+                the bytes to read: decrypt or decompress them here.</li>
+            <li><code>check(root)</code> &mdash; after decoding: returns a list of problems (checksums,
+                CRCs, cross-checks), added to what the <code>checks</code> add-on reports.</li>
+            <li><code>metadata(root)</code> &mdash; returns a dict merged into what the
+                <code>metadata</code> add-on returns.</li>
+        </ul>
+        <p>
+            <code>root.original_bytes</code> are the file's bytes, <code>root.decoded_bytes</code> what
+            <code>prepare()</code> returned, and <code>root</code>'s children the decoded elements. The
+            add-in is <code>addin.py</code> in the downloaded package, and is saved to the archive with
+            the driver.
+        </p>
+        <p class="notice">
+            An add-in is Python code, which runs with the full rights of whoever uses the driver.
+            It's checked to be valid Python, but it can't be checked to be safe.
+            <span th:if="${runsAddIns}">This server runs add-ins in sample tests.</span>
+            <span th:unless="${runsAddIns}">This server doesn't run add-ins in sample tests
+                (<code>archive.drb-python.run-hand-written-add-ins</code>), so test the downloaded
+                package elsewhere.</span>
+        </p>
+        <ul class="notice error" th:if="${!problems.isEmpty()}">
+            <li th:each="p : ${problems}" th:text="${p}">problem</li>
+        </ul>
+    </section>
+
+    <section class="editor-section" th:unless="${addIn}">
         <p>
             Write the <span th:text="${language.label()}">DFDL</span> description yourself, for what the
             editor's element tree can't express &mdash; checksums, encryption, other compression,
@@ -35,17 +68,20 @@
         <ul class="notice error" th:if="${!problems.isEmpty()}">
             <li th:each="p : ${problems}" th:text="${p}">problem</li>
         </ul>
+    </section>
 
+    <section class="editor-section">
         <form th:action="@{/repinfo-tools/hand/{l}(l=${languagePath})}" method="post" class="form">
             <label>
-                <span th:text="${language.label()} + ' description'">DFDL description</span>
+                <span th:text="${addIn ? 'addin.py' : language.label() + ' description'}">DFDL description</span>
                 <textarea name="text" rows="30" class="code-input" spellcheck="false" th:text="${text}"></textarea>
             </label>
             <button type="submit">Save and preview</button>
         </form>
         <form th:if="${isHandWritten}" th:action="@{/repinfo-tools/hand/{l}/revert(l=${languagePath})}" method="post"
               class="form">
-            <button type="submit" class="delete-btn">Discard the hand-written version, use the generated one</button>
+            <button type="submit" class="delete-btn"
+                    th:text="${addIn ? 'Remove the add-in' : 'Discard the hand-written version, use the generated one'}">Discard</button>
         </form>
     </section>
 

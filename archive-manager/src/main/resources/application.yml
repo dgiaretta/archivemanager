@@ -50,6 +50,12 @@ archive:
   # Empty means: try python3, then python. Env: ARCHIVE_DRB_PYTHON_EXECUTABLE.
   drb-python:
     executable: ""
+    # A drb-python driver can carry a hand-written add-in: Python code. Sample
+    # tests run it only if this is true, which lets anyone who can log in run
+    # code on this server as the app's user. Leave it false unless everyone
+    # with the edit password is trusted that far.
+    # Env: ARCHIVE_DRB_PYTHON_RUN_HAND_WRITTEN_ADD_INS.
+    run-hand-written-add-ins: false
   # RepInfo Tools' Kaitai sample test runs the bundled Kaitai Struct compiler
   # as a separate Java process (with this JVM's own java); it's stopped after
   # this many seconds. Env: ARCHIVE_KAITAI_TIMEOUT_SECONDS.

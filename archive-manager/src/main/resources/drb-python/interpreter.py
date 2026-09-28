@@ -13,9 +13,31 @@ an optional element whose condition is false is simply absent. Every node's
 attributes carry its byte "offset" and "length", and its semantics
 ("semantic_name", "definition", "units", "units_uri", "concept_uri"); a coded
 value also gets its "meaning", and a scaled value its "physical_value".
+
+Three drb-python add-ons (the "drb.addon" entry points) give a decoded file's
+meaning as a whole - see _semantics, _metadata and _checks below. Each is
+registered as "<ADDON_PREFIX>_<kind>" and applies to nodes of this driver's
+topic:
+
+    node.get_impl(list, ADDON_PREFIX + "_semantics")  # every value, with its meaning
+    node.get_impl(dict, ADDON_PREFIX + "_metadata")   # name -> value
+    node.get_impl(list, ADDON_PREFIX + "_checks")     # problems found, if any
+
+A hand-written add-in - a module "addin" next to this one - can plug code into
+the driver for what the description can't say. Every hook is optional:
+
+    prepare(data: bytes) -> bytes   before decoding: decrypt, decompress, ...
+    check(root) -> list of str      after decoding: checksums, CRCs, ...
+    metadata(root) -> dict          more metadata, merged into _metadata's
+
+"root" is the decoded file; root.original_bytes are the file's bytes and
+root.decoded_bytes what prepare() returned (the bytes the description read).
 See the package's README.md for installing and using it.
 """
+import importlib
+import importlib.util
 import io
+import re
 import struct
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Tuple
@@ -24,6 +46,11 @@ from drb.core import DrbFactory, DrbNode
 from drb.exceptions.core import DrbFactoryException
 from drb.nodes.abstract_node import AbstractNode
 from drb.nodes.logical_node import WrappedNode
+
+try:
+    from drb.addons.addon import Addon
+except ImportError:  # a drb without add-ons: they're still attached to decoded files
+    Addon = object
 
 _STRUCT = {"int8": "b", "uint8": "B", "int16": "h", "uint16": "H",
            "int32": "i", "uint32": "I", "int64": "q", "uint64": "Q",
@@ -154,6 +181,13 @@ def _semantic_attributes(desc: dict, value: Any = None) -> Dict[str, Any]:
         attrs["physical_value"] = scaled + Decimal(sem["offset"]) if "offset" in sem else scaled
     if value is not None and sem.get("fill") is not None and _plain(value) == sem["fill"]:
         attrs["fill"] = True
+    if value is not None and codes and attrs.get("meaning") is None and not attrs.get("fill"):
+        attrs["unknown_code"] = True
+    if ("min" in sem or "max" in sem) and isinstance(value, (int, float)) and not attrs.get("fill"):
+        physical = attrs.get("physical_value", Decimal(str(value)))
+        attrs["valid_min"], attrs["valid_max"] = sem.get("min"), sem.get("max")
+        if ("min" in sem and physical < Decimal(sem["min"])) or ("max" in sem and physical > Decimal(sem["max"])):
+            attrs["out_of_range"] = True
     return attrs
 
 
@@ -240,6 +274,26 @@ def _read_field(desc: dict, reader: _Reader, scope: _Scope, text: Optional[Tuple
     return chunk.decode("ascii", errors="replace") if kind == "string" else bytes(chunk)
 
 
+_ADDIN: List[Any] = []
+
+
+def _addin() -> Any:
+    """The hand-written add-in module next to this one, or None if there isn't one."""
+    if not _ADDIN:
+        name = __name__ + ".addin"
+        try:
+            found = importlib.util.find_spec(name) is not None
+        except (ImportError, ValueError):
+            found = False
+        _ADDIN.append(importlib.import_module(name) if found else None)
+    return _ADDIN[0]
+
+
+def _hook(name: str) -> Any:
+    addin = _addin()
+    return getattr(addin, name, None) if addin is not None else None
+
+
 class _FormatNode(WrappedNode):
     """A whole file decoded against DESCRIPTION; its children are the root record's elements."""
 
@@ -247,12 +301,164 @@ class _FormatNode(WrappedNode):
         super().__init__(base_node)
         with base_node.get_impl(io.BufferedIOBase) as stream:
             data = stream.read()
-        reader = _Reader(data, DESCRIPTION["order"])
+        self.original_bytes = bytes(data)
+        prepare = _hook("prepare")
+        if prepare is not None:
+            data = prepare(self.original_bytes)
+            if not isinstance(data, (bytes, bytearray)):
+                raise ValueError("the add-in's prepare() must return bytes, not " + type(data).__name__)
+        self.decoded_bytes = bytes(data)
+        reader = _Reader(self.decoded_bytes, DESCRIPTION["order"])
         self._children = _read_record(DESCRIPTION["root"], reader, _Scope(None))
         for child in self._children:
             child.parent = self
-        self.trailing_bytes = len(data) - reader.pos
+        self.trailing_bytes = len(self.decoded_bytes) - reader.pos
+        # Also when the factory is used directly, without drb's resolver attaching the add-ons.
+        for addon in (SemanticsAddon, MetadataAddon, ChecksAddon):
+            self.add_impl(addon.return_type(), addon.KIND, addon.identifier())
 
     @property
     def children(self) -> List[DrbNode]:
         return self._children
+
+    # WrappedNode passes these to the file node, which would lose the add-ons added to this one.
+    def has_impl(self, impl: type, identifier: str = None) -> bool:
+        return DrbNode.has_impl(self, impl, identifier) or super().has_impl(impl, identifier)
+
+    def get_impl(self, impl: type, identifier: str = None, **kwargs) -> Any:
+        if DrbNode.has_impl(self, impl, identifier):
+            return DrbNode.get_impl(self, impl, identifier, **kwargs)
+        return super().get_impl(impl, identifier, **kwargs)
+
+
+def _format_node(node: DrbNode) -> "_FormatNode":
+    return node if isinstance(node, _FormatNode) else _FormatNode(node)
+
+
+def _leaves(node: DrbNode, path: str = ""):
+    """(path, node) for every decoded value; repeated elements are numbered from 1, e.g. /sample[2]."""
+    counts: Dict[str, int] = {}
+    for child in node.children:
+        counts[child.name] = counts.get(child.name, 0) + 1
+    seen: Dict[str, int] = {}
+    for child in node.children:
+        seen[child.name] = seen.get(child.name, 0) + 1
+        child_path = path + "/" + child.name + (f"[{seen[child.name]}]" if counts[child.name] > 1 else "")
+        if child.children:
+            yield from _leaves(child, child_path)
+        else:
+            yield child_path, child
+
+
+def _attr(node: DrbNode, key: str) -> Any:
+    return node.attributes.get((key, None))
+
+
+def _shown(value: Any) -> Any:
+    if isinstance(value, (bytes, bytearray)):
+        return "0x" + bytes(value).hex()
+    if isinstance(value, Decimal):
+        return format(value.normalize(), "f")
+    return value
+
+
+def _semantics(node: DrbNode) -> List[Dict[str, Any]]:
+    """Every decoded value with what it means: semantic name, definition, units, code meaning, physical value."""
+    rows = []
+    for path, leaf in _leaves(_format_node(node)):
+        row = {"path": path, "name": leaf.name, "value": _shown(leaf.value)}
+        for key in ("semantic_name", "definition", "units", "units_uri", "concept_uri", "meaning",
+                    "physical_value", "fill", "valid_min", "valid_max"):
+            if _attr(leaf, key) is not None:
+                row[key] = _shown(_attr(leaf, key))
+        rows.append(row)
+    return rows
+
+
+def _metadata(node: DrbNode) -> Dict[str, Any]:
+    """Each value by its semantic name (else its element path) as meant: a code's meaning, a scaled value's
+    physical value, None for a fill value, else the value itself. A name found more than once gives a
+    list. The add-in's metadata(root), if any, is merged in."""
+    root = _format_node(node)
+    result: Dict[str, Any] = {}
+    repeated = set()
+    for path, leaf in _leaves(root):
+        key = _attr(leaf, "semantic_name") or re.sub(r"\[\d+\]", "", path)
+        if _attr(leaf, "fill"):
+            value = None
+        elif _attr(leaf, "meaning") is not None:
+            value = _attr(leaf, "meaning")
+        elif _attr(leaf, "physical_value") is not None:
+            value = _shown(_attr(leaf, "physical_value"))
+        else:
+            value = _shown(leaf.value)
+        if key not in result:
+            result[key] = value
+            continue
+        if key not in repeated:
+            result[key] = [result[key]]
+            repeated.add(key)
+        result[key].append(value)
+    extra = _hook("metadata")
+    if extra is not None:
+        result.update(extra(root) or {})
+    return result
+
+
+def _checks(node: DrbNode) -> List[str]:
+    """Problems found in a decoded file: values outside their valid range or code list, bytes the
+    description doesn't cover, and whatever the add-in's check(root) reports. Empty if there are none."""
+    root = _format_node(node)
+    problems = []
+    for path, leaf in _leaves(root):
+        if _attr(leaf, "out_of_range"):
+            low, high = _attr(leaf, "valid_min"), _attr(leaf, "valid_max")
+            shown = _attr(leaf, "physical_value")
+            problems.append(f"{path} = {_shown(leaf.value if shown is None else shown)} is outside its valid range "
+                            f"({'...' if low is None else low} to {'...' if high is None else high})")
+        if _attr(leaf, "unknown_code"):
+            problems.append(f"{path} = {_shown(leaf.value)} isn't in its code list")
+    if root.trailing_bytes > 0:
+        problems.append(f"{root.trailing_bytes} bytes at the end aren't covered by the description")
+    check = _hook("check")
+    if check is not None:
+        problems.extend(str(p) for p in (check(root) or []))
+    return problems
+
+
+class _GeneratedAddon(Addon):
+    """A drb-python add-on for files of this driver's topic; ADDON_PREFIX and TOPIC_ID are set below."""
+    KIND = None
+    RETURNS = None
+
+    @classmethod
+    def identifier(cls) -> str:
+        return ADDON_PREFIX + "_" + cls.__name__[:-len("Addon")].lower()
+
+    @classmethod
+    def return_type(cls) -> type:
+        return cls.RETURNS
+
+    def apply(self, node: DrbNode, **kwargs) -> Any:
+        return type(self).KIND(node)
+
+    def can_apply(self, source) -> bool:
+        return str(getattr(source, "id", "")) == TOPIC_ID
+
+
+class SemanticsAddon(_GeneratedAddon):
+    """Every decoded value with its meaning (a list of dicts)."""
+    KIND = staticmethod(_semantics)
+    RETURNS = list
+
+
+class MetadataAddon(_GeneratedAddon):
+    """Semantic name -> value (a dict)."""
+    KIND = staticmethod(_metadata)
+    RETURNS = dict
+
+
+class ChecksAddon(_GeneratedAddon):
+    """Problems found (a list of str; empty if none)."""
+    KIND = staticmethod(_checks)
+    RETURNS = list

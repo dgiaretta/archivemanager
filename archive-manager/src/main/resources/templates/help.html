@@ -176,7 +176,11 @@
                 Kaitai Struct, DFDL or DRB description by hand, from scratch or by extending the
                 generated one; the page has worked examples, and the hand-written text is used for
                 the sample test, download and save (it's checked first so it can only describe
-                data).</li>
+                data). The drb-python driver package also has add-ons giving a decoded file's
+                semantics, metadata and checks (values outside their valid range or code list), and
+                can carry a Python add-in written by hand &mdash; code the driver calls to decrypt or
+                decompress a file, or to check a CRC. Being code, an add-in is only run in sample
+                tests if the server is set up to allow it.</li>
         </ul>
     </section>
 

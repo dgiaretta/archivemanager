@@ -360,6 +360,42 @@ class RepInfoToolControllerTest {
         assertThat(extra).isNotBlank();
     }
 
+    @Test
+    void addsAHandWrittenAddInToTheDrbPythonDriverPackage() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        buildTelemetry(session);
+        // A new add-in starts from the documented hooks, not from the generated driver.
+        mockMvc.perform(get("/repinfo-tools/hand/drb-python").session(session))
+                .andExpect(content().string(containsString("def prepare(data):")))
+                .andExpect(content().string(containsString("doesn't run add-ins in sample tests")));
+
+        String crc = HandWrittenDescriptions.examples().stream().filter(e -> e.id().equals("drb-python-crc32"))
+                .findFirst().orElseThrow().text();
+        mockMvc.perform(post("/repinfo-tools/hand/drb-python").param("text", crc).session(session))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(get("/repinfo-tools/preview").session(session))
+                .andExpect(content().string(containsString("addin.py, written by hand")))
+                .andExpect(content().string(containsString("_metadata")));
+
+        byte[] zip = mockMvc.perform(get("/repinfo-tools/download/drb-python").session(session))
+                .andReturn().getResponse().getContentAsByteArray();
+        java.util.Map<String, String> files = new java.util.HashMap<>();
+        try (var in = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(zip))) {
+            for (var entry = in.getNextEntry(); entry != null; entry = in.getNextEntry()) {
+                files.put(entry.getName().substring(entry.getName().indexOf('/') + 1),
+                        new String(in.readAllBytes(), StandardCharsets.UTF_8));
+            }
+        }
+        assertThat(files).containsKey("pyproject.toml");
+        assertThat(files.get("pyproject.toml")).contains("[project.entry-points.\"drb.addon\"]");
+        assertThat(files.entrySet()).anyMatch(e -> e.getKey().endsWith("/addin.py") && e.getValue().equals(crc));
+
+        // The edit page keeps checking the tree: an add-in doesn't replace it.
+        mockMvc.perform(post("/repinfo-tools/hand/drb-python/revert").session(session));
+        mockMvc.perform(get("/repinfo-tools/preview").session(session))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("addin.py, written by hand"))));
+    }
+
     /** Adds an element through the editor and returns its id (taken from the redirect). */
     private String addElement(MockHttpSession session, String parentId, String kind, String name, String discriminator,
                               String key) throws Exception {

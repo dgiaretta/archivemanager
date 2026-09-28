@@ -3,6 +3,7 @@ package info.oais.archive.manager.service.format;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import info.oais.infomodel.structure.description.FormatDescription;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -12,7 +13,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -33,6 +36,14 @@ import java.util.stream.Stream;
  * The generated module holds user-entered text only as escaped string
  * literals (see {@link DrbGenerator#quotedLiteral}), and the helper script
  * run alongside it is fixed.
+ *
+ * <p>The driver is loaded as a package, so a hand-written add-in can sit next
+ * to it as {@code addin.py}, as in the downloaded driver package. An add-in is
+ * Python code written by a user of this app, which nothing here can make safe
+ * to run, so it's only run when {@code archive.drb-python.run-hand-written-add-ins}
+ * is true ({@link #runsAddIns()}); {@link #checkAddIn} only parses one, which
+ * doesn't run it. After decoding, the run also calls the driver's
+ * {@code metadata} and {@code checks} add-ons and reports what they return.</p>
  */
 @Component
 public class DrbPythonSampleRunner {
@@ -43,10 +54,11 @@ public class DrbPythonSampleRunner {
     private static final long NEGATIVE_CACHE_MILLIS = 60_000;
 
     private static final String RUNNER_SCRIPT = """
-            import importlib.util, json, sys
+            import importlib.util, json, os, sys
             from drb.drivers.file.file import DrbFileFactory
 
-            driver_path, sample_path, factory_name, max_rows = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+            package_dir, sample_path, factory_name, max_rows = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+            addon_prefix = sys.argv[5] if len(sys.argv) > 5 else ""
             rows = []
 
             def describe(value):
@@ -70,27 +82,92 @@ public class DrbPythonSampleRunner {
                              "value": "" if children else describe(node.value), "byteRange": position})
                 return all(walk(child, depth + 1) for child in children)
 
+            def add_ons(root):
+                if not addon_prefix:
+                    return None
+                try:
+                    metadata = root.get_impl(dict, addon_prefix + "_metadata")
+                    checks = root.get_impl(list, addon_prefix + "_checks")
+                    return {"metadata": {str(k): describe(v) for k, v in metadata.items()},
+                            "checks": [str(c) for c in checks], "error": None}
+                except Exception as ex:
+                    return {"metadata": {}, "checks": [], "error": type(ex).__name__ + ": " + str(ex)}
+
             try:
-                spec = importlib.util.spec_from_file_location("generated_drb_driver", driver_path)
+                spec = importlib.util.spec_from_file_location("generated_drb_driver",
+                        os.path.join(package_dir, "__init__.py"), submodule_search_locations=[package_dir])
                 module = importlib.util.module_from_spec(spec)
+                sys.modules[spec.name] = module
                 spec.loader.exec_module(module)
                 root = getattr(module, factory_name)().create(DrbFileFactory().create(sample_path))
                 complete = walk(root, 0)
                 trailing = getattr(root, "trailing_bytes", None)
-                print(json.dumps({"rows": rows, "truncated": not complete, "error": None, "trailing": trailing}))
+                print(json.dumps({"rows": rows, "truncated": not complete, "error": None, "trailing": trailing,
+                                  "addOns": add_ons(root)}))
             except Exception as ex:
                 print(json.dumps({"rows": [], "truncated": False, "error": type(ex).__name__ + ": " + str(ex)}))
             """;
 
+    /** Parses an add-in without running it: syntax errors, and which hooks it defines at the top level. */
+    private static final String CHECK_SCRIPT = """
+            import ast, json, sys
+            source = open(sys.argv[1], encoding="utf-8").read()
+            try:
+                tree = ast.parse(source, "addin.py")
+            except SyntaxError as ex:
+                print(json.dumps({"error": "line " + str(ex.lineno) + ": " + str(ex.msg), "hooks": []}))
+            else:
+                hooks = [n.name for n in tree.body if isinstance(n, ast.FunctionDef)]
+                print(json.dumps({"error": None, "hooks": hooks}))
+            """;
+
+    /** The hooks a hand-written add-in can define; see {@code drb-python/interpreter.py}. */
+    public static final List<String> ADD_IN_HOOKS = List.of("prepare", "check", "metadata");
+
+    /**
+     * What a drb-python run produced: the decoded tree, and what the driver's
+     * add-ons returned (null when they weren't asked for, or the file
+     * couldn't be decoded).
+     */
+    public record Outcome(SampleDecodeResult decoded, AddOnResults addOns) {
+    }
+
+    /**
+     * @param metadata the {@code metadata} add-on's result, as text
+     * @param checks   the {@code checks} add-on's problems; empty if none
+     * @param error    why the add-ons failed, or null
+     */
+    public record AddOnResults(Map<String, String> metadata, List<String> checks, String error) {
+    }
+
     private final String configuredExecutable;
+    private final boolean runsAddIns;
     private final ObjectMapper json = new ObjectMapper();
     private volatile String resolvedExecutable;
     private volatile String resolvedVersion;
     private volatile long lastFailedProbe;
 
-    public DrbPythonSampleRunner(@Value("${archive.drb-python.executable:}") String configuredExecutable) {
+    @Autowired
+    public DrbPythonSampleRunner(@Value("${archive.drb-python.executable:}") String configuredExecutable,
+                                 @Value("${archive.drb-python.run-hand-written-add-ins:false}") boolean runsAddIns) {
         this.configuredExecutable = configuredExecutable == null ? "" : configuredExecutable.strip();
+        this.runsAddIns = runsAddIns;
     }
+
+    public DrbPythonSampleRunner(String configuredExecutable) {
+        this(configuredExecutable, false);
+    }
+
+    /** Whether sample tests run hand-written add-ins ({@code archive.drb-python.run-hand-written-add-ins}). */
+    public boolean runsAddIns() {
+        return runsAddIns;
+    }
+
+    /** Why a sample test with a hand-written add-in wasn't run. */
+    public static final String ADD_INS_NOT_RUN = "This driver has a hand-written add-in, which is Python code, and "
+            + "this server doesn't run hand-written code: set archive.drb-python.run-hand-written-add-ins to true "
+            + "to allow it (anyone who can log in could then run code on the server). The package can still be "
+            + "downloaded and tested elsewhere.";
 
     /** @return the installed drb-python version, if a usable interpreter was found. */
     public Optional<String> drbVersion() {
@@ -123,41 +200,129 @@ public class DrbPythonSampleRunner {
 
     /** @param fileName the sample's original name, shown as the decoded tree's root; sanitized before use */
     public SampleDecodeResult run(String driverModule, String factoryName, byte[] sample, String fileName) {
+        return run(driverModule, null, factoryName, null, sample, fileName).decoded();
+    }
+
+    /**
+     * Runs the driver, with its hand-written add-in if there is one, then its
+     * {@code metadata} and {@code checks} add-ons.
+     *
+     * @param addIn       the hand-written add-in ({@code addin.py}), or null; not run unless {@link #runsAddIns()}
+     * @param addonPrefix the driver's add-on prefix ({@link DrbGenerator#pythonDriverId}), or null to skip the add-ons
+     */
+    public Outcome run(String driverModule, String addIn, String factoryName, String addonPrefix, byte[] sample,
+                       String fileName) {
         if (drbVersion().isEmpty()) {
-            return SampleDecodeResult.failure(notAvailableMessage());
+            return new Outcome(SampleDecodeResult.failure(notAvailableMessage()), null);
+        }
+        if (addIn != null && !runsAddIns) {
+            return new Outcome(SampleDecodeResult.failure(ADD_INS_NOT_RUN), null);
         }
         Path dir = null;
         try {
             dir = Files.createTempDirectory("repinfo-tools-drb-");
-            Path driver = Files.writeString(dir.resolve("generated_drb_driver.py"), driverModule, StandardCharsets.UTF_8);
+            Path packageDir = Files.createDirectory(dir.resolve("generated_drb_driver"));
+            Files.writeString(packageDir.resolve("__init__.py"), driverModule, StandardCharsets.UTF_8);
+            if (addIn != null) {
+                Files.writeString(packageDir.resolve("addin.py"), addIn, StandardCharsets.UTF_8);
+            }
             Path runner = Files.writeString(dir.resolve("run_sample.py"), RUNNER_SCRIPT, StandardCharsets.UTF_8);
             Path samplePath = Files.write(dir.resolve(safeSampleName(fileName)), sample);
-            Path out = dir.resolve("out.json");
-            Path err = dir.resolve("err.txt");
-            Process process = new ProcessBuilder(resolvedExecutable, "-X", "utf8", "-W", "ignore", runner.toString(),
-                    driver.toString(), samplePath.toString(), factoryName, String.valueOf(SampleDecodeResult.MAX_ROWS))
-                    .directory(dir.toFile())
-                    .redirectOutput(out.toFile())
-                    .redirectError(err.toFile())
-                    .start();
-            if (!process.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
-                process.destroyForcibly();
-                return SampleDecodeResult.failure("drb-python did not finish within " + TIMEOUT_SECONDS + " seconds.");
+            List<String> command = new ArrayList<>(List.of(resolvedExecutable, "-X", "utf8", "-W", "ignore",
+                    runner.toString(), packageDir.toString(), samplePath.toString(), factoryName,
+                    String.valueOf(SampleDecodeResult.MAX_ROWS)));
+            if (addonPrefix != null) {
+                command.add(addonPrefix);
             }
-            String stdout = Files.readString(out, StandardCharsets.UTF_8).strip();
-            if (stdout.isEmpty()) {
-                return SampleDecodeResult.failure("drb-python exited with code " + process.exitValue() + ":\n"
-                        + Files.readString(err, StandardCharsets.UTF_8).strip());
+            ProcessOutput output = runPython(dir, command);
+            if (output.error() != null) {
+                return new Outcome(SampleDecodeResult.failure(output.error()), null);
             }
-            return toResult(json.readTree(stdout));
+            JsonNode node = json.readTree(output.stdout());
+            return new Outcome(toResult(node), toAddOns(node.path("addOns")));
         } catch (IOException e) {
-            return SampleDecodeResult.failure("Could not run drb-python: " + e.getMessage());
+            return new Outcome(SampleDecodeResult.failure("Could not run drb-python: " + e.getMessage()), null);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return SampleDecodeResult.failure("Interrupted while waiting for drb-python.");
+            return new Outcome(SampleDecodeResult.failure("Interrupted while waiting for drb-python."), null);
         } finally {
             deleteQuietly(dir);
         }
+    }
+
+    /**
+     * Checks a hand-written add-in by parsing it with Python, which doesn't
+     * run it: syntax errors, and whether it defines any of the {@link #ADD_IN_HOOKS}.
+     *
+     * @return what's wrong, in plain words; empty if nothing is found, or if no Python is available to check with
+     */
+    public List<String> checkAddIn(String addIn) {
+        if (drbVersion().isEmpty()) {
+            return List.of();
+        }
+        Path dir = null;
+        try {
+            dir = Files.createTempDirectory("repinfo-tools-drb-");
+            Path source = Files.writeString(dir.resolve("addin.py"), addIn, StandardCharsets.UTF_8);
+            Path script = Files.writeString(dir.resolve("check_addin.py"), CHECK_SCRIPT, StandardCharsets.UTF_8);
+            ProcessOutput output = runPython(dir, List.of(resolvedExecutable, "-I", "-X", "utf8", script.toString(),
+                    source.toString()));
+            if (output.error() != null) {
+                return List.of("Could not check the add-in: " + output.error());
+            }
+            JsonNode node = json.readTree(output.stdout());
+            if (node.hasNonNull("error")) {
+                return List.of("This isn't valid Python (" + node.get("error").asText() + ").");
+            }
+            List<String> hooks = new ArrayList<>();
+            node.path("hooks").forEach(h -> hooks.add(h.asText()));
+            if (hooks.stream().noneMatch(ADD_IN_HOOKS::contains)) {
+                return List.of("The add-in doesn't define any of the functions the driver calls: "
+                        + String.join("(), ", ADD_IN_HOOKS) + "().");
+            }
+            return List.of();
+        } catch (IOException e) {
+            return List.of("Could not check the add-in: " + e.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return List.of("Interrupted while checking the add-in.");
+        } finally {
+            deleteQuietly(dir);
+        }
+    }
+
+    private record ProcessOutput(String stdout, String error) {
+    }
+
+    private ProcessOutput runPython(Path dir, List<String> command) throws IOException, InterruptedException {
+        Path out = dir.resolve("out.json");
+        Path err = dir.resolve("err.txt");
+        Process process = new ProcessBuilder(command)
+                .directory(dir.toFile())
+                .redirectOutput(out.toFile())
+                .redirectError(err.toFile())
+                .start();
+        if (!process.waitFor(TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+            process.destroyForcibly();
+            return new ProcessOutput(null, "drb-python did not finish within " + TIMEOUT_SECONDS + " seconds.");
+        }
+        String stdout = Files.readString(out, StandardCharsets.UTF_8).strip();
+        if (stdout.isEmpty()) {
+            return new ProcessOutput(null, "drb-python exited with code " + process.exitValue() + ":\n"
+                    + Files.readString(err, StandardCharsets.UTF_8).strip());
+        }
+        return new ProcessOutput(stdout, null);
+    }
+
+    private static AddOnResults toAddOns(JsonNode node) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return null;
+        }
+        Map<String, String> metadata = new LinkedHashMap<>();
+        node.path("metadata").fields().forEachRemaining(e -> metadata.put(e.getKey(), e.getValue().asText()));
+        List<String> checks = new ArrayList<>();
+        node.path("checks").forEach(c -> checks.add(c.asText()));
+        return new AddOnResults(metadata, checks, node.hasNonNull("error") ? node.get("error").asText() : null);
     }
 
     /**
@@ -222,7 +387,7 @@ public class DrbPythonSampleRunner {
             base = base.substring(base.length() - 80);
         }
         // Reserved by the runner's own files in the same temp directory.
-        if (base.isEmpty() || base.equals("generated_drb_driver.py") || base.equals("run_sample.py")
+        if (base.isEmpty() || base.equals("generated_drb_driver") || base.equals("run_sample.py")
                 || base.equals("out.json") || base.equals("err.txt")) {
             return "sample.bin";
         }

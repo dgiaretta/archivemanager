@@ -120,7 +120,7 @@ class HandWrittenDescriptionsTest {
         assertThat(kaitai).anyMatch(p -> p.startsWith("'meta/imports' reads other files"));
         assertThat(kaitai).anyMatch(p -> p.startsWith("'*/' can't appear"));
 
-        assertThat(HandWrittenDescriptions.check(DescriptionLanguage.DRB_PYTHON, "import os"))
-                .anyMatch(p -> p.contains("can't be written by hand"));
+        assertThat(HandWrittenDescriptions.check(DescriptionLanguage.DRB_PYTHON, " "))
+                .containsExactly("The description is empty.");
     }
 }
