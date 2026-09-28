@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Records of two lines each (a name, then a city), repeated to the end of
+     the file: each field ends at a newline. DRB's SDF schemas have no
+     checksums, encryption or compression; describe those with DFDL or Kaitai. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:sdf="http://www.gael.fr/2004/12/drb/sdf">
+  <xs:element name="addresses">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="record" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="name" type="xs:string">
+                <xs:annotation><xs:appinfo><sdf:block><sdf:encoding>ASCII</sdf:encoding><sdf:delimiter>&#10;</sdf:delimiter></sdf:block></xs:appinfo></xs:annotation>
+              </xs:element>
+              <xs:element name="city" type="xs:string">
+                <xs:annotation><xs:appinfo><sdf:block><sdf:encoding>ASCII</sdf:encoding><sdf:delimiter>&#10;</sdf:delimiter></sdf:block></xs:appinfo></xs:annotation>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

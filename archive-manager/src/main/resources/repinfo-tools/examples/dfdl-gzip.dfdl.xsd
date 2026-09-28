@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A gzip-compressed section of stated length, read through two of Daffodil's
+     built-in layers: fixedLength bounds the section, gzip decompresses it.
+     Daffodil 3.11 also has layers for base64 (base64_MIME), byte swapping and
+     line folding; other compression schemes, and encryption, need a custom
+     layer written in Java. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+           xmlns:dfdlx="http://www.ogf.org/dfdl/dfdl-1.0/extensions"
+           xmlns:fl="urn:org.apache.daffodil.layers.fixedLength"
+           xmlns:gz="urn:org.apache.daffodil.layers.gzip"
+           xmlns:tns="urn:example:packed"
+           targetNamespace="urn:example:packed"
+           elementFormDefault="qualified">
+
+  <xs:include schemaLocation="/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd"/>
+  <xs:import namespace="urn:org.apache.daffodil.layers.fixedLength"
+             schemaLocation="/org/apache/daffodil/layers/xsd/fixedLengthLayer.dfdl.xsd"/>
+  <xs:import namespace="urn:org.apache.daffodil.layers.gzip"
+             schemaLocation="/org/apache/daffodil/layers/xsd/gzipLayer.dfdl.xsd"/>
+
+  <xs:annotation>
+    <xs:appinfo source="http://www.ogf.org/dfdl/">
+      <dfdl:format ref="tns:GeneralFormat" representation="binary" byteOrder="bigEndian"
+                   lengthKind="explicit" lengthUnits="bytes" encoding="US-ASCII"/>
+    </xs:appinfo>
+  </xs:annotation>
+
+  <xs:element name="packed" dfdl:lengthKind="implicit">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="compressed_length" type="xs:unsignedInt" dfdl:length="4"/>
+        <xs:sequence dfdlx:layer="fl:fixedLength">
+          <xs:annotation>
+            <xs:appinfo source="http://www.ogf.org/dfdl/">
+              <dfdl:newVariableInstance ref="fl:fixedLength" defaultValue="{ tns:compressed_length }"/>
+            </xs:appinfo>
+          </xs:annotation>
+          <xs:sequence dfdlx:layer="gz:gzip">
+            <xs:element name="text" type="xs:string" dfdl:representation="text" dfdl:lengthKind="delimited"/>
+          </xs:sequence>
+        </xs:sequence>
+        <xs:element name="trailer" type="xs:unsignedByte" dfdl:length="1"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

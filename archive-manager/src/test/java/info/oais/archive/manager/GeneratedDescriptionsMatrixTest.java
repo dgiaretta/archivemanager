@@ -122,6 +122,10 @@ class GeneratedDescriptionsMatrixTest {
                         List.of("ledger.row[0].name = Smith, J", "ledger.row[0].amount = 1234.5", "ledger.row[0].note = <nil>",
                                 "ledger.row[1].name = Say \"hi\"", "ledger.row[1].amount = -2", "ledger.row[1].note = ok")),
                 new Case("offsets and compression (Kaitai)", archive(), archiveBytes(), archiveLines()),
+                new Case("arithmetic on 8-bit fields in a condition and a count", smallArithmetic(),
+                        new byte[] {1, 2, 7, 5, 6, 7, 8, 9},
+                        List.of("small.a = 1", "small.b = 2", "small.extra = 7", "small.items[0] = 5",
+                                "small.items[1] = 6", "small.items[2] = 7", "small.items[3] = 8", "small.items[4] = 9")),
                 new Case("CSV template", FormatTemplates.csv().toFormatDescription(),
                         "AB12,32,-45\nXY9,33,215\n".getBytes(StandardCharsets.US_ASCII),
                         List.of("weather_station_readings_csv_example.reading[0].station = AB12",
@@ -373,6 +377,14 @@ class GeneratedDescriptionsMatrixTest {
         int n = deflater.deflate(buffer);
         deflater.end();
         return java.util.Arrays.copyOf(buffer, n);
+    }
+
+    /** Daffodil 3.11 fails adding xs:unsignedByte values directly; the generator must avoid that. */
+    static FormatDescription smallArithmetic() {
+        return new FormatDescription("small", "", ByteOrder.BIG_ENDIAN, List.of(), RecordDescription.of("small", List.of(
+                field("a", PrimitiveType.UINT8, null), field("b", PrimitiveType.UINT8, null),
+                field("extra", PrimitiveType.UINT8, null).withOccurrence(new Occurrence.Optional(Expression.parse("a + b = 3"))),
+                field("items", PrimitiveType.UINT8, null).withOccurrence(new Occurrence.Repeated(Expression.parse("a + b * 2"))))));
     }
 
     static FormatDescription csv() {

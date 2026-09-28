@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- A header with a magic string and a header checksum: the checksum byte must
+     equal the sum of the three header fields, modulo 256. Each field is
+     converted to xs:int before adding: Daffodil 3.11 fails ("Invariant
+     broken ... ClassCastException") adding xs:unsignedByte values directly.
+     DFDL expressions can
+     combine named fields like this, but have no loops or sum() over a
+     repeated element (Daffodil doesn't support fn:sum), so a checksum over a
+     variable amount of data, or a CRC, needs a custom Daffodil layer written
+     in Java. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+           xmlns:tns="urn:example:checked-header"
+           targetNamespace="urn:example:checked-header"
+           elementFormDefault="qualified">
+
+  <xs:include schemaLocation="/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd"/>
+
+  <xs:annotation>
+    <xs:appinfo source="http://www.ogf.org/dfdl/">
+      <dfdl:format ref="tns:GeneralFormat" representation="binary" byteOrder="bigEndian"
+                   lengthKind="explicit" lengthUnits="bytes" encoding="US-ASCII"/>
+    </xs:appinfo>
+  </xs:annotation>
+
+  <xs:element name="checked_header" dfdl:lengthKind="implicit">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="magic" type="xs:string" dfdl:representation="text" dfdl:length="3">
+          <xs:annotation>
+            <xs:appinfo source="http://www.ogf.org/dfdl/">
+              <dfdl:assert test="{ . eq 'HDR' }" message="The header must start with HDR."/>
+            </xs:appinfo>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="version" type="xs:unsignedByte" dfdl:length="1"/>
+        <xs:element name="count" type="xs:unsignedByte" dfdl:length="1">
+          <xs:annotation>
+            <xs:appinfo source="http://www.ogf.org/dfdl/">
+              <dfdl:assert test="{ xs:int(.) le 100 }" message="At most 100 records are allowed."/>
+            </xs:appinfo>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="flags" type="xs:unsignedByte" dfdl:length="1"/>
+        <xs:element name="checksum" type="xs:unsignedByte" dfdl:length="1">
+          <xs:annotation>
+            <xs:appinfo source="http://www.ogf.org/dfdl/">
+              <dfdl:assert test="{ xs:int(.) eq (xs:int(../tns:version) + xs:int(../tns:count) + xs:int(../tns:flags)) mod 256 }"
+                           message="The header checksum doesn't match."/>
+            </xs:appinfo>
+          </xs:annotation>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

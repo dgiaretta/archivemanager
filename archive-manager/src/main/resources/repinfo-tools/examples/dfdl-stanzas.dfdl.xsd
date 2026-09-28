@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Records of several lines each, separated by a blank line: every line ends
+     with a newline, and a record's lines stop at an empty line (the pattern
+     assertion only starts another line where there is text to read). -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+           xmlns:tns="urn:example:stanzas"
+           targetNamespace="urn:example:stanzas"
+           elementFormDefault="qualified">
+
+  <xs:include schemaLocation="/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd"/>
+
+  <xs:annotation>
+    <xs:appinfo source="http://www.ogf.org/dfdl/">
+      <dfdl:format ref="tns:GeneralFormat" representation="text" encoding="US-ASCII"
+                   lengthKind="delimited" occursCountKind="implicit"/>
+    </xs:appinfo>
+  </xs:annotation>
+
+  <xs:element name="stanzas">
+    <xs:complexType>
+      <xs:sequence dfdl:separator="%NL;" dfdl:separatorPosition="infix">
+        <xs:element name="record" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence dfdl:separator="%NL;" dfdl:separatorPosition="postfix">
+              <xs:element name="line" type="xs:string" maxOccurs="unbounded">
+                <xs:annotation>
+                  <xs:appinfo source="http://www.ogf.org/dfdl/">
+                    <dfdl:assert testKind="pattern" testPattern="[^\r\n]" message="Not a line of text"/>
+                  </xs:appinfo>
+                </xs:annotation>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

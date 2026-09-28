@@ -65,6 +65,13 @@
             e.g. <code>n</code>, <code>rows * cols</code>, <code>flags = 1</code>. Select an element to
             edit it, including what it means: its semantic name, definition, units and more.
         </p>
+        <p class="notice" th:if="${!handWritten.isEmpty()}">
+            Written by hand:
+            <th:block th:each="h, it : ${handWritten}"><a th:href="@{/repinfo-tools/hand/{p}(p=${h.path})}"
+                th:text="${h.label}">DFDL</a><th:block th:unless="${it.last}">, </th:block></th:block>
+            &mdash; used instead of what this tree generates in that language. The tree still provides
+            the meanings saved with the description (and is optional if you only write by hand).
+        </p>
         <p class="notice error" th:if="${editorError != null}" th:text="${editorError}">error</p>
         <p class="notice" th:if="${editorMessage != null}" th:text="${editorMessage}">saved</p>
         <p class="notice error" th:if="${problemCount > 0}"

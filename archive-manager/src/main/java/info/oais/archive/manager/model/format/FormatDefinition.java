@@ -10,8 +10,11 @@ import info.oais.infomodel.structure.description.Semantics;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.UnaryOperator;
 
@@ -44,6 +47,8 @@ public class FormatDefinition implements Serializable {
     private List<String> fileExtensions = new ArrayList<>();
     private RecordDescription root = emptyRoot();
     private Set<DescriptionLanguage> targets = EnumSet.allOf(DescriptionLanguage.class);
+    private final Map<DescriptionLanguage, String> handWritten = new EnumMap<>(DescriptionLanguage.class);
+    private final Map<DescriptionLanguage, String> generatedWhenWritten = new EnumMap<>(DescriptionLanguage.class);
     private final List<Hdf5Node> nodes = new ArrayList<>();
 
     public String getName() {
@@ -128,6 +133,44 @@ public class FormatDefinition implements Serializable {
     /** Whether every chosen language can express {@code feature}, so the editor can offer it. */
     public boolean allows(Feature feature) {
         return feature.supportedByAll(targets);
+    }
+
+    /**
+     * The description written by hand in {@code language}, if any: it's used
+     * instead of the generated one (preview, sample test, download, save), for
+     * what the element tree can't express. The tree still provides the meanings.
+     */
+    public Optional<String> handWritten(DescriptionLanguage language) {
+        return Optional.ofNullable(handWritten.get(language));
+    }
+
+    public Map<DescriptionLanguage, String> getHandWritten() {
+        return Map.copyOf(handWritten);
+    }
+
+    /**
+     * @param generated what was generated for {@code language} when the text was written (its
+     *                  starting point), to tell later whether the tree has changed since; null if none
+     */
+    public void setHandWritten(DescriptionLanguage language, String text, String generated) {
+        handWritten.put(language, text);
+        if (generated == null) {
+            generatedWhenWritten.remove(language);
+        } else {
+            generatedWhenWritten.put(language, generated);
+        }
+        targets.add(language);
+    }
+
+    public void clearHandWritten(DescriptionLanguage language) {
+        handWritten.remove(language);
+        generatedWhenWritten.remove(language);
+    }
+
+    /** Whether the tree now generates something different from when {@code language}'s text was written. */
+    public boolean handWrittenOutOfDate(DescriptionLanguage language, String generatedNow) {
+        String then = generatedWhenWritten.get(language);
+        return handWritten.containsKey(language) && then != null && generatedNow != null && !then.equals(generatedNow);
     }
 
     public RecordDescription getRoot() {

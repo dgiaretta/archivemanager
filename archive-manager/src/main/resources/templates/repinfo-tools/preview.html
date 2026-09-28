@@ -14,8 +14,19 @@
         </ul>
     </section>
 
-    <section class="editor-section" th:if="${kaitai != null}">
+    <section class="editor-section" th:if="${kaitai != null}" id="kaitai-section">
         <h2>Kaitai Struct (.ksy)</h2>
+        <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
+            <p class="notice" th:if="${byHand.containsKey('kaitai')}">
+                Written by hand &mdash; used instead of the generated Kaitai Struct description.
+                <a th:href="@{/repinfo-tools/hand/kaitai}">Edit it</a>.
+                <th:block th:if="${outOfDate.get('kaitai')}">The element tree has changed since it was written.</th:block>
+            </p>
+            <p class="muted" th:unless="${byHand.containsKey('kaitai')}">
+                <a th:href="@{/repinfo-tools/hand/kaitai}">Write or extend it by hand</a> &mdash; for checksums,
+                encryption, other compression, records over several lines, and more.
+            </p>
+        </th:block>
         <a class="button-link" th:href="@{/repinfo-tools/download/kaitai}">Download .ksy &rarr;</a>
         <pre class="sparql" th:text="${kaitai}">...</pre>
 
@@ -34,8 +45,19 @@
         <th:block th:if="${kaitaiTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${kaitaiTest})}"></div></th:block>
     </section>
 
-    <section class="editor-section" th:if="${dfdl != null}">
+    <section class="editor-section" th:if="${dfdl != null}" id="dfdl-section">
         <h2>DFDL (.dfdl.xsd)</h2>
+        <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
+            <p class="notice" th:if="${byHand.containsKey('dfdl')}">
+                Written by hand &mdash; used instead of the generated DFDL description.
+                <a th:href="@{/repinfo-tools/hand/dfdl}">Edit it</a>.
+                <th:block th:if="${outOfDate.get('dfdl')}">The element tree has changed since it was written.</th:block>
+            </p>
+            <p class="muted" th:unless="${byHand.containsKey('dfdl')}">
+                <a th:href="@{/repinfo-tools/hand/dfdl}">Write or extend it by hand</a> &mdash; for checksums,
+                encryption, other compression, records over several lines, and more.
+            </p>
+        </th:block>
         <a class="button-link" th:href="@{/repinfo-tools/download/dfdl}">Download .dfdl.xsd &rarr;</a>
         <pre class="sparql" th:text="${dfdl}">...</pre>
 
@@ -107,8 +129,19 @@
         </th:block>
     </section>
 
-    <section class="editor-section" th:if="${drbJava != null}">
+    <section class="editor-section" th:if="${drbJava != null}" id="drb-section">
         <h2>DRB &mdash; Java (fr.gael.drb)</h2>
+        <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
+            <p class="notice" th:if="${byHand.containsKey('drbJava')}">
+                Written by hand &mdash; used instead of the generated DRB SDF description.
+                <a th:href="@{/repinfo-tools/hand/drb}">Edit it</a>.
+                <th:block th:if="${outOfDate.get('drbJava')}">The element tree has changed since it was written.</th:block>
+            </p>
+            <p class="muted" th:unless="${byHand.containsKey('drbJava')}">
+                <a th:href="@{/repinfo-tools/hand/drb}">Write or extend it by hand</a> &mdash; for checksums,
+                encryption, other compression, records over several lines, and more.
+            </p>
+        </th:block>
         <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
             <p class="muted">
                 A DRB SDF schema: an XML Schema whose <code>sdf:block</code> annotations give each

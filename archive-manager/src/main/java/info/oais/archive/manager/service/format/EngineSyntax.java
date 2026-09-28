@@ -22,7 +22,10 @@ final class EngineSyntax {
         return new Base(scope, fromId) {
             @Override
             String path(Scope.Resolved r) {
-                return "../".repeat(r.nodesUp() + extraLevels) + "tns:" + r.target().name();
+                String path = "../".repeat(r.nodesUp() + extraLevels) + "tns:" + r.target().name();
+                // Daffodil 3.11 fails ("Invariant broken ... ClassCastException") doing arithmetic
+                // directly on small integer types such as xs:unsignedByte; as xs:integer it's fine.
+                return r.target().type().isInteger() ? "xs:integer(" + path + ")" : path;
             }
 
             @Override

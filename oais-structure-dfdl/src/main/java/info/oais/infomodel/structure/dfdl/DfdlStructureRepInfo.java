@@ -141,7 +141,12 @@ public final class DfdlStructureRepInfo extends AbstractExecutableStructureRepIn
 				return ParseExtras.EMPTY;
 			}
 			return new ParseExtras(tracker.rangesByPath(), tracker.typedValuesByPath());
-		} catch (RuntimeException | LinkageError e) {
+		} catch (VirtualMachineError e) {
+			throw e;
+		} catch (Throwable e) {
+			// Includes Daffodil's own "invariant broken" Abort (not a RuntimeException), which
+			// Daffodil 3.11 raises in this second parse for some schemas, e.g. an assertion doing
+			// arithmetic on xs:unsignedByte fields.
 			return ParseExtras.EMPTY;
 		}
 	}

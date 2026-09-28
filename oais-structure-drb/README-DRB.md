@@ -85,6 +85,11 @@ These came up while generating schemas from archive-manager's descriptions:
   evaluated from the branch's own node.
 - **A delimiter is a single character.** `sdf:delimiter` has no
   "or end of data" alternative.
+- **Queries can call Java.** DRB's XQuery calls any public static Java
+  method through a `java:` namespace (`declare namespace s =
+  "java:java.lang.System"`), and `doc()` reads files and URLs. Only use SDF
+  schemas you trust; archive-manager refuses hand-written schemas that do
+  either before running them.
 
 ## Known DRB limitations
 

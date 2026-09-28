@@ -548,6 +548,43 @@ wanted.
     language not generated and why. Choosing Kaitai Struct also rules out
     element names that are Java reserved words (e.g. `class`), since its
     descriptions are compiled to Java.
+  - **Writing a description by hand.** For what the element tree can't
+    express -- checksums, encryption, other compression, records spread over
+    several lines, anything else a language can do -- a Kaitai Struct, DFDL
+    or DRB SDF description can be written by hand (`/repinfo-tools/hand/{kaitai,dfdl,drb}`),
+    either from scratch ("Or write a description by hand" on the start page)
+    or starting from what the tree generates ("Write or extend it by hand"
+    on the preview page). The hand-written text then replaces the generated
+    one in the preview, the sample tests, downloads and saving (labelled
+    "written by hand"); the tree, if any, still provides the meanings saved
+    as Semantic Representation Information, and the preview notes when the
+    tree has changed since the text was written. A sample test of a
+    hand-written description shows the engine's own tree rather than lining
+    it up with the element tree. drb-python drivers are Python code, so they
+    can't be written by hand here.
+
+    The page has worked examples (`HandWrittenDescriptions`, files in
+    `src/main/resources/repinfo-tools/examples/`), each run on sample data by
+    `HandWrittenDescriptionsTest`: Kaitai with a magic number, a range check
+    and XOR decryption, and with records of several lines; DFDL with header
+    assertions and a header checksum, a gzip-compressed section (Daffodil's
+    `fixedLength` and `gzip` layers), and records of several lines; DRB with
+    records of several lines. What each language can't do is said there too:
+    neither DFDL nor Kaitai can compute a CRC or decrypt anything but
+    XOR/rotations without custom Java code, and DRB's SDF has no checksums,
+    encryption or compression.
+
+    **A sample test runs the description inside this application**, so
+    hand-written text is checked first (`HandWrittenDescriptions.check`) and
+    refused if it could reach beyond describing data: a DOCTYPE, or a schema
+    included from elsewhere (DFDL may include Daffodil's own built-in schemas,
+    `/org/apache/daffodil/...`); Kaitai `meta/imports`, custom `process:`
+    routines (which are Java classes; `zlib`, `xor`, `rol` and `ror` are
+    built in), `ks-opaque-types`, or `*/` (the compiler copies text into Java
+    comments); and DRB queries calling Java (DRB's XQuery calls any static
+    Java method through a `java:` namespace) or reading files and URLs
+    (`doc()`, `collection()`, `unparsed-text()`, ...), including when spelled
+    with character references.
   - The definition being built lives in the HTTP session
     (`RepInfoToolController`, a session-scoped `FormatDefinition`), not the
     archive, until you explicitly save it. The editor shows the description
@@ -1216,10 +1253,9 @@ what "the data can be in Dhivehi and renders/searches correctly" required.
   discriminator, and simple delimited text. Bit fields, records of a stated
   size, nil values, quoted text, number formats, absolute offsets and zlib
   compression are there for the languages that support them (see
-  *Languages, and what only some of them can do*). Not covered at all yet:
-  checksum validation, encryption, other compression schemes, and
-  delimited text other than one record per line. Such a format can still be
-  described with the engine's own language by hand (see the `README-*.md`
-  of each adapter module); the parts the model does cover can be generated
-  first and extended.
+  *Languages, and what only some of them can do*). Checksums, encryption,
+  other compression schemes and records spread over several lines aren't in
+  the model; describe them by hand in the engine's own language, from
+  scratch or by extending what the model generates (see *Writing a
+  description by hand*).
 

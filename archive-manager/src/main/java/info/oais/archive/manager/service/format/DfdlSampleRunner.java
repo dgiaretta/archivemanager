@@ -50,8 +50,13 @@ public class DfdlSampleRunner {
         } catch (IOException e) {
             return SampleDecodeResult.failure("Could not write the schema to a temporary file: " + e.getMessage());
         } catch (RuntimeException e) {
-            // StructureInterpretationException carries Daffodil's own diagnostics in its message.
-            return SampleDecodeResult.failure(e.getMessage() != null ? e.getMessage() : e.toString());
+            // StructureInterpretationException carries Daffodil's own diagnostics in its message,
+            // or, for an error Daffodil didn't report as a diagnostic, in its cause.
+            String message = e.getMessage() != null ? e.getMessage() : e.toString();
+            if (e.getCause() != null && e.getCause().getMessage() != null && !message.contains(e.getCause().getMessage())) {
+                message += "\n" + e.getCause().getMessage();
+            }
+            return SampleDecodeResult.failure(message);
         } finally {
             if (schemaFile != null) {
                 try {

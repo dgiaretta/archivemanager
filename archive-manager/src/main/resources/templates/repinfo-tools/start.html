@@ -64,6 +64,33 @@
         </form>
     </div>
 
+    <h2>Or write a description by hand</h2>
+    <p class="muted">
+        In an engine's own language, for what the editor's element tree can't express: checksums,
+        encryption, other compression, records over several lines, and anything else the language
+        can do. You can add an element tree later for the meanings.
+    </p>
+    <div class="repinfo-template-grid">
+        <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
+            <input type="hidden" name="template" value="hand-dfdl"/>
+            <h3>DFDL</h3>
+            <p class="muted">Checks with assertions, gzip and base64 layers, delimited and multi-line text.</p>
+            <button type="submit">Write DFDL &rarr;</button>
+        </form>
+        <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
+            <input type="hidden" name="template" value="hand-kaitai"/>
+            <h3>Kaitai Struct</h3>
+            <p class="muted">Magic numbers and value checks, XOR/rotate decryption, zlib, seeking.</p>
+            <button type="submit">Write Kaitai Struct &rarr;</button>
+        </form>
+        <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
+            <input type="hidden" name="template" value="hand-drb"/>
+            <h3>DRB SDF schema</h3>
+            <p class="muted">Binary and delimited text for GAEL's Java DRB.</p>
+            <button type="submit">Write a DRB schema &rarr;</button>
+        </form>
+    </div>
+
     <h2>Or start blank</h2>
     <div class="repinfo-template-grid">
         <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">

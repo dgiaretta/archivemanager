@@ -113,6 +113,23 @@ Daffodil:
   at the very end of the data, and Daffodil stops with "consumed no data and
   is stuck in an infinite loop". The pattern assertion only lets another
   record start while at least one byte is left.
+- **Convert small integers before arithmetic.** Daffodil 3.11 fails with
+  "Invariant broken ... ClassCastException: Integer cannot be cast to
+  Short" when an expression adds or compares `xs:unsignedByte` (and
+  similar) values directly, e.g. `{ . eq (../a + ../b) mod 256 }`; write
+  `{ xs:int(.) eq (xs:int(../a) + xs:int(../b)) mod 256 }`. archive-manager's
+  generator wraps every integer field reference in `xs:integer(...)` for
+  this reason.
+- **No `fn:sum`.** Daffodil doesn't support it, so a checksum over a
+  variable number of values can't be computed in a DFDL expression; checks
+  over named fields can (see archive-manager's hand-writing examples), and
+  anything more needs a custom layer written in Java.
+- **Layers** transform part of the data before it's parsed: Daffodil 3.11
+  has built-in `gzip`, `base64_MIME`, `fourbyteswap`/`twobyteswap`,
+  `lineFolded_IMF`/`lineFolded_iCalendar`, `boundaryMark` and `fixedLength`
+  layers. Import the layer's schema from `/org/apache/daffodil/layers/xsd/`
+  and put `dfdlx:layer="gz:gzip"` on a sequence, bounded by an enclosing
+  `fl:fixedLength` layer whose length is set with `dfdl:newVariableInstance`.
 - **Bit fields** need `dfdl:lengthUnits="bits"` with
   `dfdl:alignmentUnits="bits"`; a byte-sized element after them is aligned
   to the next whole byte by the default one-byte alignment.
@@ -120,6 +137,9 @@ Daffodil:
 ## Known limitations
 
 - Only the schema's default root element can be used.
+- The typed-value second parse is best effort: if it fails in a way the
+  first parse doesn't (Daffodil can throw an internal "Abort" error), values
+  simply come back as DOM text.
 - No byte positions with Daffodil 3.11 (see above).
 - The second, typed-value parse doubles the parsing work and keeps the whole
   Digital Object in memory.

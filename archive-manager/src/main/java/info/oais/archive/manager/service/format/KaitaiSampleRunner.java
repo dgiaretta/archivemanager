@@ -88,8 +88,18 @@ public class KaitaiSampleRunner {
 
     /** @param format the description the {@code .ksy} was generated from, to line the result up against */
     public SampleDecodeResult run(FormatDescription format, String ksy, byte[] sample) {
+        return run(format, ksy, format.root().name(), sample);
+    }
+
+    /**
+     * @param format   the description to line the result up against, or null not to (e.g. for a
+     *                 {@code .ksy} written by hand)
+     * @param rootName the {@code .ksy}'s {@code meta/id}
+     */
+    public SampleDecodeResult run(FormatDescription format, String ksy, String rootName, byte[] sample) {
         try {
-            return withDecoded(ksy, format.root().name(), sample, root -> SampleDecodeResult.of(format, root));
+            return withDecoded(ksy, rootName, sample,
+                    root -> format == null ? SampleDecodeResult.of(root) : SampleDecodeResult.of(format, root));
         } catch (CompileException e) {
             return SampleDecodeResult.failure(e.getMessage());
         } catch (IOException | UncheckedIOException e) {

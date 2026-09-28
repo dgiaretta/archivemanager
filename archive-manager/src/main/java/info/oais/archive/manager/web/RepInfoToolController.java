@@ -14,6 +14,7 @@ import info.oais.archive.manager.service.format.DrbPythonSampleRunner;
 import info.oais.archive.manager.service.format.DrbSampleRunner;
 import info.oais.archive.manager.service.format.FormatDescriptionRdfService;
 import info.oais.archive.manager.service.format.FormatTemplates;
+import info.oais.archive.manager.service.format.HandWrittenDescriptions;
 import info.oais.archive.manager.service.format.KaitaiGenerator;
 import info.oais.archive.manager.service.format.KaitaiSampleRunner;
 import info.oais.archive.manager.service.format.SampleDecodeResult;
@@ -111,6 +112,14 @@ public class RepInfoToolController {
             case "hdf5" -> FormatTemplates.hdf5();
             case "telemetry" -> FormatTemplates.telemetry();
             case "csv" -> FormatTemplates.csv();
+            case "hand-kaitai", "hand-dfdl", "hand-drb" -> {
+                FormatDefinition d = new FormatDefinition();
+                d.setName("New format");
+                d.setKind(FormatDefinitionKind.BYTE_LAYOUT);
+                d.setTargets(java.util.EnumSet.of(handLanguage(template.substring("hand-".length()))));
+                session.setAttribute(SESSION_KEY, d);
+                yield null;
+            }
             case "blank-logical" -> {
                 FormatDefinition d = new FormatDefinition();
                 d.setName("New logical schema");
@@ -124,6 +133,9 @@ public class RepInfoToolController {
                 yield d;
             }
         };
+        if (def == null) {
+            return "redirect:/repinfo-tools/hand/" + template.substring("hand-".length());
+        }
         session.setAttribute(SESSION_KEY, def);
         return "redirect:/repinfo-tools/edit";
     }
@@ -155,10 +167,21 @@ public class RepInfoToolController {
         model.addAttribute("allow", allow);
         model.addAttribute("featureLanguages", featureLanguages);
         model.addAttribute("features", Feature.values());
+        model.addAttribute("handWritten", def.getHandWritten().keySet().stream()
+                .map(l -> Map.of("label", l.label(), "path", handPath(l))).toList());
         if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
             FormatDescription format = def.toFormatDescription();
-            model.addAttribute("rows", DescriptionEditorView.rows(format, def.getTargets()));
-            model.addAttribute("problemCount", DescriptionValidator.validate(format, def.getTargets()).size());
+            List<DescriptionEditorView.Row> rows = DescriptionEditorView.rows(format, def.getTargets());
+            long problemCount = DescriptionValidator.validate(format, def.getTargets()).size();
+            if (!def.getHandWritten().isEmpty() && def.getRoot().children().isEmpty()) {
+                // Written entirely by hand: the tree is optional, only there for meanings.
+                rows = rows.stream().map(r -> r.root() ? new DescriptionEditorView.Row(r.id(), r.depth(), r.kind(),
+                        r.name(), r.summary(), r.semantics(), List.of(), r.root(), r.container(), r.first(), r.last())
+                        : r).toList();
+                problemCount = rows.stream().mapToLong(r -> r.problems().size()).sum();
+            }
+            model.addAttribute("rows", rows);
+            model.addAttribute("problemCount", problemCount);
             if (element != null) {
                 DescriptionEditorView.form(format, element).ifPresent(f -> model.addAttribute("form", f));
             }
@@ -452,7 +475,7 @@ public class RepInfoToolController {
         }
         SampleDecodeResult result = sample.isEmpty()
                 ? SampleDecodeResult.failure(EMPTY_SAMPLE)
-                : dfdlSampleRunner.run(def.toFormatDescription(), dfdl, sample.getBytes());
+                : dfdlSampleRunner.run(alignWith(def, DescriptionLanguage.DFDL), dfdl, sample.getBytes());
         addSampleResult(model, "dfdlTest", result, sample);
         return "repinfo-tools/preview";
     }
@@ -497,9 +520,13 @@ public class RepInfoToolController {
             return "redirect:/repinfo-tools/preview";
         }
         populatePreview(def, model);
+        String sdf = (String) model.getAttribute("drbJava");
+        if (sdf == null) {
+            return "redirect:/repinfo-tools/preview";
+        }
         SampleDecodeResult result = sample.isEmpty()
                 ? SampleDecodeResult.failure(EMPTY_SAMPLE)
-                : drbSampleRunner.run(def.toFormatDescription(), drbGenerator.generate(def, DrbTarget.JAVA), sample.getBytes());
+                : drbSampleRunner.run(alignWith(def, DescriptionLanguage.DRB), sdf, sample.getBytes());
         addSampleResult(model, "drbJavaTest", result, sample);
         return "repinfo-tools/preview";
     }
@@ -521,9 +548,11 @@ public class RepInfoToolController {
         if (ksy == null) {
             return "redirect:/repinfo-tools/preview";
         }
+        FormatDescription format = alignWith(def, DescriptionLanguage.KAITAI);
+        String rootName = format != null ? format.root().name() : HandWrittenDescriptions.kaitaiId(ksy);
         SampleDecodeResult result = sample.isEmpty()
                 ? SampleDecodeResult.failure(EMPTY_SAMPLE)
-                : kaitaiSampleRunner.run(def.toFormatDescription(), ksy, sample.getBytes());
+                : kaitaiSampleRunner.run(format, ksy, rootName, sample.getBytes());
         addSampleResult(model, "kaitaiTest", result, sample);
         return "repinfo-tools/preview";
     }
@@ -539,19 +568,52 @@ public class RepInfoToolController {
     private void populatePreview(FormatDefinition def, Model model) {
         model.addAttribute("def", def);
         Map<String, String> notGenerated = new LinkedHashMap<>();
-        model.addAttribute("kaitai", generated(def, DescriptionLanguage.KAITAI, "kaitai", notGenerated,
+        Map<String, Boolean> byHand = new LinkedHashMap<>();
+        Map<String, Boolean> outOfDate = new LinkedHashMap<>();
+        model.addAttribute("kaitai", effective(def, DescriptionLanguage.KAITAI, "kaitai", notGenerated, byHand, outOfDate,
                 () -> kaitaiGenerator.generate(def)));
-        model.addAttribute("dfdl", generated(def, DescriptionLanguage.DFDL, "dfdl", notGenerated,
+        model.addAttribute("dfdl", effective(def, DescriptionLanguage.DFDL, "dfdl", notGenerated, byHand, outOfDate,
                 () -> dfdlGenerator.generate(def)));
         model.addAttribute("drbPython", generated(def, DescriptionLanguage.DRB_PYTHON, "drbPython", notGenerated,
                 () -> drbGenerator.generate(def, DrbTarget.PYTHON)));
         model.addAttribute("drbPythonPackage", drbGenerator.pythonDistributionName(def));
         model.addAttribute("drbPythonVersion", drbPythonSampleRunner.drbVersion().orElse(null));
         model.addAttribute("drbPythonUnavailable", drbPythonSampleRunner.notAvailableMessage());
-        model.addAttribute("drbJava", generated(def, DescriptionLanguage.DRB, "drbJava", notGenerated,
+        model.addAttribute("drbJava", effective(def, DescriptionLanguage.DRB, "drbJava", notGenerated, byHand, outOfDate,
                 () -> drbGenerator.generate(def, DrbTarget.JAVA)));
         model.addAttribute("notGenerated", notGenerated);
+        model.addAttribute("byHand", byHand);
+        model.addAttribute("outOfDate", outOfDate);
         model.addAttribute("allEntities", archive.listAllEntities());
+    }
+
+    /**
+     * The text written by hand for {@code language} if there is one (noting
+     * whether the tree has changed since), otherwise what's generated.
+     */
+    private static String effective(FormatDefinition def, DescriptionLanguage language, String key,
+                                    Map<String, String> notGenerated, Map<String, Boolean> byHand,
+                                    Map<String, Boolean> outOfDate, java.util.function.Supplier<String> generate) {
+        java.util.Optional<String> hand = def.handWritten(language);
+        if (hand.isPresent() && def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
+            byHand.put(key, true);
+            outOfDate.put(key, def.handWrittenOutOfDate(language, generatedOrNull(generate)));
+            return hand.get();
+        }
+        return generated(def, language, key, notGenerated, generate);
+    }
+
+    private static String generatedOrNull(java.util.function.Supplier<String> generate) {
+        try {
+            return generate.get();
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    /** What to line a sample test's result up against: nothing for a description written by hand. */
+    private static FormatDescription alignWith(FormatDefinition def, DescriptionLanguage language) {
+        return def.handWritten(language).isPresent() ? null : def.toFormatDescription();
     }
 
     /**
@@ -594,12 +656,12 @@ public class RepInfoToolController {
         MediaType mediaType;
         switch (format) {
             case "kaitai" -> {
-                text = kaitaiGenerator.generate(def);
+                text = def.handWritten(DescriptionLanguage.KAITAI).orElseGet(() -> kaitaiGenerator.generate(def));
                 filename = safeFileName(def.getName()) + ".ksy";
                 mediaType = MediaType.parseMediaType("application/x-yaml");
             }
             case "dfdl" -> {
-                text = dfdlGenerator.generate(def);
+                text = def.handWritten(DescriptionLanguage.DFDL).orElseGet(() -> dfdlGenerator.generate(def));
                 filename = safeFileName(def.getName()) + ".dfdl.xsd";
                 mediaType = MediaType.APPLICATION_XML;
             }
@@ -618,7 +680,9 @@ public class RepInfoToolController {
                 mediaType = MediaType.TEXT_PLAIN;
             }
             case "drb-java" -> {
-                text = drbGenerator.generate(def, DrbTarget.JAVA);
+                text = def.getKind() == FormatDefinitionKind.BYTE_LAYOUT
+                        ? def.handWritten(DescriptionLanguage.DRB).orElseGet(() -> drbGenerator.generate(def, DrbTarget.JAVA))
+                        : drbGenerator.generate(def, DrbTarget.JAVA);
                 boolean sdf = def.getKind() == FormatDefinitionKind.BYTE_LAYOUT;
                 filename = safeFileName(def.getName()) + (sdf ? ".drb.xsd" : ".java");
                 mediaType = sdf ? MediaType.APPLICATION_XML : MediaType.TEXT_PLAIN;
@@ -650,11 +714,17 @@ public class RepInfoToolController {
             for (String format : formats) {
                 try {
                     switch (format) {
-                        case "kaitai" -> generated.put("Kaitai Struct", kaitaiGenerator.generate(def));
-                        case "dfdl" -> generated.put("DFDL", dfdlGenerator.generate(def));
+                        case "kaitai" -> generated.put(savedLabel(def, DescriptionLanguage.KAITAI, "Kaitai Struct"),
+                                def.handWritten(DescriptionLanguage.KAITAI).orElseGet(() -> kaitaiGenerator.generate(def)));
+                        case "dfdl" -> generated.put(savedLabel(def, DescriptionLanguage.DFDL, "DFDL"),
+                                def.handWritten(DescriptionLanguage.DFDL).orElseGet(() -> dfdlGenerator.generate(def)));
                         case "drb-python" -> generated.put("DRB (Python, drb-python)", drbGenerator.generate(def, DrbTarget.PYTHON));
                         case "drb-java" -> generated.put(def.getKind() == FormatDefinitionKind.BYTE_LAYOUT
-                                ? "DRB SDF schema (Java, fr.gael.drb)" : "DRB (Java, fr.gael.drb)", drbGenerator.generate(def, DrbTarget.JAVA));
+                                        ? savedLabel(def, DescriptionLanguage.DRB, "DRB SDF schema (Java, fr.gael.drb)")
+                                        : "DRB (Java, fr.gael.drb)",
+                                def.getKind() == FormatDefinitionKind.BYTE_LAYOUT
+                                        ? def.handWritten(DescriptionLanguage.DRB).orElseGet(() -> drbGenerator.generate(def, DrbTarget.JAVA))
+                                        : drbGenerator.generate(def, DrbTarget.JAVA));
                         default -> { }
                     }
                 } catch (Feature.UnsupportedFeatureException e) {
@@ -666,6 +736,104 @@ public class RepInfoToolController {
         String savedIri = rdfService.saveToArchive(def, dataObjectIri, generated);
         session.removeAttribute(SESSION_KEY);
         return "redirect:/resource/" + archive.encodeId(savedIri);
+    }
+
+    private static String savedLabel(FormatDefinition def, DescriptionLanguage language, String label) {
+        return def.handWritten(language).isPresent() ? label + ", written by hand" : label;
+    }
+
+    /** {@code kaitai}, {@code dfdl} or {@code drb}: the languages whose descriptions can be written by hand. */
+    private static DescriptionLanguage handLanguage(String path) {
+        return switch (path) {
+            case "kaitai" -> DescriptionLanguage.KAITAI;
+            case "dfdl" -> DescriptionLanguage.DFDL;
+            case "drb" -> DescriptionLanguage.DRB;
+            default -> throw new IllegalArgumentException("Descriptions in '" + path + "' can't be written by hand.");
+        };
+    }
+
+    private static String handPath(DescriptionLanguage language) {
+        return switch (language) {
+            case KAITAI -> "kaitai";
+            case DFDL -> "dfdl";
+            case DRB -> "drb";
+            default -> throw new IllegalArgumentException(language.label());
+        };
+    }
+
+    /** What {@code language} generates from the tree now, or null (nothing yet, or it can't express it). */
+    private String generatedNow(FormatDefinition def, DescriptionLanguage language) {
+        if (def.getRoot().children().isEmpty()) {
+            return null;
+        }
+        return generatedOrNull(() -> switch (language) {
+            case KAITAI -> kaitaiGenerator.generate(def);
+            case DFDL -> dfdlGenerator.generate(def);
+            default -> drbGenerator.generate(def, DrbTarget.JAVA);
+        });
+    }
+
+    /**
+     * Writing a description by hand, for what the element tree can't express.
+     * Starts from the hand-written text, else what the tree generates, else a
+     * worked example; {@code example} loads one of the worked examples instead.
+     */
+    @GetMapping("/hand/{language}")
+    public String handEditor(@PathVariable String language, @RequestParam(required = false) String example,
+                             HttpSession session, Model model) {
+        FormatDefinition def = draft(session);
+        if (def == null || def.getKind() != FormatDefinitionKind.BYTE_LAYOUT) {
+            return "redirect:/repinfo-tools";
+        }
+        DescriptionLanguage lang = handLanguage(language);
+        String text = HandWrittenDescriptions.examples(lang).stream().filter(e -> e.id().equals(example)).findFirst()
+                .map(HandWrittenDescriptions.Example::text)
+                .or(() -> def.handWritten(lang))
+                .orElseGet(() -> {
+                    String generated = generatedNow(def, lang);
+                    return generated != null ? generated : HandWrittenDescriptions.skeleton(lang);
+                });
+        populateHandEditor(def, lang, text, List.of(), model);
+        return "repinfo-tools/hand";
+    }
+
+    @PostMapping("/hand/{language}")
+    public String saveHandWritten(@PathVariable String language, @RequestParam String text, HttpSession session,
+                                  Model model) {
+        FormatDefinition def = draft(session);
+        if (def == null || def.getKind() != FormatDefinitionKind.BYTE_LAYOUT) {
+            return "redirect:/repinfo-tools";
+        }
+        DescriptionLanguage lang = handLanguage(language);
+        String normalised = text.replace("\r\n", "\n");
+        List<String> problems = HandWrittenDescriptions.check(lang, normalised);
+        if (!problems.isEmpty()) {
+            populateHandEditor(def, lang, normalised, problems, model);
+            return "repinfo-tools/hand";
+        }
+        def.setHandWritten(lang, normalised, generatedNow(def, lang));
+        return "redirect:/repinfo-tools/preview#" + language + "-section";
+    }
+
+    @PostMapping("/hand/{language}/revert")
+    public String revertHandWritten(@PathVariable String language, HttpSession session) {
+        FormatDefinition def = draft(session);
+        if (def != null) {
+            def.clearHandWritten(handLanguage(language));
+        }
+        return "redirect:/repinfo-tools/preview#" + language + "-section";
+    }
+
+    private void populateHandEditor(FormatDefinition def, DescriptionLanguage lang, String text, List<String> problems,
+                                    Model model) {
+        model.addAttribute("def", def);
+        model.addAttribute("language", lang);
+        model.addAttribute("languagePath", handPath(lang));
+        model.addAttribute("text", text);
+        model.addAttribute("problems", problems);
+        model.addAttribute("examples", HandWrittenDescriptions.examples(lang));
+        model.addAttribute("isHandWritten", def.handWritten(lang).isPresent());
+        model.addAttribute("outOfDate", def.handWrittenOutOfDate(lang, generatedNow(def, lang)));
     }
 
     private FormatDefinition draft(HttpSession session) {

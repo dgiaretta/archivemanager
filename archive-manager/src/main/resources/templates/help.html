@@ -171,7 +171,12 @@
                 languages to generate: choosing fewer than all four unlocks what only they can
                 describe, such as bit fields, records of a stated size, nil values, quoted CSV and
                 number formats (DFDL), or elements at an absolute offset and zlib-compressed
-                records (Kaitai Struct).</li>
+                records (Kaitai Struct). For anything the editor can't express &mdash; checksums,
+                encryption, other compression, records spread over several lines &mdash; write the
+                Kaitai Struct, DFDL or DRB description by hand, from scratch or by extending the
+                generated one; the page has worked examples, and the hand-written text is used for
+                the sample test, download and save (it's checked first so it can only describe
+                data).</li>
         </ul>
     </section>
 

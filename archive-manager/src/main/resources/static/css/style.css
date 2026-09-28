@@ -285,6 +285,15 @@ textarea.sparql {
   border-radius: 6px;
 }
 
+textarea.code-input {
+  width: 100%;
+  min-height: 420px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  white-space: pre;
+  tab-size: 2;
+}
+
 textarea.import-textarea {
   width: 100%;
   min-height: 420px;

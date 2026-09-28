@@ -1,6 +1,7 @@
 package info.oais.archive.manager;
 
 import info.oais.archive.manager.security.EditAuthInterceptor;
+import info.oais.archive.manager.service.format.HandWrittenDescriptions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -284,6 +285,79 @@ class RepInfoToolControllerTest {
                 .andExpect(content().string(containsString("chose science")))
                 .andExpect(content().string(containsString("= 300 K")))
                 .andExpect(content().string(containsString("The description accounts for every byte of the sample.")));
+    }
+
+    @Test
+    void writesADfdlDescriptionByHandTestsItAndRefusesUnsafeOnes() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
+        mockMvc.perform(post("/repinfo-tools/start").param("template", "hand-dfdl").session(session))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/repinfo-tools/hand/dfdl"));
+        mockMvc.perform(get("/repinfo-tools/hand/dfdl").session(session))
+                .andExpect(content().string(containsString("Header checks and a header checksum")))
+                .andExpect(content().string(containsString("gzip-compressed section")));
+        String gzip = HandWrittenDescriptions.examples().stream().filter(e -> e.id().equals("dfdl-gzip"))
+                .findFirst().orElseThrow().text();
+        mockMvc.perform(get("/repinfo-tools/hand/dfdl").param("example", "dfdl-gzip").session(session))
+                .andExpect(content().string(containsString("fixedLengthLayer.dfdl.xsd")));
+
+        mockMvc.perform(post("/repinfo-tools/hand/dfdl").param("text",
+                        gzip.replace("/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd", "http://example.org/x.xsd"))
+                        .session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("xs:include of &#39;http://example.org/x.xsd&#39; isn&#39;t allowed")));
+        mockMvc.perform(get("/repinfo-tools/preview").session(session))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("Written by hand"))));
+
+        String checksum = HandWrittenDescriptions.examples().stream().filter(e -> e.id().equals("dfdl-checksum"))
+                .findFirst().orElseThrow().text();
+        mockMvc.perform(post("/repinfo-tools/hand/dfdl").param("text", checksum).session(session))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(get("/repinfo-tools/preview").session(session))
+                .andExpect(content().string(containsString("Written by hand")))
+                .andExpect(content().string(containsString("The header checksum doesn&#39;t match.")));
+        mockMvc.perform(multipart("/repinfo-tools/test-dfdl")
+                        .file(new MockMultipartFile("sample", "h.bin", "application/octet-stream",
+                                new byte[] {'H', 'D', 'R', 1, 2, 3, 7}))
+                        .session(session))
+                .andExpect(content().string(containsString("could not be decoded")))
+                .andExpect(content().string(containsString("The header checksum doesn&#39;t match.")));
+        mockMvc.perform(get("/repinfo-tools/download/dfdl").session(session))
+                .andExpect(content().string(containsString("urn:example:checked-header")));
+        mockMvc.perform(get("/repinfo-tools/edit").session(session))
+                .andExpect(content().string(containsString("Written by hand:")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("has no elements yet"))));
+
+        mockMvc.perform(post("/repinfo-tools/hand/dfdl/revert").session(session));
+        mockMvc.perform(get("/repinfo-tools/download/dfdl").session(session))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("urn:example:checked-header"))));
+    }
+
+    @Test
+    void extendsAGeneratedKaitaiDescriptionByHandAndTestsIt() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        buildTelemetry(session);
+        // Starts from what the tree generates.
+        mockMvc.perform(get("/repinfo-tools/hand/kaitai").session(session))
+                .andExpect(content().string(containsString("switch-on: &#39;kind&#39;")));
+
+        String stanzas = HandWrittenDescriptions.examples().stream().filter(e -> e.id().equals("kaitai-stanzas"))
+                .findFirst().orElseThrow().text();
+        mockMvc.perform(post("/repinfo-tools/hand/kaitai").param("text", stanzas).session(session))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(multipart("/repinfo-tools/test-kaitai")
+                        .file(new MockMultipartFile("sample", "s.txt", "text/plain",
+                                "name: A\nage: 3\n\nname: B\n".getBytes(StandardCharsets.US_ASCII)))
+                        .session(session))
+                .andExpect(content().string(containsString("decoded successfully")))
+                .andExpect(content().string(containsString("name: B")));
+
+        // Changing the tree afterwards is pointed out.
+        String extra = addElement(session, "root", "field", "trailer", null, null);
+        mockMvc.perform(get("/repinfo-tools/preview").session(session))
+                .andExpect(content().string(containsString("The element tree has changed since it was written.")));
+        assertThat(extra).isNotBlank();
     }
 
     /** Adds an element through the editor and returns its id (taken from the redirect). */
