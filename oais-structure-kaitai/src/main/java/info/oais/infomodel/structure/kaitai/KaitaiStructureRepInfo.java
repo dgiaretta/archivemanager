@@ -51,6 +51,11 @@ public final class KaitaiStructureRepInfo extends AbstractExecutableStructureRep
 		KaitaiStruct parsed;
 		try {
 			parsed = constructor.newInstance(new ByteBufferKaitaiStream(bytes));
+			// A class compiled with ksc --debug records byte positions but doesn't
+			// parse in its constructor; its caller has to call _read() itself.
+			if (isDebugBuild(generatedType)) {
+				generatedType.getMethod("_read").invoke(parsed);
+			}
 		} catch (java.lang.reflect.InvocationTargetException e) {
 			throw new StructureInterpretationException(
 					"Kaitai Struct parser " + generatedType.getName() + " rejected the DigitalObject's bytes",
@@ -58,5 +63,15 @@ public final class KaitaiStructureRepInfo extends AbstractExecutableStructureRep
 		}
 
 		return KaitaiReflectiveStructureNode.ofRoot("root", parsed);
+	}
+
+	/** Whether {@code type} was compiled with {@code ksc --debug} (it then declares {@code _attrStart}). */
+	static boolean isDebugBuild(Class<?> type) {
+		try {
+			type.getField("_attrStart");
+			return true;
+		} catch (NoSuchFieldException e) {
+			return false;
+		}
 	}
 }

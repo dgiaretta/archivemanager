@@ -12,8 +12,8 @@ doc: |
   x and y are kept as raw comma-terminated text here, the same way Kaitai
   Struct's own str/terminator idiom for delimited text always does - a .ksy
   wanting them as actual integers would add a computed `instance` calling
-  `.to_i` on the raw text (left out here to keep this hand-written stand-in,
-  see generated/CsvPoints.java, simple; TableCombiner's row-selector coerces
+  `.to_i` on the raw text (left out here to keep the example simple;
+  TableCombiner's row-selector coerces
   the text automatically - see StructureNodeBackedTable's Javadoc on
   "Coercion"). label is the rest of the line up to the newline.
 

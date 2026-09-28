@@ -129,6 +129,12 @@
          schema against an uploaded sample file, plus DRB itself (LGPL v3, from
          ../third-party/maven-repo - see third-party/README.md) and the bridge
          that routes DRB's log4j 1.x logging calls into Logback. -->
+    <!-- Renders the adapters' README files on the Help page. -->
+    <dependency>
+      <groupId>org.commonmark</groupId>
+      <artifactId>commonmark</artifactId>
+      <version>0.22.0</version>
+    </dependency>
     <dependency>
       <groupId>info.oais.infomodel</groupId>
       <artifactId>oais-structure-drb</artifactId>
@@ -163,6 +169,23 @@
       <!-- DRB (LGPL v3) is bundled into the executable jar, so its notice and
            licence texts go into the jar too (META-INF/third-party/), for
            deployments that copy only the jar. -->
+      <!-- The structure adapters' README files, rendered on the Help page
+           (/help/engines/{dfdl,kaitai,drb}, see HelpController). -->
+      <resource>
+        <directory>${project.basedir}/../oais-structure-dfdl</directory>
+        <targetPath>docs/engines</targetPath>
+        <includes><include>README-DFDL.md</include></includes>
+      </resource>
+      <resource>
+        <directory>${project.basedir}/../oais-structure-kaitai</directory>
+        <targetPath>docs/engines</targetPath>
+        <includes><include>README-KAITAI.md</include></includes>
+      </resource>
+      <resource>
+        <directory>${project.basedir}/../oais-structure-drb</directory>
+        <targetPath>docs/engines</targetPath>
+        <includes><include>README-DRB.md</include></includes>
+      </resource>
       <resource>
         <directory>${project.basedir}/../third-party</directory>
         <targetPath>META-INF/third-party</targetPath>

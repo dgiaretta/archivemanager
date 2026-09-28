@@ -43,23 +43,16 @@ import info.oais.infomodel.structure.StructureNodeKind;
  * ({@code _io}, {@code _parent}, {@code _root}), are excluded; see
  * {@link #isFieldAccessor(Method)}.</p>
  *
- * <p><b>Source ranges ({@link #getSourceRange()}):</b> populated when the
- * struct a field was read from carries a public {@code Map<String, Object>
- * _debug} field, keyed by field id, each entry itself a map with (at least)
- * "start" and "end" byte offsets and - for a repeated field - an "arr" list
- * of one such map per element. This is the shape the real Kaitai Struct
- * compiler produces when a {@code .ksy} is compiled with {@code ksc --debug}
- * (used e.g. by the Kaitai Web IDE for hex-highlighting); see
- * {@code generated/Point2d.java} for a hand-written class following the same
- * convention, since this project could not run the real compiler with
- * {@code --debug} to confirm the exact key naming it uses. For that reason
- * {@link #fieldDebugEntry} tries a field's Java accessor name first (e.g.
- * {@code "labelLen"}) and its snake_case form second (e.g.
- * {@code "label_len"}) - whichever convention your compiler version
- * actually uses, one of the two should match. A class with no {@code
- * _debug} field (i.e. compiled without {@code --debug}, or a hand-written
- * stand-in that does not populate one) simply reports no source ranges,
- * exactly as before this was added.</p>
+ * <p><b>Source ranges ({@link #getSourceRange()}):</b> available for classes
+ * compiled with {@code ksc --debug}. As verified against the Kaitai Struct
+ * compiler 0.11, such a class carries public {@code Map<String, Integer>
+ * _attrStart}/{@code _attrEnd} fields - each field's start and end byte
+ * offsets, keyed by its Java accessor name (e.g. {@code "labelLen"}) - and
+ * {@code Map<String, List<Integer>> _arrStart}/{@code _arrEnd} with one
+ * entry per element of a repeated field. A class compiled without
+ * {@code --debug} has none of these, and every node simply reports no source
+ * range. (A debug build also doesn't parse in its constructor; see
+ * {@link KaitaiStructureRepInfo}.)</p>
  */
 public final class KaitaiReflectiveStructureNode implements StructureNode {
 
@@ -69,14 +62,17 @@ public final class KaitaiReflectiveStructureNode implements StructureNode {
 	private final String name;
 	private final Object value;
 	private final Class<?> declaredType;
-	private final Optional<Map<?, ?>> debugEntry;
+	private final Optional<ByteRange> sourceRange;
+	/** For a repeated field: each element's range, from its parent's {@code _arrStart}/{@code _arrEnd}. */
+	private final List<Optional<ByteRange>> elementRanges;
 
 	private KaitaiReflectiveStructureNode(String name, Object value, Class<?> declaredType,
-			Optional<Map<?, ?>> debugEntry) {
+			Optional<ByteRange> sourceRange, List<Optional<ByteRange>> elementRanges) {
 		this.name = name;
 		this.value = value;
 		this.declaredType = declaredType;
-		this.debugEntry = debugEntry;
+		this.sourceRange = sourceRange;
+		this.elementRanges = elementRanges;
 	}
 
 	/**
@@ -87,7 +83,8 @@ public final class KaitaiReflectiveStructureNode implements StructureNode {
 	 * @return a {@link StructureNode} view over it
 	 */
 	public static StructureNode ofRoot(String name, KaitaiStruct kaitaiStructRoot) {
-		return new KaitaiReflectiveStructureNode(name, kaitaiStructRoot, kaitaiStructRoot.getClass(), Optional.empty());
+		return new KaitaiReflectiveStructureNode(name, kaitaiStructRoot, kaitaiStructRoot.getClass(), Optional.empty(),
+				List.of());
 	}
 
 	@Override
@@ -130,31 +127,36 @@ public final class KaitaiReflectiveStructureNode implements StructureNode {
 	@Override
 	public List<StructureNode> getChildren() {
 		if (value instanceof KaitaiStruct struct) {
-			Optional<Map<?, ?>> debug = debugMapOf(struct);
+			Map<?, ?> attrStart = debugMap(struct, "_attrStart");
+			Map<?, ?> attrEnd = debugMap(struct, "_attrEnd");
+			Map<?, ?> arrStart = debugMap(struct, "_arrStart");
+			Map<?, ?> arrEnd = debugMap(struct, "_arrEnd");
 			return fieldAccessors(struct.getClass())
 					.map(m -> {
+						String field = m.getName();
 						Object fieldValue = invoke(m, struct);
-						Optional<Map<?, ?>> entry = debug.flatMap(dm -> fieldDebugEntry(dm, m.getName()));
-						return (StructureNode) new KaitaiReflectiveStructureNode(m.getName(), fieldValue, m.getReturnType(),
-								entry);
+						Optional<ByteRange> range = range(attrStart.get(field), attrEnd.get(field));
+						List<Optional<ByteRange>> elementRanges = new ArrayList<>();
+						if (fieldValue instanceof List<?> list && arrStart.get(field) instanceof List<?> starts
+								&& arrEnd.get(field) instanceof List<?> ends) {
+							for (int i = 0; i < list.size(); i++) {
+								elementRanges.add(i < starts.size() && i < ends.size()
+										? range(starts.get(i), ends.get(i)) : Optional.empty());
+							}
+						}
+						return (StructureNode) new KaitaiReflectiveStructureNode(field, fieldValue, m.getReturnType(),
+								range, elementRanges);
 					})
 					.collect(Collectors.toList());
 		}
 		if (value instanceof List<?> list) {
-			List<?> elementEntries = debugEntry
-					.map(e -> e.get("arr"))
-					.filter(a -> a instanceof List)
-					.map(a -> (List<?>) a)
-					.orElse(null);
 			List<StructureNode> children = new ArrayList<>(list.size());
 			for (int i = 0; i < list.size(); i++) {
 				Object element = list.get(i);
 				Class<?> elementType = element == null ? Object.class : element.getClass();
-				Optional<Map<?, ?>> elementDebug =
-						(elementEntries != null && i < elementEntries.size() && elementEntries.get(i) instanceof Map<?, ?> em)
-								? Optional.of(em)
-								: Optional.empty();
-				children.add(new KaitaiReflectiveStructureNode(String.valueOf(i), element, elementType, elementDebug));
+				Optional<ByteRange> elementRange = i < elementRanges.size() ? elementRanges.get(i) : Optional.empty();
+				children.add(new KaitaiReflectiveStructureNode(String.valueOf(i), element, elementType, elementRange,
+						List.of()));
 			}
 			return children;
 		}
@@ -168,58 +170,30 @@ public final class KaitaiReflectiveStructureNode implements StructureNode {
 
 	@Override
 	public Optional<ByteRange> getSourceRange() {
-		return debugEntry.flatMap(KaitaiReflectiveStructureNode::byteRangeFrom);
+		return sourceRange;
 	}
 
 	/**
-	 * The {@code _debug} field a class compiled with {@code ksc --debug} (or a
-	 * hand-written stand-in following the same convention) carries, describing
-	 * the byte ranges of its own direct fields. Absent for anything else, in
-	 * which case every field of {@code struct} simply reports no source range.
+	 * One of the position maps a {@code ksc --debug} class declares as a public
+	 * field (see this class's Javadoc); empty for any other class.
 	 */
-	private static Optional<Map<?, ?>> debugMapOf(Object struct) {
+	private static Map<?, ?> debugMap(Object struct, String fieldName) {
 		try {
-			Field f = struct.getClass().getField("_debug");
-			Object v = f.get(struct);
-			if (v instanceof Map<?, ?> m) {
-				return Optional.of(m);
+			Field f = struct.getClass().getField(fieldName);
+			if (f.get(struct) instanceof Map<?, ?> m) {
+				return m;
 			}
-		} catch (NoSuchFieldException e) {
-			// Not compiled with --debug (or a hand-written stand-in without one) - no source ranges available.
-		} catch (IllegalAccessException e) {
-			// _debug is documented as a public field; if some Kaitai version makes it otherwise, degrade quietly.
+		} catch (NoSuchFieldException | IllegalAccessException e) {
+			// Not compiled with --debug: no source ranges available.
 		}
-		return Optional.empty();
+		return Map.of();
 	}
 
-	private static Optional<Map<?, ?>> fieldDebugEntry(Map<?, ?> debugMap, String javaFieldName) {
-		Object entry = debugMap.get(javaFieldName);
-		if (entry == null) {
-			entry = debugMap.get(toSnakeCase(javaFieldName));
-		}
-		return (entry instanceof Map<?, ?> m) ? Optional.of(m) : Optional.empty();
-	}
-
-	private static Optional<ByteRange> byteRangeFrom(Map<?, ?> entry) {
-		Object start = entry.get("start");
-		Object end = entry.get("end");
+	private static Optional<ByteRange> range(Object start, Object end) {
 		if (start instanceof Number s && end instanceof Number e && e.longValue() >= s.longValue()) {
 			return Optional.of(ByteRange.ofBytes(s.longValue(), e.longValue() - s.longValue()));
 		}
 		return Optional.empty();
-	}
-
-	private static String toSnakeCase(String camelCase) {
-		StringBuilder sb = new StringBuilder();
-		for (int i = 0; i < camelCase.length(); i++) {
-			char c = camelCase.charAt(i);
-			if (Character.isUpperCase(c)) {
-				sb.append('_').append(Character.toLowerCase(c));
-			} else {
-				sb.append(c);
-			}
-		}
-		return sb.toString();
 	}
 
 	/**

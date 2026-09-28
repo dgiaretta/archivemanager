@@ -160,11 +160,13 @@ parsing outputs into a single `StructureNode` representation that can be consume
 
 - `oais-structure-dfdl`  
   Bridges Apache Daffodil into the OAIS structure model. It executes a DFDL schema and converts the
-  parsed result into the common `StructureNode` tree.
+  parsed result into the common `StructureNode` tree. See
+  [oais-structure-dfdl/README-DFDL.md](oais-structure-dfdl/README-DFDL.md).
 
 - `oais-structure-kaitai`  
   Bridges Kaitai Struct-generated parsers by reflection. It works against generated Java classes by
-  reading their getters and runtime metadata to reconstruct a structure tree.
+  reading their getters and runtime metadata to reconstruct a structure tree. See
+  [oais-structure-kaitai/README-KAITAI.md](oais-structure-kaitai/README-KAITAI.md).
 
 - `oais-structure-drb`  
   Bridges GAEL's Java DRB: it applies a DRB SDF schema (DRB's own declarative format description -
