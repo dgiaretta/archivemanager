@@ -53,6 +53,30 @@ Data Object's manifest from the archive,
 `http://localhost:9090/api/data-objects/<id>/repinfo.ttl` -- with `#name` after
 it to choose one of several Data Objects.
 
+## Putting it in an archive
+
+`publish-to-archive.sh` puts the catalogue into an archive-manager archive --
+yours, or any other -- as a Data Object with its Representation Information,
+so it can be opened from the archive rather than from these files:
+
+    ./publish-to-archive.sh https://your-archive.example.org
+    ./publish-to-archive.sh https://your-archive.example.org https://your-archive.example.org/data/bright-stars.bin
+
+It builds the same description in the archive's RepInfo Tools, saves it with
+its DFDL and DRB SDF descriptions as a new Data Object, labels it, and gives it
+the data's storage location: by default the copy of `bright-stars.bin` in this
+project's GitHub repository, or any public http(s) address you give. (The
+archive fetches the data itself, and won't fetch from its own or a private
+network's addresses.) It reads the edit password from `ARCHIVE_EDIT_PASSWORD`
+or asks for it, checks that the archive can decode the data, and prints the Data
+Object's page, manifest and VOTable addresses. It runs anywhere with `sh` and
+`curl`: Linux, macOS, or Git Bash on Windows.
+
+The archive needs the version of archive-manager with TOPCAT and SPLAT support.
+Then, with TOPCAT running on your computer, the Data Object's page -- or its
+right-click menu in the graph -- has "View with TOPCAT"; or load its VOTable
+address in TOPCAT (File → Load), with no plugin at all.
+
 Without the GUI, STILTS (inside the same jar) reads it the same way:
 
     java -Dstartable.readers=info.oais.infomodel.structure.topcat.OaisStructureTableBuilder \

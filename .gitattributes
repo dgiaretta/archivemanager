@@ -9,3 +9,6 @@
 # checksums of the exact bytes, so no line-ending conversion of the .pom (or
 # anything else) on checkout.
 third-party/maven-repo/** binary
+
+# Shell scripts keep Unix line endings on every checkout, so they run when copied to Linux.
+*.sh text eol=lf
