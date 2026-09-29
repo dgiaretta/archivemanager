@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+           xmlns:fn="http://www.w3.org/2005/xpath-functions"
+           targetNamespace="urn:archive-manager:format:bright_star_catalogue"
+           xmlns:tns="urn:archive-manager:format:bright_star_catalogue"
+           elementFormDefault="qualified">
+
+  <xs:include schemaLocation="/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd"/>
+
+  <xs:annotation>
+    <xs:appinfo source="http://www.ogf.org/dfdl/">
+      <dfdl:defineFormat name="binaryDefaults">
+        <dfdl:format ref="tns:GeneralFormat" representation="binary" byteOrder="bigEndian"
+                     binaryNumberRep="binary" lengthUnits="bytes" lengthKind="explicit"
+                     encoding="US-ASCII" occursCountKind="implicit"
+                     documentFinalTerminatorCanBeMissing="yes"/>
+      </dfdl:defineFormat>
+      <dfdl:format ref="tns:binaryDefaults"/>
+    </xs:appinfo>
+  </xs:annotation>
+
+  <xs:annotation>
+    <xs:documentation>A binary catalogue of bright stars: one fixed-length record per star, big-endian, to the end of the file.</xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="bright_star_catalogue" dfdl:lengthKind="implicit">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="star" dfdl:lengthKind="implicit" minOccurs="0" maxOccurs="unbounded" dfdl:occursCountKind="implicit">
+          <xs:annotation>
+            <xs:documentation>Star: One star of the catalogue.</xs:documentation>
+            <xs:appinfo source="http://www.ogf.org/dfdl/"><dfdl:assert testKind="pattern" testPattern="(?s)." message="No data left"/></xs:appinfo>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="name" type="xs:string" dfdl:representation="text" dfdl:length="12">
+                <xs:annotation>
+                  <xs:documentation>Star name: Common name, padded with spaces.</xs:documentation>
+                </xs:annotation>
+              </xs:element>
+              <xs:element name="ra" type="xs:double" dfdl:length="8">
+                <xs:annotation>
+                  <xs:documentation>Right ascension (deg): Right ascension, ICRS, epoch J2000. Valid range: 0 to 360.</xs:documentation>
+                </xs:annotation>
+              </xs:element>
+              <xs:element name="dec" type="xs:double" dfdl:length="8">
+                <xs:annotation>
+                  <xs:documentation>Declination (deg): Declination, ICRS, epoch J2000. Valid range: -90 to 90.</xs:documentation>
+                </xs:annotation>
+              </xs:element>
+              <xs:element name="vmag" type="xs:float" dfdl:length="4">
+                <xs:annotation>
+                  <xs:documentation>Visual magnitude (mag): Apparent magnitude in the Johnson V band.</xs:documentation>
+                </xs:annotation>
+              </xs:element>
+              <xs:element name="parallax" type="xs:float" dfdl:length="4">
+                <xs:annotation>
+                  <xs:documentation>Parallax (mas): Trigonometric parallax. Valid range: 0 to .</xs:documentation>
+                </xs:annotation>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

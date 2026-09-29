@@ -1,0 +1,85 @@
+# Bright star catalogue: Representation Information for TOPCAT and SPLAT
+#
+# A Representation Information manifest: the Data Object(s) below, where their
+# bits are, and the OAIS Representation Information needed to interpret them --
+# structure descriptions (equivalent alternatives: any one will do), how to view
+# the data, and what its elements mean. Every file is named explicitly; relative
+# locations resolve against this file's own location.
+
+@prefix im:     <http://ontology.oais.info/im/> .
+@prefix bridge: <https://oais.info/bridge#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
+
+<#bright-star-catalogue> a im:DigitalObject ;
+    rdfs:label "Bright star catalogue" ;
+    bridge:hasStorageLocation <bright-stars.bin> ;
+    im:interpretedUsing <#bright-star-catalogue-repinfo> .
+
+<#bright-star-catalogue-repinfo> a im:RepInfoAndGroup , im:RepresentationInformation ;
+    rdfs:label "Representation Information for Bright star catalogue" ;
+    im:hasGroupMember <#bright-star-catalogue-structure> , <#bright-star-catalogue-semantics> ;
+    im:hasStructureRepresentationInformation <#bright-star-catalogue-structure> ;
+    im:hasSemanticRepresentationInformation <#bright-star-catalogue-semantics> .
+
+<#bright-star-catalogue-structure> a im:RepInfoOrGroup , im:StructureRepresentationInformation ;
+    rdfs:label "Structure of Bright star catalogue: any one of these descriptions" ;
+    im:hasGroupMember <#bright-star-catalogue-structure-1> , <#bright-star-catalogue-structure-2> .
+
+<#bright-star-catalogue-structure-1> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "DFDL" ;
+    bridge:hasStorageLocation <bright-star-catalogue.dfdl.xsd> .
+
+<#bright-star-catalogue-structure-2> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "DRB SDF" ;
+    bridge:hasStorageLocation <bright-star-catalogue.drb.xsd> .
+
+<#bright-star-catalogue-semantics> a im:SemanticRepresentationInformation ;
+    rdfs:label "Semantics of Bright star catalogue" ;
+    im:interpretedUsingRecurse <#bright-star-catalogue-view-1> ,
+        <#bright-star-catalogue-element-1> ,
+        <#bright-star-catalogue-element-2> ,
+        <#bright-star-catalogue-element-3> ,
+        <#bright-star-catalogue-element-4> ,
+        <#bright-star-catalogue-element-5> ,
+        <#bright-star-catalogue-element-6> .
+
+<#bright-star-catalogue-view-1> a im:ViewSpecification , im:SemanticRepresentationInformation ;
+    im:viewKind "table" ;
+    bridge:hasStorageLocation <bright-star-catalogue-table-view.xml> .
+
+<#bright-star-catalogue-element-1> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "star" ;
+    rdfs:label "Star" ;
+    skos:definition "One star of the catalogue." .
+
+<#bright-star-catalogue-element-2> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "star.name" ;
+    rdfs:label "Star name" ;
+    skos:definition "Common name, padded with spaces." .
+
+<#bright-star-catalogue-element-3> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "star.ra" ;
+    rdfs:label "Right ascension" ;
+    skos:definition "Right ascension, ICRS, epoch J2000." ;
+    rico:hasUnitOfMeasurement [ rdfs:label "deg" ] .
+
+<#bright-star-catalogue-element-4> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "star.dec" ;
+    rdfs:label "Declination" ;
+    skos:definition "Declination, ICRS, epoch J2000." ;
+    rico:hasUnitOfMeasurement [ rdfs:label "deg" ] .
+
+<#bright-star-catalogue-element-5> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "star.vmag" ;
+    rdfs:label "Visual magnitude" ;
+    skos:definition "Apparent magnitude in the Johnson V band." ;
+    rico:hasUnitOfMeasurement [ rdfs:label "mag" ] .
+
+<#bright-star-catalogue-element-6> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "star.parallax" ;
+    rdfs:label "Parallax" ;
+    skos:definition "Trigonometric parallax." ;
+    rico:hasUnitOfMeasurement [ rdfs:label "mas" ] .
+

@@ -373,6 +373,10 @@ a `#`, e.g. `station.ttl#readings`. The builder recognises a manifest by its con
 The terms are local extensions to the OAIS Information Model (`oais-im-local-extensions.ttl` in
 archive-manager).
 
+**A worked example** is in `examples/topcat/`: a binary star catalogue with its manifest, DFDL
+and DRB SDF descriptions and table view (made with archive-manager's RepInfo Tools), and scripts
+that open it in TOPCAT -- see its README for installing TOPCAT and running it.
+
 **Registering with TOPCAT** needs no source changes to `starjava`: `StarTableFactory` loads extra
 `TableBuilder`s by classname from a system property
 (`StarTableFactory.KNOWN_BUILDERS_PROPERTY`, `startable.readers`). This module pulls in Daffodil's
