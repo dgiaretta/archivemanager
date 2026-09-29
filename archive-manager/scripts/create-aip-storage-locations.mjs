@@ -126,7 +126,7 @@ async function createAip() {
     const res = await fetch(`${BASE_URL}/api/entities`, {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
-        body: JSON.stringify({ classIri: 'http://ontology.oais.org/im/ArchivalInformationPackage' }),
+        body: JSON.stringify({ classIri: 'http://ontology.oais.info/im/ArchivalInformationPackage' }),
     });
     if (!res.ok) {
         throw new Error(`Create AIP failed: ${res.status} ${await res.text()}`);

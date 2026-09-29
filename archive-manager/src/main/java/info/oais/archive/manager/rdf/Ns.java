@@ -14,7 +14,7 @@ public final class Ns {
     }
 
     public static final String RICO = "https://www.ica.org/standards/RiC/ontology#";
-    public static final String IM = "http://ontology.oais.org/im/";
+    public static final String IM = "http://ontology.oais.info/im/";
     public static final String BRIDGE = "https://oais.info/bridge#";
     public static final String EX = "http://example.org/archive/";
     public static final String SKOS = "http://www.w3.org/2004/02/skos/core#";

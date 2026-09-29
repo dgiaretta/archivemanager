@@ -15,11 +15,11 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-@prefix im: <http://ontology.oais.org/im/> .
-@prefix taxonomy: <http://ontology.oais.org/taxonomy/> .
-@prefix oais: <http://ontology.oais.org/meta/> .
+@prefix im: <http://ontology.oais.info/im/> .
+@prefix taxonomy: <http://ontology.oais.info/taxonomy/> .
+@prefix oais: <http://ontology.oais.info/meta/> .
 
-<http://ontology.oais.org/im/>
+<http://ontology.oais.info/im/>
   a owl:Ontology ;
   rdfs:label "OAIS Information Model" ;
   rdfs:comment "Schema only. The knowledge base holds no instances, so this export declares classes and properties and asserts nothing about any individual." .
@@ -56,7 +56,7 @@ oais:abstract
 
 # -- classes
 
-<http://ontology.oais.org/im/Agent>
+<http://ontology.oais.info/im/Agent>
   a owl:Class ;
   rdfs:label "Agent" ;
   oais:identifier "c-0029" ;
@@ -64,7 +64,7 @@ oais:abstract
   oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
   rdfs:comment "Agent: A person, organization, or automated system capable of performing an action such as defining a Designated Community or Preservation Objective, or identifying a Transformation Information Property. LOCAL EXTENSION -- the OAIS Information Model does not itself model who performs such actions; that belongs to the Producer/Management/Consumer roles of the Functional Model, out of scope for this Information-Model-only export. See oais-ric-bridge.ttl for its correspondence to rico:Agent, which already models the full Person/Group/CorporateBody/Family/Position/Mechanism hierarchy." .
 
-<http://ontology.oais.org/im/AccessRightsInformation>
+<http://ontology.oais.info/im/AccessRightsInformation>
   a owl:Class ;
   rdfs:label "Access Rights Information" ;
   skos:altLabel "Access RIghts Information" ;
@@ -74,10 +74,10 @@ oais:abstract
   oais:oaisConcept "Access Rights Information" ;
   oais:sourceReference "figure 4-19" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationObject> ;
   rdfs:comment "Access Rights Information: The information that identifies the access restrictions pertaining to the Content Data Object, including the legal framework, licensing terms, and access control." .
 
-<http://ontology.oais.org/im/ArchivalInformationPackage>
+<http://ontology.oais.info/im/ArchivalInformationPackage>
   a owl:Class ;
   rdfs:label "Archival Information Package" ;
   oais:identifier "c-0020" ;
@@ -90,22 +90,22 @@ oais:abstract
   oais:sourceReference "figure 4-18" ;
   oais:sourceReference "figure 4-20" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationPackage> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationPackage> ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasContentInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasContentInformation> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasPreservationDescriptiveInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasPreservationDescriptiveInformation> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:comment "Archival Information Package: An Information Package, consisting of the Content Information and the associated Preservation Description Information (PDI), which is preserved within an OAIS." .
 
-<http://ontology.oais.org/im/Bit>
+<http://ontology.oais.info/im/Bit>
   a owl:Class ;
   rdfs:label "Bit" ;
   oais:identifier "c-0025" ;
@@ -116,7 +116,7 @@ oais:abstract
   oais:sourceReference "figure 4-21" ;
   rdfs:comment "Bit: The unit of which a Digital Object is composed. OAIS has no glossary entry for Bit; 4.3.2.3.2 states that the Digital Object 'is itself composed of one or more bit sequences', and figure 4-10 models Bit as a class." .
 
-<http://ontology.oais.org/im/CompletePreservationDescriptionInformation>
+<http://ontology.oais.info/im/CompletePreservationDescriptionInformation>
   a owl:Class ;
   rdfs:label "Complete Preservation Description Information" ;
   oais:identifier "c-0010" ;
@@ -124,40 +124,40 @@ oais:abstract
   oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
   oais:sourceReference "figure 4-19" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/PreservationDescriptionInformation> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/PreservationDescriptionInformation> ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasAccessRightsInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasAccessRightsInformation> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasContextInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasContextInformation> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasFixityInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasFixityInformation> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasProvenanceInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasProvenanceInformation> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasReferenceInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasReferenceInformation> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:comment "Complete Preservation Description Information: a Preservation Description Information object in which all five PDI categories are present. LOCAL EXTENSION -- OAIS does not name this class. It exists to express the requirement of 4.3.3.4, 'all classes of PDI information must be present in an AIP', which Protege Frames cannot state as a qualified cardinality on the AIP's PDI slot. Introduced by decision OQ-7 option C." .
 
-<http://ontology.oais.org/im/ContentInformation>
+<http://ontology.oais.info/im/ContentInformation>
   a owl:Class ;
   rdfs:label "Content Information" ;
   skos:altLabel "Content  Information" ;
@@ -170,15 +170,15 @@ oais:abstract
   oais:sourceReference "figure 4-15" ;
   oais:sourceReference "figure 4-18" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationObject> ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/furtherDescribedBy> ;
+    owl:onProperty <http://ontology.oais.info/im/furtherDescribedBy> ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:comment "Content Information: A set of information that is the original target of preservation. It is an Information Object composed of its Content Data Object and its Representation Information." .
 
-<http://ontology.oais.org/im/ContextInformation>
+<http://ontology.oais.info/im/ContextInformation>
   a owl:Class ;
   rdfs:label "Context Information" ;
   oais:identifier "c-0013" ;
@@ -187,10 +187,10 @@ oais:abstract
   oais:oaisConcept "Context Information" ;
   oais:sourceReference "figure 4-19" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationObject> ;
   rdfs:comment "Context Information: The information that documents the relationships of the Content Data Object to its environment. This includes why the Content Data Object was created and how it relates to other Content Data Objects." .
 
-<http://ontology.oais.org/im/DataObject>
+<http://ontology.oais.info/im/DataObject>
   a owl:Class ;
   rdfs:label "Data Object" ;
   oais:identifier "c-0002" ;
@@ -204,18 +204,18 @@ oais:abstract
   owl:equivalentClass [
     a owl:Class ;
     owl:unionOf (
-      <http://ontology.oais.org/im/DigitalObject>
-      <http://ontology.oais.org/im/PhysicalObject>
+      <http://ontology.oais.info/im/DigitalObject>
+      <http://ontology.oais.info/im/PhysicalObject>
     )
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/interpretedUsing> ;
+    owl:onProperty <http://ontology.oais.info/im/interpretedUsing> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:comment "Data Object: Either a Physical Object or a Digital Object." .
 
-<http://ontology.oais.org/im/DescriptiveInformation>
+<http://ontology.oais.info/im/DescriptiveInformation>
   a owl:Class ;
   rdfs:label "Descriptive Information" ;
   oais:identifier "c-0007" ;
@@ -225,21 +225,10 @@ oais:abstract
   oais:sourceReference "figure 4-1" ;
   oais:sourceReference "figure 4-2" ;
   oais:sourceReference "figure 4-14" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationObject> ;
   rdfs:comment "Descriptive Information: An Information Object which is a set of information, consisting primarily of Package Descriptions, which is provided to Data Management to support the finding, ordering, and retrieving of OAIS information holdings by Consumers." .
 
-<http://ontology.oais.org/im/DesignatedCommunity>
-  a owl:Class ;
-  rdfs:label "Designated Community" ;
-  oais:identifier "c-0026" ;
-  oais:status "oais-core" ;
-  oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
-  oais:oaisConcept "Designated Community" ;
-  oais:sourceReference "glossary" ;
-  oais:sourceReference "section 2.4" ;
-  rdfs:comment "Designated Community: An identified group of potential Consumers who should be able to understand a particular set of information in ways exemplified by the Preservation Objectives. The Designated Community may be composed of multiple user communities. A Designated Community is defined by the Archive and this definition may change over time. Not diagrammed as a class in the OAIS figures." .
-
-<http://ontology.oais.org/im/DigitalObject>
+<http://ontology.oais.info/im/DigitalObject>
   a owl:Class ;
   rdfs:label "Digital Object" ;
   oais:identifier "c-0004" ;
@@ -248,15 +237,15 @@ oais:abstract
   oais:oaisConcept "Digital Object" ;
   oais:sourceReference "figure 4-10" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/DataObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/DataObject> ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasBit> ;
+    owl:onProperty <http://ontology.oais.info/im/hasBit> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:comment "Digital Object: An object composed of a set of bit sequences." .
 
-<http://ontology.oais.org/im/DisseminationInformationPackage>
+<http://ontology.oais.info/im/DisseminationInformationPackage>
   a owl:Class ;
   rdfs:label "Dissemination Information Package" ;
   oais:identifier "c-0021" ;
@@ -266,10 +255,10 @@ oais:abstract
   oais:sourceReference "figure 2-4" ;
   oais:sourceReference "figure 4-1" ;
   oais:sourceReference "figure 4-17" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationPackage> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationPackage> ;
   rdfs:comment "Dissemination Information Package: An Information Package, derived from one or more AIPs, and sent by Archives to the Consumer in response to a request to the OAIS." .
 
-<http://ontology.oais.org/im/FixityInformation>
+<http://ontology.oais.info/im/FixityInformation>
   a owl:Class ;
   rdfs:label "Fixity Information" ;
   oais:identifier "c-0012" ;
@@ -278,10 +267,10 @@ oais:abstract
   oais:oaisConcept "Fixity Information" ;
   oais:sourceReference "figure 4-19" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationObject> ;
   rdfs:comment "Fixity Information: The information which documents the mechanisms that ensure that the Content Data Object has not been altered in an undocumented manner." .
 
-<http://ontology.oais.org/im/InformationObject>
+<http://ontology.oais.info/im/InformationObject>
   a owl:Class ;
   rdfs:label "Information Object" ;
   oais:identifier "c-0005" ;
@@ -293,19 +282,19 @@ oais:abstract
   oais:sourceReference "figure 4-14" ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasDataObject> ;
+    owl:onProperty <http://ontology.oais.info/im/hasDataObject> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasRepresentationInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasRepresentationInformation> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:comment "Information Object: A Data Object together with its Representation Information." .
 
-<http://ontology.oais.org/im/InformationPackage>
+<http://ontology.oais.info/im/InformationPackage>
   a owl:Class ;
   rdfs:label "Information Package" ;
   oais:identifier "c-0018" ;
@@ -314,26 +303,26 @@ oais:abstract
   oais:oaisConcept "Information Package" ;
   oais:sourceReference "figure 4-15" ;
   oais:sourceReference "figure 4-17" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationObject> ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/delimitedBy> ;
+    owl:onProperty <http://ontology.oais.info/im/delimitedBy> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/describedBy> ;
+    owl:onProperty <http://ontology.oais.info/im/describedBy> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasContentInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasContentInformation> ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:comment "Information Package: A logical container composed of optional Information Object(s). Associated with this Information Package is Packaging Information used to delimit and identify the Information Object and optional Package Description information used to facilitate searches for the Information Object." .
 
-<http://ontology.oais.org/im/OAIS>
+<http://ontology.oais.info/im/OAIS>
   a owl:Class ;
   rdfs:label "OAIS" ;
   oais:identifier "c-0001" ;
@@ -344,7 +333,7 @@ oais:abstract
   oais:sourceReference "figure 2-4" ;
   rdfs:comment "OAIS (Open Archival Information System): An Archive, consisting of an organization, which may be part of a larger organization, of people and systems, that has accepted the responsibility to preserve information and make it available for a Designated Community. NOTE -- definesDesignatedCommunity, definesPreservationObjective, and identifiesTransformationInformationProperty are no longer asserted here as restrictions on OAIS: only an Agent (see im:Agent) performs those defining/identifying actions, not the Archive-as-system itself." .
 
-<http://ontology.oais.org/im/OtherRepresentationInformation>
+<http://ontology.oais.info/im/OtherRepresentationInformation>
   a owl:Class ;
   rdfs:label "Other Representation Information" ;
   oais:identifier "c-0022" ;
@@ -352,10 +341,10 @@ oais:abstract
   oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
   oais:oaisConcept "Other Representation Information" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/RepresentationInformation> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/RepresentationInformation> ;
   rdfs:comment "Other Representation Information: A type of Representation Information which cannot easily be classified as Structure Representation Information or Semantic Representation Information. It is a type of Information Object." .
 
-<http://ontology.oais.org/im/PackageDescription>
+<http://ontology.oais.info/im/PackageDescription>
   a owl:Class ;
   rdfs:label "Package Description" ;
   oais:identifier "c-0017" ;
@@ -365,15 +354,15 @@ oais:abstract
   oais:sourceReference "figure 4-15" ;
   oais:sourceReference "figure 4-18" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationObject> ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/derivedFrom> ;
+    owl:onProperty <http://ontology.oais.info/im/derivedFrom> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:comment "Package Description: The information intended for use by Access Aids. It is a type of Information Object." .
 
-<http://ontology.oais.org/im/PackagingInformation>
+<http://ontology.oais.info/im/PackagingInformation>
   a owl:Class ;
   rdfs:label "Packaging Information" ;
   oais:identifier "c-0008" ;
@@ -385,22 +374,22 @@ oais:abstract
   oais:sourceReference "figure 4-15" ;
   oais:sourceReference "figure 4-18" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationObject> ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasDescriptiveInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasDescriptiveInformation> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/identifies> ;
+    owl:onProperty <http://ontology.oais.info/im/identifies> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:comment "Packaging Information: The information that describes how the components of an Information Package are logically or physically bound together and how to identify and extract the components. It is a type of Information Object." .
 
-<http://ontology.oais.org/im/PhysicalObject>
+<http://ontology.oais.info/im/PhysicalObject>
   a owl:Class ;
   rdfs:label "Physical Object" ;
   oais:identifier "c-0003" ;
@@ -409,10 +398,10 @@ oais:abstract
   oais:oaisConcept "Physical Object" ;
   oais:sourceReference "figure 4-10" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/DataObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/DataObject> ;
   rdfs:comment "Physical Object: An object (such as a moon rock, bio-specimen, microscope slide) with physically observable properties that represent information that is considered suitable for being adequately documented for preservation, distribution, and independent usage." .
 
-<http://ontology.oais.org/im/PreservationDescriptionInformation>
+<http://ontology.oais.info/im/PreservationDescriptionInformation>
   a owl:Class ;
   rdfs:label "Preservation Description Information" ;
   oais:identifier "c-0009" ;
@@ -424,45 +413,35 @@ oais:abstract
   oais:sourceReference "figure 4-15" ;
   oais:sourceReference "figure 4-18" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationObject> ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasAccessRightsInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasAccessRightsInformation> ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasContextInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasContextInformation> ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasFixityInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasFixityInformation> ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasProvenanceInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasProvenanceInformation> ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasReferenceInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasReferenceInformation> ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:comment "Preservation Description Information: The information, which along with Representation Information, is necessary for adequate preservation of the Content Data Object and which can be categorized as Provenance Information, Context Information, Reference Information, Fixity Information, and Access Rights Information. It is a type of Information Object." .
 
-<http://ontology.oais.org/im/PreservationObjective>
-  a owl:Class ;
-  rdfs:label "Preservation Objective" ;
-  oais:identifier "c-0027" ;
-  oais:status "oais-core" ;
-  oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
-  oais:oaisConcept "Preservation Objective" ;
-  oais:sourceReference "section 2.4" ;
-  rdfs:comment "Preservation Objective: A specific achievable aim which can be carried out using the Information Object. Per section 2.4, an OAIS must define its Preservation Objectives, which should be Specific, Actionable, and Measurable, and which exemplify what it means for information to be Independently Understandable by the Designated Community." .
-
-<http://ontology.oais.org/im/ProvenanceInformation>
+<http://ontology.oais.info/im/ProvenanceInformation>
   a owl:Class ;
   rdfs:label "Provenance Information" ;
   oais:identifier "c-0014" ;
@@ -471,10 +450,10 @@ oais:abstract
   oais:oaisConcept "Provenance Information" ;
   oais:sourceReference "figure 4-19" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationObject> ;
   rdfs:comment "Provenance Information: The information that documents the history of the Content Data Object. This information tells the origin or source of the Content Data Object, any changes that may have taken place since it was originated, and who has had custody of it since it was originated." .
 
-<http://ontology.oais.org/im/ReferenceInformation>
+<http://ontology.oais.info/im/ReferenceInformation>
   a owl:Class ;
   rdfs:label "Reference Information" ;
   oais:identifier "c-0015" ;
@@ -483,10 +462,10 @@ oais:abstract
   oais:oaisConcept "Reference Information" ;
   oais:sourceReference "figure 4-19" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationObject> ;
   rdfs:comment "Reference Information: The information that is used as an identifier for the Content Data Object. It also includes identifiers that allow outside systems to refer unambiguously to a particular Content Data Object." .
 
-<http://ontology.oais.org/im/RepresentationInformation>
+<http://ontology.oais.info/im/RepresentationInformation>
   a owl:Class ;
   rdfs:label "Representation Information" ;
   oais:identifier "c-0016" ;
@@ -497,30 +476,30 @@ oais:abstract
   oais:sourceReference "figure 4-10" ;
   oais:sourceReference "figure 4-14" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationObject> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationObject> ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasOtherRepresentationInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasOtherRepresentationInformation> ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasSemanticRepresentationInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasSemanticRepresentationInformation> ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/hasStructureRepresentationInformation> ;
+    owl:onProperty <http://ontology.oais.info/im/hasStructureRepresentationInformation> ;
     owl:maxCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:subClassOf [
     a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/inverseOfInterpretedUsing> ;
+    owl:onProperty <http://ontology.oais.info/im/inverseOfInterpretedUsing> ;
     owl:minCardinality "1"^^xsd:nonNegativeInteger
   ] ;
   rdfs:comment "Representation Information: The information that maps a Data Object into more meaningful concepts so that the Data Object may be understood in ways exemplified by Preservation Objectives. It is a type of Information Object." .
 
-<http://ontology.oais.org/im/SemanticRepresentationInformation>
+<http://ontology.oais.info/im/SemanticRepresentationInformation>
   a owl:Class ;
   rdfs:label "Semantic Representation Information" ;
   skos:altLabel "Semantic Information" ;
@@ -529,10 +508,10 @@ oais:abstract
   oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
   oais:oaisConcept "Semantic Representation Information" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/RepresentationInformation> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/RepresentationInformation> ;
   rdfs:comment "Semantic Representation Information: The Representation Information that further describes the meaning of the Data Object, and its parts or elements, beyond that provided by the Structure Representation Information." .
 
-<http://ontology.oais.org/im/StructureRepresentationInformation>
+<http://ontology.oais.info/im/StructureRepresentationInformation>
   a owl:Class ;
   rdfs:label "Structure Representation Information" ;
   skos:altLabel "Structure Information" ;
@@ -541,10 +520,10 @@ oais:abstract
   oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
   oais:oaisConcept "Structure Representation Information" ;
   oais:sourceReference "figure 4-21" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/RepresentationInformation> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/RepresentationInformation> ;
   rdfs:comment "Structure Representation Information: The Representation Information that imparts information about the arrangement of and the organization of the parts or elements of the Data Object." .
 
-<http://ontology.oais.org/im/SubmissionInformationPackage>
+<http://ontology.oais.info/im/SubmissionInformationPackage>
   a owl:Class ;
   rdfs:label "Submission Information Package" ;
   oais:identifier "c-0019" ;
@@ -554,189 +533,142 @@ oais:abstract
   oais:sourceReference "figure 2-4" ;
   oais:sourceReference "figure 4-1" ;
   oais:sourceReference "figure 4-17" ;
-  rdfs:subClassOf <http://ontology.oais.org/im/InformationPackage> ;
+  rdfs:subClassOf <http://ontology.oais.info/im/InformationPackage> ;
   rdfs:comment "Submission Information Package: An Information Package that is delivered by the Producer to the OAIS for use in the construction or update of one or more AIPs and/or the associated Descriptive Information." .
-
-<http://ontology.oais.org/im/TransformationInformationProperty>
-  a owl:Class ;
-  rdfs:label "Transformation Information Property" ;
-  skos:altLabel "Transformational Information Property" ;
-  oais:identifier "c-0028" ;
-  oais:status "oais-core" ;
-  oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
-  oais:oaisConcept "Transformation Information Property" ;
-  oais:sourceReference "glossary" ;
-  oais:sourceReference "section 2.5" ;
-  rdfs:subClassOf [
-    a owl:Restriction ;
-    owl:onProperty <http://ontology.oais.org/im/dependsOnRepresentationInformation> ;
-    owl:minCardinality "1"^^xsd:nonNegativeInteger
-  ] ;
-  rdfs:comment "Transformation Information Property: An Information Property the preservation of the value of which is regarded as being necessary but not sufficient to verify that any Non-Reversible Transformation has adequately preserved information content. This could be important as contributing to evidence about Authenticity. Such an Information Property is dependent upon specific Representation Information, including Semantic Representation Information, to denote how it is encoded and what it means. NOTE -- sometimes referred to in the literature as a 'significant property'. Per section 2.5, checks of the values of Transformation Information Properties may be part of Provenance Information; not asserted here as a formal relation since OAIS states it as a possibility, not a requirement." .
 
 # -- compatibility with the deployed taxonomy IRIs.
 # Name-derived IRIs cannot survive a rename, which is why
 # decision OQ-2 minted opaque ones. The old IRIs are kept
 # equivalent so existing queries and data keep resolving.
 
-<http://ontology.oais.org/taxonomy/access_rights_information>
+<http://ontology.oais.info/taxonomy/access_rights_information>
   a owl:Class ;
   rdfs:label "Access Rights Information" ;
-  owl:equivalentClass <http://ontology.oais.org/im/AccessRightsInformation> .
+  owl:equivalentClass <http://ontology.oais.info/im/AccessRightsInformation> .
 
-<http://ontology.oais.org/taxonomy/archival_information_package>
+<http://ontology.oais.info/taxonomy/archival_information_package>
   a owl:Class ;
   rdfs:label "Archival Information Package" ;
-  owl:equivalentClass <http://ontology.oais.org/im/ArchivalInformationPackage> .
+  owl:equivalentClass <http://ontology.oais.info/im/ArchivalInformationPackage> .
 
-<http://ontology.oais.org/taxonomy/content_information>
+<http://ontology.oais.info/taxonomy/content_information>
   a owl:Class ;
   rdfs:label "Content Information" ;
-  owl:equivalentClass <http://ontology.oais.org/im/ContentInformation> .
+  owl:equivalentClass <http://ontology.oais.info/im/ContentInformation> .
 
-<http://ontology.oais.org/taxonomy/context_information>
+<http://ontology.oais.info/taxonomy/context_information>
   a owl:Class ;
   rdfs:label "Context Information" ;
-  owl:equivalentClass <http://ontology.oais.org/im/ContextInformation> .
+  owl:equivalentClass <http://ontology.oais.info/im/ContextInformation> .
 
-<http://ontology.oais.org/taxonomy/data_object>
+<http://ontology.oais.info/taxonomy/data_object>
   a owl:Class ;
   rdfs:label "Data Object" ;
-  owl:equivalentClass <http://ontology.oais.org/im/DataObject> .
+  owl:equivalentClass <http://ontology.oais.info/im/DataObject> .
 
-<http://ontology.oais.org/taxonomy/dissemination_information_package>
+<http://ontology.oais.info/taxonomy/dissemination_information_package>
   a owl:Class ;
   rdfs:label "Dissemination Information Package" ;
-  owl:equivalentClass <http://ontology.oais.org/im/DisseminationInformationPackage> .
+  owl:equivalentClass <http://ontology.oais.info/im/DisseminationInformationPackage> .
 
-<http://ontology.oais.org/taxonomy/fixity_information>
+<http://ontology.oais.info/taxonomy/fixity_information>
   a owl:Class ;
   rdfs:label "Fixity Information" ;
-  owl:equivalentClass <http://ontology.oais.org/im/FixityInformation> .
+  owl:equivalentClass <http://ontology.oais.info/im/FixityInformation> .
 
-<http://ontology.oais.org/taxonomy/information_object>
+<http://ontology.oais.info/taxonomy/information_object>
   a owl:Class ;
   rdfs:label "Information Object" ;
-  owl:equivalentClass <http://ontology.oais.org/im/InformationObject> .
+  owl:equivalentClass <http://ontology.oais.info/im/InformationObject> .
 
-<http://ontology.oais.org/taxonomy/information_package>
+<http://ontology.oais.info/taxonomy/information_package>
   a owl:Class ;
   rdfs:label "Information Package" ;
-  owl:equivalentClass <http://ontology.oais.org/im/InformationPackage> .
+  owl:equivalentClass <http://ontology.oais.info/im/InformationPackage> .
 
-<http://ontology.oais.org/taxonomy/other_representation_information>
+<http://ontology.oais.info/taxonomy/other_representation_information>
   a owl:Class ;
   rdfs:label "Other Representation Information" ;
-  owl:equivalentClass <http://ontology.oais.org/im/OtherRepresentationInformation> .
+  owl:equivalentClass <http://ontology.oais.info/im/OtherRepresentationInformation> .
 
-<http://ontology.oais.org/taxonomy/preservation_description_information>
+<http://ontology.oais.info/taxonomy/preservation_description_information>
   a owl:Class ;
   rdfs:label "Preservation Description Information" ;
-  owl:equivalentClass <http://ontology.oais.org/im/PreservationDescriptionInformation> .
+  owl:equivalentClass <http://ontology.oais.info/im/PreservationDescriptionInformation> .
 
-<http://ontology.oais.org/taxonomy/provenance_information>
+<http://ontology.oais.info/taxonomy/provenance_information>
   a owl:Class ;
   rdfs:label "Provenance Information" ;
-  owl:equivalentClass <http://ontology.oais.org/im/ProvenanceInformation> .
+  owl:equivalentClass <http://ontology.oais.info/im/ProvenanceInformation> .
 
-<http://ontology.oais.org/taxonomy/reference_information>
+<http://ontology.oais.info/taxonomy/reference_information>
   a owl:Class ;
   rdfs:label "Reference Information" ;
-  owl:equivalentClass <http://ontology.oais.org/im/ReferenceInformation> .
+  owl:equivalentClass <http://ontology.oais.info/im/ReferenceInformation> .
 
-<http://ontology.oais.org/taxonomy/representation_information>
+<http://ontology.oais.info/taxonomy/representation_information>
   a owl:Class ;
   rdfs:label "Representation Information" ;
-  owl:equivalentClass <http://ontology.oais.org/im/RepresentationInformation> .
+  owl:equivalentClass <http://ontology.oais.info/im/RepresentationInformation> .
 
-<http://ontology.oais.org/taxonomy/semantic_information>
+<http://ontology.oais.info/taxonomy/semantic_information>
   a owl:Class ;
   rdfs:label "Semantic Representation Information" ;
-  owl:equivalentClass <http://ontology.oais.org/im/SemanticRepresentationInformation> .
+  owl:equivalentClass <http://ontology.oais.info/im/SemanticRepresentationInformation> .
 
-<http://ontology.oais.org/taxonomy/structure_information>
+<http://ontology.oais.info/taxonomy/structure_information>
   a owl:Class ;
   rdfs:label "Structure Representation Information" ;
-  owl:equivalentClass <http://ontology.oais.org/im/StructureRepresentationInformation> .
+  owl:equivalentClass <http://ontology.oais.info/im/StructureRepresentationInformation> .
 
-<http://ontology.oais.org/taxonomy/submission_information_package>
+<http://ontology.oais.info/taxonomy/submission_information_package>
   a owl:Class ;
   rdfs:label "Submission Information Package" ;
-  owl:equivalentClass <http://ontology.oais.org/im/SubmissionInformationPackage> .
+  owl:equivalentClass <http://ontology.oais.info/im/SubmissionInformationPackage> .
 
 # -- properties
 
-<http://ontology.oais.org/im/carriedOutUsing>
-  a owl:ObjectProperty ;
-  rdfs:label "carried out using" ;
-  oais:identifier "s-0036" ;
-  oais:status "oais-core" ;
-  oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/PreservationObjective> ;
-  rdfs:range <http://ontology.oais.org/im/InformationObject> ;
-  rdfs:comment "sources:section 2.4 ('A specific achievable aim which can be carried out using the Information Object')." .
-
-<http://ontology.oais.org/im/definesPreservationObjective>
-  a owl:ObjectProperty ;
-  rdfs:label "defines Preservation Objective" ;
-  oais:identifier "s-0037" ;
-  oais:status "oais-core" ;
-  oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/Agent> ;
-  rdfs:range <http://ontology.oais.org/im/PreservationObjective> ;
-  rdfs:comment "sources:section 2.4 ('An OAIS must define Preservation Objectives'). Domain is Agent, not OAIS: it is a person, organization, or automated system acting on the Archive's behalf that performs the defining, not the Archive-as-system itself." .
-
-<http://ontology.oais.org/im/delimitedBy>
+<http://ontology.oais.info/im/delimitedBy>
   a owl:ObjectProperty ;
   rdfs:label "delimited by" ;
   oais:identifier "s-0008" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/InformationPackage> ;
-  rdfs:range <http://ontology.oais.org/im/PackagingInformation> ;
+  rdfs:domain <http://ontology.oais.info/im/InformationPackage> ;
+  rdfs:range <http://ontology.oais.info/im/PackagingInformation> ;
   rdfs:comment "sources:figure 4-15" .
 
-<http://ontology.oais.org/im/dependsOnRepresentationInformation>
-  a owl:ObjectProperty ;
-  rdfs:label "depends on Representation Information" ;
-  oais:identifier "s-0038" ;
-  oais:status "oais-core" ;
-  oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/TransformationInformationProperty> ;
-  rdfs:range <http://ontology.oais.org/im/RepresentationInformation> ;
-  rdfs:comment "sources:glossary ('Such an Information Property is dependent upon specific Representation Information, including Semantic Representation Information, to denote how it is encoded and what it means')." .
-
-<http://ontology.oais.org/im/derivedFrom>
+<http://ontology.oais.info/im/derivedFrom>
   a owl:ObjectProperty ;
   rdfs:label "derived from" ;
   oais:identifier "s-0025" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/PackageDescription> ;
-  rdfs:range <http://ontology.oais.org/im/InformationPackage> ;
+  rdfs:domain <http://ontology.oais.info/im/PackageDescription> ;
+  rdfs:range <http://ontology.oais.info/im/InformationPackage> ;
   rdfs:comment "sources:figure 4-15" .
 
-<http://ontology.oais.org/im/describedBy>
+<http://ontology.oais.info/im/describedBy>
   a owl:ObjectProperty ;
   rdfs:label "described by" ;
   oais:identifier "s-0016" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/InformationPackage> ;
-  rdfs:range <http://ontology.oais.org/im/PackageDescription> ;
+  rdfs:domain <http://ontology.oais.info/im/InformationPackage> ;
+  rdfs:range <http://ontology.oais.info/im/PackageDescription> ;
   rdfs:comment "sources:figure 4-15" .
 
-<http://ontology.oais.org/im/furtherDescribedBy>
+<http://ontology.oais.info/im/furtherDescribedBy>
   a owl:ObjectProperty ;
   rdfs:label "further described by" ;
   oais:identifier "s-0002" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/ContentInformation> ;
-  rdfs:range <http://ontology.oais.org/im/PreservationDescriptionInformation> ;
+  rdfs:domain <http://ontology.oais.info/im/ContentInformation> ;
+  rdfs:range <http://ontology.oais.info/im/PreservationDescriptionInformation> ;
   rdfs:comment "sources:figure 4-15" .
 
-<http://ontology.oais.org/im/hasAccessRightsInformation>
+<http://ontology.oais.info/im/hasAccessRightsInformation>
   a owl:ObjectProperty ;
   rdfs:label "has Access Rights Information" ;
   oais:identifier "s-0031" ;
@@ -745,24 +677,24 @@ oais:abstract
   rdfs:domain [
     a owl:Class ;
     owl:unionOf (
-      <http://ontology.oais.org/im/PreservationDescriptionInformation>
-      <http://ontology.oais.org/im/CompletePreservationDescriptionInformation>
+      <http://ontology.oais.info/im/PreservationDescriptionInformation>
+      <http://ontology.oais.info/im/CompletePreservationDescriptionInformation>
     )
   ] ;
-  rdfs:range <http://ontology.oais.org/im/AccessRightsInformation> ;
+  rdfs:range <http://ontology.oais.info/im/AccessRightsInformation> ;
   rdfs:comment "sources:figure 4-19, 4.3.3.4" .
 
-<http://ontology.oais.org/im/hasBit>
+<http://ontology.oais.info/im/hasBit>
   a owl:ObjectProperty ;
   rdfs:label "has Bit" ;
   oais:identifier "s-0024" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/DigitalObject> ;
-  rdfs:range <http://ontology.oais.org/im/Bit> ;
+  rdfs:domain <http://ontology.oais.info/im/DigitalObject> ;
+  rdfs:range <http://ontology.oais.info/im/Bit> ;
   rdfs:comment "sources:figure 4-10" .
 
-<http://ontology.oais.org/im/hasContentInformation>
+<http://ontology.oais.info/im/hasContentInformation>
   a owl:ObjectProperty ;
   rdfs:label "has Content Information" ;
   oais:identifier "s-0003" ;
@@ -771,14 +703,14 @@ oais:abstract
   rdfs:domain [
     a owl:Class ;
     owl:unionOf (
-      <http://ontology.oais.org/im/InformationPackage>
-      <http://ontology.oais.org/im/ArchivalInformationPackage>
+      <http://ontology.oais.info/im/InformationPackage>
+      <http://ontology.oais.info/im/ArchivalInformationPackage>
     )
   ] ;
-  rdfs:range <http://ontology.oais.org/im/ContentInformation> ;
+  rdfs:range <http://ontology.oais.info/im/ContentInformation> ;
   rdfs:comment "sources:figure 4-21" .
 
-<http://ontology.oais.org/im/hasContextInformation>
+<http://ontology.oais.info/im/hasContextInformation>
   a owl:ObjectProperty ;
   rdfs:label "has Context Information" ;
   oais:identifier "s-0029" ;
@@ -787,65 +719,45 @@ oais:abstract
   rdfs:domain [
     a owl:Class ;
     owl:unionOf (
-      <http://ontology.oais.org/im/PreservationDescriptionInformation>
-      <http://ontology.oais.org/im/CompletePreservationDescriptionInformation>
+      <http://ontology.oais.info/im/PreservationDescriptionInformation>
+      <http://ontology.oais.info/im/CompletePreservationDescriptionInformation>
     )
   ] ;
-  rdfs:range <http://ontology.oais.org/im/ContextInformation> ;
+  rdfs:range <http://ontology.oais.info/im/ContextInformation> ;
   rdfs:comment "sources:figure 4-19, 4.3.3.4" .
 
-<http://ontology.oais.org/im/hasDataObject>
+<http://ontology.oais.info/im/hasDataObject>
   a owl:ObjectProperty ;
   rdfs:label "has Data Object" ;
   oais:identifier "s-0014" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/InformationObject> ;
-  rdfs:range <http://ontology.oais.org/im/DataObject> ;
+  rdfs:domain <http://ontology.oais.info/im/InformationObject> ;
+  rdfs:range <http://ontology.oais.info/im/DataObject> ;
   rdfs:comment "sources:figure 4-10" .
 
-<http://ontology.oais.org/im/hasDesignatedCommunity>
-  a owl:ObjectProperty ;
-  rdfs:label "has Designated Community" ;
-  oais:identifier "s-0042" ;
-  oais:status "oais-core" ;
-  oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/InformationObject> ;
-  rdfs:range <http://ontology.oais.org/im/DesignatedCommunity> ;
-  rdfs:comment "sources:glossary. Relates a specific Information Object -- including an Information Package, since InformationPackage is a subclass of InformationObject, so this also covers a collection such as an AIP or DIP -- to the Designated Community(ies) for which it must be Independently Understandable. Distinct from definesDesignatedCommunity, which is the Archive's own archive-wide definition; an object may be relevant to several Designated Communities, so no cardinality restriction is asserted." .
-
-<http://ontology.oais.org/im/definesDesignatedCommunity>
-  a owl:ObjectProperty ;
-  rdfs:label "defines Designated Community" ;
-  oais:identifier "s-0039" ;
-  oais:status "oais-core" ;
-  oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/Agent> ;
-  rdfs:range <http://ontology.oais.org/im/DesignatedCommunity> ;
-  rdfs:comment "sources:glossary ('A Designated Community is defined by the Archive and this definition may change over time'). Domain is Agent, not OAIS: it is a person, organization, or automated system acting on the Archive's behalf that performs the defining, not the Archive-as-system itself." .
-
-<http://ontology.oais.org/im/hasInformationPackage>
+<http://ontology.oais.info/im/hasInformationPackage>
   a owl:ObjectProperty ;
   rdfs:label "has Information Package" ;
   oais:identifier "s-0034" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/InformationObject> ;
-  rdfs:range <http://ontology.oais.org/im/InformationPackage> ;
+  rdfs:domain <http://ontology.oais.info/im/InformationObject> ;
+  rdfs:range <http://ontology.oais.info/im/InformationPackage> ;
   rdfs:comment "Relates an information object to the information package in which it is preserved or represented."@en .
 
-<http://ontology.oais.org/im/hasArchivalInformationPackage>
+<http://ontology.oais.info/im/hasArchivalInformationPackage>
   a owl:ObjectProperty ;
-  rdfs:subPropertyOf <http://ontology.oais.org/im/hasInformationPackage> ;
+  rdfs:subPropertyOf <http://ontology.oais.info/im/hasInformationPackage> ;
   rdfs:label "has Archival Information Package" ;
   oais:identifier "s-0035" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/InformationObject> ;
-  rdfs:range <http://ontology.oais.org/im/ArchivalInformationPackage> ;
+  rdfs:domain <http://ontology.oais.info/im/InformationObject> ;
+  rdfs:range <http://ontology.oais.info/im/ArchivalInformationPackage> ;
   rdfs:comment "Relates an information object to the Archival Information Package in which it is preserved or represented."@en .
 
-<http://ontology.oais.org/im/hasFixityInformation>
+<http://ontology.oais.info/im/hasFixityInformation>
   a owl:ObjectProperty ;
   rdfs:label "has Fixity Information" ;
   oais:identifier "s-0030" ;
@@ -854,24 +766,24 @@ oais:abstract
   rdfs:domain [
     a owl:Class ;
     owl:unionOf (
-      <http://ontology.oais.org/im/PreservationDescriptionInformation>
-      <http://ontology.oais.org/im/CompletePreservationDescriptionInformation>
+      <http://ontology.oais.info/im/PreservationDescriptionInformation>
+      <http://ontology.oais.info/im/CompletePreservationDescriptionInformation>
     )
   ] ;
-  rdfs:range <http://ontology.oais.org/im/FixityInformation> ;
+  rdfs:range <http://ontology.oais.info/im/FixityInformation> ;
   rdfs:comment "sources:figure 4-19, 4.3.3.4" .
 
-<http://ontology.oais.org/im/hasOtherRepresentationInformation>
+<http://ontology.oais.info/im/hasOtherRepresentationInformation>
   a owl:ObjectProperty ;
   rdfs:label "has Other Represention Information" ;
   oais:identifier "s-0018" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/RepresentationInformation> ;
-  rdfs:range <http://ontology.oais.org/im/OtherRepresentationInformation> ;
+  rdfs:domain <http://ontology.oais.info/im/RepresentationInformation> ;
+  rdfs:range <http://ontology.oais.info/im/OtherRepresentationInformation> ;
   rdfs:comment "sources:figure 4-21" .
 
-<http://ontology.oais.org/im/hasPreservationDescriptiveInformation>
+<http://ontology.oais.info/im/hasPreservationDescriptiveInformation>
   a owl:ObjectProperty ;
   rdfs:label "has Preservation Descriptive Information" ;
   oais:identifier "s-0007" ;
@@ -880,30 +792,20 @@ oais:abstract
   rdfs:domain [
     a owl:Class ;
     owl:unionOf (
-      <http://ontology.oais.org/im/InformationPackage>
-      <http://ontology.oais.org/im/ArchivalInformationPackage>
+      <http://ontology.oais.info/im/InformationPackage>
+      <http://ontology.oais.info/im/ArchivalInformationPackage>
     )
   ] ;
   rdfs:range [
     a owl:Class ;
     owl:unionOf (
-      <http://ontology.oais.org/im/PreservationDescriptionInformation>
-      <http://ontology.oais.org/im/CompletePreservationDescriptionInformation>
+      <http://ontology.oais.info/im/PreservationDescriptionInformation>
+      <http://ontology.oais.info/im/CompletePreservationDescriptionInformation>
     )
   ] ;
   rdfs:comment "sources:figure 4-21; 4.3.3.4 -- all five PDI classes must be present in an AIP" .
 
-<http://ontology.oais.org/im/hasPreservationObjective>
-  a owl:ObjectProperty ;
-  rdfs:label "has Preservation Objective" ;
-  oais:identifier "s-0040" ;
-  oais:status "oais-core" ;
-  oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/DesignatedCommunity> ;
-  rdfs:range <http://ontology.oais.org/im/PreservationObjective> ;
-  rdfs:comment "sources:glossary ('...should be able to understand a particular set of information in ways exemplified by the Preservation Objectives')." .
-
-<http://ontology.oais.org/im/hasProvenanceInformation>
+<http://ontology.oais.info/im/hasProvenanceInformation>
   a owl:ObjectProperty ;
   rdfs:label "has Provenance Information" ;
   oais:identifier "s-0028" ;
@@ -912,14 +814,14 @@ oais:abstract
   rdfs:domain [
     a owl:Class ;
     owl:unionOf (
-      <http://ontology.oais.org/im/PreservationDescriptionInformation>
-      <http://ontology.oais.org/im/CompletePreservationDescriptionInformation>
+      <http://ontology.oais.info/im/PreservationDescriptionInformation>
+      <http://ontology.oais.info/im/CompletePreservationDescriptionInformation>
     )
   ] ;
-  rdfs:range <http://ontology.oais.org/im/ProvenanceInformation> ;
+  rdfs:range <http://ontology.oais.info/im/ProvenanceInformation> ;
   rdfs:comment "sources:figure 4-19, 4.3.3.4" .
 
-<http://ontology.oais.org/im/hasReferenceInformation>
+<http://ontology.oais.info/im/hasReferenceInformation>
   a owl:ObjectProperty ;
   rdfs:label "has Reference Information" ;
   oais:identifier "s-0027" ;
@@ -928,108 +830,88 @@ oais:abstract
   rdfs:domain [
     a owl:Class ;
     owl:unionOf (
-      <http://ontology.oais.org/im/PreservationDescriptionInformation>
-      <http://ontology.oais.org/im/CompletePreservationDescriptionInformation>
+      <http://ontology.oais.info/im/PreservationDescriptionInformation>
+      <http://ontology.oais.info/im/CompletePreservationDescriptionInformation>
     )
   ] ;
-  rdfs:range <http://ontology.oais.org/im/ReferenceInformation> ;
+  rdfs:range <http://ontology.oais.info/im/ReferenceInformation> ;
   rdfs:comment "sources:figure 4-19, 4.3.3.4" .
 
-<http://ontology.oais.org/im/hasRepresentationInformation>
+<http://ontology.oais.info/im/hasRepresentationInformation>
   a owl:ObjectProperty ;
   rdfs:label "has Representation Information" ;
   oais:identifier "s-0009" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/InformationObject> ;
-  rdfs:range <http://ontology.oais.org/im/RepresentationInformation> ;
+  rdfs:domain <http://ontology.oais.info/im/InformationObject> ;
+  rdfs:range <http://ontology.oais.info/im/RepresentationInformation> ;
   rdfs:comment "sources:figure 4-10" .
 
-<http://ontology.oais.org/im/hasSemanticRepresentationInformation>
+<http://ontology.oais.info/im/hasSemanticRepresentationInformation>
   a owl:ObjectProperty ;
   rdfs:label "has Semantic Representation Information" ;
   oais:identifier "s-0032" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/RepresentationInformation> ;
-  rdfs:range <http://ontology.oais.org/im/SemanticRepresentationInformation> ;
+  rdfs:domain <http://ontology.oais.info/im/RepresentationInformation> ;
+  rdfs:range <http://ontology.oais.info/im/SemanticRepresentationInformation> ;
   rdfs:comment "sources:figure 4-21" .
 
-<http://ontology.oais.org/im/hasStructureRepresentationInformation>
+<http://ontology.oais.info/im/hasStructureRepresentationInformation>
   a owl:ObjectProperty ;
   rdfs:label "has Structure Representation Information" ;
   oais:identifier "s-0033" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/RepresentationInformation> ;
-  rdfs:range <http://ontology.oais.org/im/StructureRepresentationInformation> ;
+  rdfs:domain <http://ontology.oais.info/im/RepresentationInformation> ;
+  rdfs:range <http://ontology.oais.info/im/StructureRepresentationInformation> ;
   rdfs:comment "sources:figure 4-21" .
 
-<http://ontology.oais.org/im/hasTransformationInformationProperty>
-  a owl:ObjectProperty ;
-  rdfs:label "has Transformation Information Property" ;
-  oais:identifier "s-0043" ;
-  oais:status "oais-core" ;
-  oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/InformationObject> ;
-  rdfs:range <http://ontology.oais.org/im/TransformationInformationProperty> ;
-  rdfs:comment "sources:glossary; section 2.5. Relates a specific Information Object -- including an Information Package, since InformationPackage is a subclass of InformationObject, so this also covers a collection such as an AIP or DIP -- to the Transformation Information Property value(s) that must be checked to evidence adequate preservation of its content across a Non-Reversible Transformation. Distinct from identifiesTransformationInformationProperty, which is the Archive's own archive-wide designation; no cardinality restriction is asserted, since an object may have several." .
-
-<http://ontology.oais.org/im/hasDescriptiveInformation>
+<http://ontology.oais.info/im/hasDescriptiveInformation>
   a owl:ObjectProperty ;
   rdfs:label "has_Descriptive_Information" ;
   oais:identifier "s-0001" ;
   oais:status "local-extension" ;
   oais:slotRole "extension" ;
-  rdfs:domain <http://ontology.oais.org/im/PackagingInformation> ;
-  rdfs:range <http://ontology.oais.org/im/DescriptiveInformation> .
+  rdfs:domain <http://ontology.oais.info/im/PackagingInformation> ;
+  rdfs:range <http://ontology.oais.info/im/DescriptiveInformation> .
 
-<http://ontology.oais.org/im/identifies>
+<http://ontology.oais.info/im/identifies>
   a owl:ObjectProperty ;
   rdfs:label "identifies" ;
   oais:identifier "s-0021" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/PackagingInformation> ;
-  rdfs:range <http://ontology.oais.org/im/InformationPackage> ;
+  rdfs:domain <http://ontology.oais.info/im/PackagingInformation> ;
+  rdfs:range <http://ontology.oais.info/im/InformationPackage> ;
   rdfs:comment "sources:figure 4-15" .
 
-<http://ontology.oais.org/im/identifiesTransformationInformationProperty>
-  a owl:ObjectProperty ;
-  rdfs:label "identifies Transformation Information Property" ;
-  oais:identifier "s-0041" ;
-  oais:status "oais-core" ;
-  oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/Agent> ;
-  rdfs:range <http://ontology.oais.org/im/TransformationInformationProperty> ;
-  rdfs:comment "sources:section 2.5 ('the following should also be preserved: Definition of the Designated Communities; Preservation Objectives; Transformational Information Properties'). Domain is Agent, not OAIS: it is a person, organization, or automated system acting on the Archive's behalf that performs the identifying, not the Archive-as-system itself." .
-
-<http://ontology.oais.org/im/interpretedUsing>
+<http://ontology.oais.info/im/interpretedUsing>
   a owl:ObjectProperty ;
   rdfs:label "interpreted using" ;
   oais:identifier "s-0015" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  owl:inverseOf <http://ontology.oais.org/im/inverseOfInterpretedUsing> ;
-  rdfs:domain <http://ontology.oais.org/im/DataObject> ;
-  rdfs:range <http://ontology.oais.org/im/RepresentationInformation> ;
+  owl:inverseOf <http://ontology.oais.info/im/inverseOfInterpretedUsing> ;
+  rdfs:domain <http://ontology.oais.info/im/DataObject> ;
+  rdfs:range <http://ontology.oais.info/im/RepresentationInformation> ;
   rdfs:comment "sources:figure 4-10" .
 
-<http://ontology.oais.org/im/interpretedUsingRecurse>
+<http://ontology.oais.info/im/interpretedUsingRecurse>
   a owl:ObjectProperty ;
   rdfs:label "interpreted using recurse" ;
   oais:identifier "s-0022" ;
   oais:status "oais-core" ;
   oais:slotRole "mapped" ;
-  rdfs:domain <http://ontology.oais.org/im/RepresentationInformation> ;
-  rdfs:range <http://ontology.oais.org/im/RepresentationInformation> ;
+  rdfs:domain <http://ontology.oais.info/im/RepresentationInformation> ;
+  rdfs:range <http://ontology.oais.info/im/RepresentationInformation> ;
   rdfs:comment "sources:figure 4-10" .
 
-<http://ontology.oais.org/im/inverseOfInterpretedUsing>
+<http://ontology.oais.info/im/inverseOfInterpretedUsing>
   a owl:ObjectProperty ;
   rdfs:label "inverse_of_interpreted using" ;
   oais:identifier "s-0026" ;
   oais:status "oais-derived" ;
   oais:slotRole "inverse-traversal" ;
-  rdfs:domain <http://ontology.oais.org/im/RepresentationInformation> ;
-  rdfs:range <http://ontology.oais.org/im/DataObject> .
+  rdfs:domain <http://ontology.oais.info/im/RepresentationInformation> ;
+  rdfs:range <http://ontology.oais.info/im/DataObject> .

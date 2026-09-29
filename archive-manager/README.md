@@ -36,6 +36,14 @@ src/main/resources/rdf/
                               The original identifiers are preserved as an
                               oais:identifier annotation on every class/property
                               for traceability back to the OAIS spec.
+  oais-im-local-extensions.ttl
+                              Local extensions to that schema, same im:
+                              namespace, loaded alongside it: groups of
+                              Representation Information (im:RepInfoAndGroup,
+                              im:RepInfoOrGroup, im:hasGroupMember), and
+                              Designated Community, Preservation Objective and
+                              Transformation Information Property with their
+                              properties, moved out of the schema unchanged.
   oais-ric-bridge.ttl        The bridging ontology: RiC-O <-> OAIS class
                               correspondences (SKOS mapping relations) plus
                               bridge:hasOAISCounterpart / bridge:hasRiCDescription,
@@ -347,9 +355,10 @@ wanted.
   see `QueryRunner.render()` -- so reusing them isn't an option), and
   `SparqlController` encodes each into an id the same way every other page
   does.
-- **Home page downloads** -- direct links to download `oais-ric-bridge.ttl`
-  and `oais_im_schema-sh-v5.ttl` (`/download/bridge-ontology`,
-  `/download/oais-ontology`). These stream the exact classpath resource
+- **Home page downloads** -- direct links to download `oais-ric-bridge.ttl`,
+  `oais_im_schema-sh-v5.ttl` and `oais-im-local-extensions.ttl`
+  (`/download/bridge-ontology`, `/download/oais-ontology`,
+  `/download/oais-local-extensions`). These stream the exact classpath resource
   bytes the app itself loaded at startup -- not a re-serialization -- so
   what you download is guaranteed to match what's actually running, comments
   and formatting included. Open, no login needed (schema/documentation, not
@@ -390,7 +399,7 @@ wanted.
   2. **The linked OAIS structural tree**, if the record has a
      `bridge:hasOAISCounterpart` individual in the data graph. The app walks
      it by following any outgoing property in the OAIS namespace
-     (`http://ontology.oais.org/im/`) whose object is a resource -- again,
+     (`http://ontology.oais.info/im/`) whose object is a resource -- again,
      no property names like "has Data Object" are hard-coded, it is driven
      entirely by the `im:` namespace convention. For the sample record you
      will see: Information Object -> Data Object -> Bit, and Preservation
@@ -421,7 +430,8 @@ wanted.
   - `/entities/new` creates a new individual of any class. The class picker
     is populated live via SPARQL from the ontology graph -- all 107 RiC-O
     1.1 classes (from the bundled `rico-vocabulary.ttl` stub, see below) and
-    every OAIS class (from the full `oais_im_schema-sh-v5.ttl`) -- plus a
+    every OAIS class (from the full `oais_im_schema-sh-v5.ttl` and its
+    local extensions, `oais-im-local-extensions.ttl`) -- plus a
     free-text field for a custom class IRI/prefixed name if you need
     something outside either vocabulary.
   - `/entities/{id}/edit` manages an existing individual's type(s), literal
@@ -802,7 +812,7 @@ wanted.
 
   ```sparql
   PREFIX rico:   <https://www.ica.org/standards/RiC/ontology#>
-  PREFIX im:     <http://ontology.oais.org/im/>
+  PREFIX im:     <http://ontology.oais.info/im/>
   PREFIX bridge: <https://oais.info/bridge#>
   PREFIX skos:   <http://www.w3.org/2004/02/skos/core#>
 
@@ -940,9 +950,14 @@ experience long before TDB2 itself would notice the load:
 
 ## Updating the ontologies
 
-Both `oais_im_schema-sh-v5.ttl` and `oais-ric-bridge.ttl` are plain Turtle
-files under `src/main/resources/rdf/`. Edit them directly; there's no
-generation step. A few things matter more than they might look like they do:
+`oais_im_schema-sh-v5.ttl`, `oais-im-local-extensions.ttl` and
+`oais-ric-bridge.ttl` are plain Turtle files under `src/main/resources/rdf/`.
+The schema's header says it's generated from the OAIS Information Model
+knowledge base, whose workflow isn't in this repository: keep it in step
+with that knowledge base, and put local additions in
+`oais-im-local-extensions.ttl` (the knowledge base needs the same changes, or
+regenerating the schema would undo them). The other two can be edited
+directly. A few things matter more than they might look like they do:
 
 **The ontology graph reloads from these files on every startup** (cleared
 first, then re-read -- see [Storage](#storage)), so a plain edit + restart is

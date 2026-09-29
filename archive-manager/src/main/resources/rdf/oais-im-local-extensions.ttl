@@ -1,0 +1,190 @@
+# Local extensions to the OAIS Information Model schema (oais_im_schema-sh-v5.ttl),
+# in the same im: namespace, loaded alongside it.
+#
+# Two kinds of thing are kept here rather than in the generated schema:
+#   - groups of Representation Information, new here and marked
+#     oais:status "local-extension" like the schema's own local extensions
+#     (e.g. im:Agent);
+#   - Designated Community, Preservation Objective and Transformation
+#     Information Property, with the properties that relate them, moved here
+#     from the generated schema unchanged (identifiers and status as they
+#     were).
+# The knowledge base the schema is generated from, and its workflow, need the
+# same changes, or regenerating the schema will bring the moved classes back.
+
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix im: <http://ontology.oais.info/im/> .
+@prefix oais: <http://ontology.oais.info/meta/> .
+
+# ---- Groups of Representation Information ----
+#
+# OAIS does not say so explicitly, but a Data Object often needs several
+# pieces of Representation Information used together (its Structure AND its
+# Semantic Representation Information), and there are often alternatives any
+# one of which will do (a DFDL OR a Kaitai Struct description of the same
+# structure; Microsoft Excel OR any application that reads OOXML
+# spreadsheets). Groups nest: an alternative can itself be an AND group, e.g.
+# a DFDL schema AND a DFDL processor to apply it.
+#
+# A group is itself Representation Information, so it can stand wherever
+# Representation Information can -- including as the object of
+# im:hasStructureRepresentationInformation, im:hasSemanticRepresentationInformation
+# or im:hasOtherRepresentationInformation, whose cardinality of one each is
+# unaffected: an OR group of structure descriptions is one Structure
+# Representation Information. The groups sit alongside those properties
+# rather than replacing them. Group members are unordered.
+
+im:RepInfoGroup
+  a owl:Class ;
+  rdfs:label "Representation Information Group" ;
+  oais:status "local-extension" ;
+  rdfs:subClassOf im:RepresentationInformation ;
+  rdfs:comment "Representation Information Group: Representation Information made up of other Representation Information, its members (im:hasGroupMember), each of which may itself be a group. A group that is neither an AND group nor an OR group is taken to be an AND group. A group may also be typed with the category of Representation Information it provides (Structure, Semantic or Other). LOCAL EXTENSION -- OAIS does not define groups of Representation Information; see also info.oais.infomodel.interfaces.representationinformation.RepInfoGroup in oaisCore." .
+
+im:RepInfoAndGroup
+  a owl:Class ;
+  rdfs:label "Representation Information AND Group" ;
+  oais:status "local-extension" ;
+  rdfs:subClassOf im:RepInfoGroup ;
+  rdfs:comment "Representation Information AND Group: a group all of whose members must be used together, e.g. the Structure Representation Information and the Semantic Representation Information of a Data Object, or a structure description and the software that applies it. Its members may be of different categories. LOCAL EXTENSION -- see im:RepInfoGroup." .
+
+im:RepInfoOrGroup
+  a owl:Class ;
+  rdfs:label "Representation Information OR Group" ;
+  oais:status "local-extension" ;
+  rdfs:subClassOf im:RepInfoGroup ;
+  rdfs:comment "Representation Information OR Group: a group whose members are equivalent alternatives, any one of which is enough, e.g. DFDL, Kaitai Struct and DRB descriptions of the same structure, or Microsoft Excel and any application that reads OOXML spreadsheets. The members provide the same category of Representation Information, with which the group may also be typed. Being members of the same OR group asserts their equivalence; like any Information Object, a member may also carry Provenance Information testifying to it. LOCAL EXTENSION -- see im:RepInfoGroup." .
+
+im:hasGroupMember
+  a owl:ObjectProperty ;
+  rdfs:label "has Group Member" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:RepInfoGroup ;
+  rdfs:range im:RepresentationInformation ;
+  rdfs:comment "Links a Representation Information Group to one of its members. Members are unordered. LOCAL EXTENSION -- see im:RepInfoGroup." .
+
+# ---- Designated Community, Preservation Objectives and Transformation ----
+# ---- Information Properties (moved from oais_im_schema-sh-v5.ttl)     ----
+
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://ontology.oais.info/im/DesignatedCommunity>
+  a owl:Class ;
+  rdfs:label "Designated Community" ;
+  oais:identifier "c-0026" ;
+  oais:status "oais-core" ;
+  oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
+  oais:oaisConcept "Designated Community" ;
+  oais:sourceReference "glossary" ;
+  oais:sourceReference "section 2.4" ;
+  rdfs:comment "Designated Community: An identified group of potential Consumers who should be able to understand a particular set of information in ways exemplified by the Preservation Objectives. The Designated Community may be composed of multiple user communities. A Designated Community is defined by the Archive and this definition may change over time. Not diagrammed as a class in the OAIS figures." .
+
+<http://ontology.oais.info/im/PreservationObjective>
+  a owl:Class ;
+  rdfs:label "Preservation Objective" ;
+  oais:identifier "c-0027" ;
+  oais:status "oais-core" ;
+  oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
+  oais:oaisConcept "Preservation Objective" ;
+  oais:sourceReference "section 2.4" ;
+  rdfs:comment "Preservation Objective: A specific achievable aim which can be carried out using the Information Object. Per section 2.4, an OAIS must define its Preservation Objectives, which should be Specific, Actionable, and Measurable, and which exemplify what it means for information to be Independently Understandable by the Designated Community." .
+
+<http://ontology.oais.info/im/TransformationInformationProperty>
+  a owl:Class ;
+  rdfs:label "Transformation Information Property" ;
+  skos:altLabel "Transformational Information Property" ;
+  oais:identifier "c-0028" ;
+  oais:status "oais-core" ;
+  oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
+  oais:oaisConcept "Transformation Information Property" ;
+  oais:sourceReference "glossary" ;
+  oais:sourceReference "section 2.5" ;
+  rdfs:subClassOf [
+    a owl:Restriction ;
+    owl:onProperty <http://ontology.oais.info/im/dependsOnRepresentationInformation> ;
+    owl:minCardinality "1"^^xsd:nonNegativeInteger
+  ] ;
+  rdfs:comment "Transformation Information Property: An Information Property the preservation of the value of which is regarded as being necessary but not sufficient to verify that any Non-Reversible Transformation has adequately preserved information content. This could be important as contributing to evidence about Authenticity. Such an Information Property is dependent upon specific Representation Information, including Semantic Representation Information, to denote how it is encoded and what it means. NOTE -- sometimes referred to in the literature as a 'significant property'. Per section 2.5, checks of the values of Transformation Information Properties may be part of Provenance Information; not asserted here as a formal relation since OAIS states it as a possibility, not a requirement." .
+
+<http://ontology.oais.info/im/carriedOutUsing>
+  a owl:ObjectProperty ;
+  rdfs:label "carried out using" ;
+  oais:identifier "s-0036" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.info/im/PreservationObjective> ;
+  rdfs:range <http://ontology.oais.info/im/InformationObject> ;
+  rdfs:comment "sources:section 2.4 ('A specific achievable aim which can be carried out using the Information Object')." .
+
+<http://ontology.oais.info/im/definesPreservationObjective>
+  a owl:ObjectProperty ;
+  rdfs:label "defines Preservation Objective" ;
+  oais:identifier "s-0037" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.info/im/Agent> ;
+  rdfs:range <http://ontology.oais.info/im/PreservationObjective> ;
+  rdfs:comment "sources:section 2.4 ('An OAIS must define Preservation Objectives'). Domain is Agent, not OAIS: it is a person, organization, or automated system acting on the Archive's behalf that performs the defining, not the Archive-as-system itself." .
+
+<http://ontology.oais.info/im/dependsOnRepresentationInformation>
+  a owl:ObjectProperty ;
+  rdfs:label "depends on Representation Information" ;
+  oais:identifier "s-0038" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.info/im/TransformationInformationProperty> ;
+  rdfs:range <http://ontology.oais.info/im/RepresentationInformation> ;
+  rdfs:comment "sources:glossary ('Such an Information Property is dependent upon specific Representation Information, including Semantic Representation Information, to denote how it is encoded and what it means')." .
+
+<http://ontology.oais.info/im/hasDesignatedCommunity>
+  a owl:ObjectProperty ;
+  rdfs:label "has Designated Community" ;
+  oais:identifier "s-0042" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.info/im/InformationObject> ;
+  rdfs:range <http://ontology.oais.info/im/DesignatedCommunity> ;
+  rdfs:comment "sources:glossary. Relates a specific Information Object -- including an Information Package, since InformationPackage is a subclass of InformationObject, so this also covers a collection such as an AIP or DIP -- to the Designated Community(ies) for which it must be Independently Understandable. Distinct from definesDesignatedCommunity, which is the Archive's own archive-wide definition; an object may be relevant to several Designated Communities, so no cardinality restriction is asserted." .
+
+<http://ontology.oais.info/im/definesDesignatedCommunity>
+  a owl:ObjectProperty ;
+  rdfs:label "defines Designated Community" ;
+  oais:identifier "s-0039" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.info/im/Agent> ;
+  rdfs:range <http://ontology.oais.info/im/DesignatedCommunity> ;
+  rdfs:comment "sources:glossary ('A Designated Community is defined by the Archive and this definition may change over time'). Domain is Agent, not OAIS: it is a person, organization, or automated system acting on the Archive's behalf that performs the defining, not the Archive-as-system itself." .
+
+<http://ontology.oais.info/im/hasPreservationObjective>
+  a owl:ObjectProperty ;
+  rdfs:label "has Preservation Objective" ;
+  oais:identifier "s-0040" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.info/im/DesignatedCommunity> ;
+  rdfs:range <http://ontology.oais.info/im/PreservationObjective> ;
+  rdfs:comment "sources:glossary ('...should be able to understand a particular set of information in ways exemplified by the Preservation Objectives')." .
+
+<http://ontology.oais.info/im/hasTransformationInformationProperty>
+  a owl:ObjectProperty ;
+  rdfs:label "has Transformation Information Property" ;
+  oais:identifier "s-0043" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.info/im/InformationObject> ;
+  rdfs:range <http://ontology.oais.info/im/TransformationInformationProperty> ;
+  rdfs:comment "sources:glossary; section 2.5. Relates a specific Information Object -- including an Information Package, since InformationPackage is a subclass of InformationObject, so this also covers a collection such as an AIP or DIP -- to the Transformation Information Property value(s) that must be checked to evidence adequate preservation of its content across a Non-Reversible Transformation. Distinct from identifiesTransformationInformationProperty, which is the Archive's own archive-wide designation; no cardinality restriction is asserted, since an object may have several." .
+
+<http://ontology.oais.info/im/identifiesTransformationInformationProperty>
+  a owl:ObjectProperty ;
+  rdfs:label "identifies Transformation Information Property" ;
+  oais:identifier "s-0041" ;
+  oais:status "oais-core" ;
+  oais:slotRole "mapped" ;
+  rdfs:domain <http://ontology.oais.info/im/Agent> ;
+  rdfs:range <http://ontology.oais.info/im/TransformationInformationProperty> ;
+  rdfs:comment "sources:section 2.5 ('the following should also be preserved: Definition of the Designated Communities; Preservation Objectives; Transformational Information Properties'). Domain is Agent, not OAIS: it is a person, organization, or automated system acting on the Archive's behalf that performs the identifying, not the Archive-as-system itself." .

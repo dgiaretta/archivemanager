@@ -55,6 +55,23 @@ public class EditService {
         return iri;
     }
 
+    /**
+     * Creates an individual with a given, stable IRI unless it already
+     * exists -- for shared individuals found by their IRI rather than looked
+     * up, e.g. the software a kind of description needs.
+     *
+     * @return whether it was created (false: it was already there, and is left as it is)
+     */
+    public boolean createEntityIfAbsent(String iri, String classIri) {
+        Model m = store.dataModel();
+        Resource resource = m.getResource(iri);
+        if (m.listStatements(resource, null, (org.apache.jena.rdf.model.RDFNode) null).hasNext()) {
+            return false;
+        }
+        resource.addProperty(RDF.type, m.createResource(classIri));
+        return true;
+    }
+
     public void addType(String iri, String typeIri) {
         Model m = store.dataModel();
         m.getResource(iri).addProperty(RDF.type, m.createResource(typeIri));

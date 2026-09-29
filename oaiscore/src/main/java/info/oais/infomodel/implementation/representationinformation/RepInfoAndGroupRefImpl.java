@@ -10,6 +10,13 @@ import info.oais.infomodel.interfaces.representationinformation.RepInfoAndGroup;
 public class RepInfoAndGroupRefImpl extends RepInfoGroupRefImpl implements RepInfoAndGroup {
 
 	/**
+	 * Empty Constructor, e.g. for reading from JSON
+	 */
+	public RepInfoAndGroupRefImpl() {
+		super();
+	}
+
+	/**
 	 * Constructor
 	 */
 	public RepInfoAndGroupRefImpl(ArrayList<RepresentationInformation> group) {
@@ -32,6 +39,8 @@ public class RepInfoAndGroupRefImpl extends RepInfoGroupRefImpl implements RepIn
 	 *
 	 * @param group An ArrayList of RepInfo
 	 */
+	@Override
+	@JsonProperty("RepInfoAndGroup")
 	public void setGroup(ArrayList<RepresentationInformation> group) {
 		m_Group = group;
 	}

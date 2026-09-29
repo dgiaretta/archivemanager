@@ -1,6 +1,6 @@
 # OAIS <-> RiC-O bridging ontology
 #
-# Aligns the OAIS Information Model (http://ontology.oais.org/im/, as
+# Aligns the OAIS Information Model (http://ontology.oais.info/im/, as
 # exported in oais_im_schema-sh-v5.ttl, baselined on CCSDS 650.0-M-3
 # Issue 3, December 2024) with the Records in Context Ontology, RiC-O
 # v1.1 (https://www.ica.org/standards/RiC/ontology, May 2025 / RiC-CM 1.0).
@@ -40,7 +40,7 @@
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix skos:  <http://www.w3.org/2004/02/skos/core#> .
 @prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
-@prefix im:    <http://ontology.oais.org/im/> .
+@prefix im:    <http://ontology.oais.info/im/> .
 @prefix rico:  <https://www.ica.org/standards/RiC/ontology#> .
 @prefix bridge: <https://oais.info/bridge#> .
 
@@ -48,7 +48,7 @@ bridge:
   a owl:Ontology ;
   rdfs:label "OAIS Information Model / RiC-O 1.1 Bridging Ontology" ;
   rdfs:comment "Correspondence assertions between the OAIS Information Model and RiC-O 1.1, using SKOS mapping relations rather than OWL class equivalence because the two source ontologies differ in how they model documentary vs. entity-graph information." ;
-  rdfs:seeAlso <http://ontology.oais.org/im/> ,
+  rdfs:seeAlso <http://ontology.oais.info/im/> ,
                <https://www.ica.org/standards/RiC/ontology> .
 
 # -- bridge-local annotation properties

@@ -34,7 +34,7 @@ public class EntityController {
      * Prefix marking a relationship-target select option as "create a new
      * entity of this class" rather than an existing entity's encoded id --
      * followed immediately by the class IRI, e.g.
-     * {@code "new:http://ontology.oais.org/im/TransformationInformationProperty"}.
+     * {@code "new:http://ontology.oais.info/im/TransformationInformationProperty"}.
      * Matched literally in {@link #addRelationship}; must stay in sync with
      * the same prefix used in {@code entities/edit.html}'s JavaScript.
      */

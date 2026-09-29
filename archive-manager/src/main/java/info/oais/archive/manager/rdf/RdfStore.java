@@ -79,6 +79,7 @@ public class RdfStore {
             Model ontology = dataset.getNamedModel(ONTOLOGY_GRAPH);
             ontology.removeAll();
             readClasspathTurtle("rdf/oais_im_schema-sh-v5.ttl", ontology);
+            readClasspathTurtle("rdf/oais-im-local-extensions.ttl", ontology);
             readClasspathTurtle("rdf/oais-ric-bridge.ttl", ontology);
             readClasspathTurtle("rdf/dc-vocabulary.ttl", ontology);
             readClasspathTurtle("rdf/nam-vocabulary.ttl", ontology);
@@ -92,6 +93,10 @@ public class RdfStore {
                 loadOptionalClasspathTurtle("rdf/sample-data-pds.ttl", data);
             } else {
                 log.info("Data graph already has {} triples; leaving it as-is", data.size());
+                int renamed = renameNamespace(data, OLD_OAIS_NAMESPACE, NEW_OAIS_NAMESPACE);
+                if (renamed > 0) {
+                    log.info("Moved {} triples from {} to {}", renamed, OLD_OAIS_NAMESPACE, NEW_OAIS_NAMESPACE);
+                }
             }
 
             log.info("Ontology graph: {} triples. Data graph: {} triples.", ontology.size(), data.size());
@@ -134,6 +139,46 @@ public class RdfStore {
 
     /** Path a downloaded copy of the real RiC-O 1.1 OWL file should be placed at, if you have one. */
     private static final String RICO_FULL_RESOURCE = "rdf/RiC-O_1-1.rdf";
+    /** Where the OAIS Information Model's IRIs were until they moved to {@link #NEW_OAIS_NAMESPACE}. */
+    static final String OLD_OAIS_NAMESPACE = "http://ontology.oais.org/";
+    static final String NEW_OAIS_NAMESPACE = "http://ontology.oais.info/";
+
+    /**
+     * Rewrites every IRI in {@code model} that starts with {@code from} to
+     * start with {@code to} instead -- subjects, properties and objects -- so
+     * data saved before a namespace moved still matches the ontology, which
+     * is reloaded from the bundled files at every startup. Finds nothing to
+     * do once it has run.
+     *
+     * @return how many triples were rewritten
+     */
+    static int renameNamespace(Model model, String from, String to) {
+        java.util.List<org.apache.jena.rdf.model.Statement> old = new java.util.ArrayList<>();
+        model.listStatements().forEachRemaining(s -> {
+            if (s.getSubject().isURIResource() && s.getSubject().getURI().startsWith(from)
+                    || s.getPredicate().getURI().startsWith(from)
+                    || s.getObject().isURIResource() && s.getObject().asResource().getURI().startsWith(from)) {
+                old.add(s);
+            }
+        });
+        for (org.apache.jena.rdf.model.Statement s : old) {
+            model.remove(s);
+            model.add(renamed(model, s.getSubject(), from, to).asResource(),
+                    model.createProperty(renamedIri(s.getPredicate().getURI(), from, to)),
+                    renamed(model, s.getObject(), from, to));
+        }
+        return old.size();
+    }
+
+    private static org.apache.jena.rdf.model.RDFNode renamed(Model model, org.apache.jena.rdf.model.RDFNode node,
+                                                             String from, String to) {
+        return node.isURIResource() ? model.createResource(renamedIri(node.asResource().getURI(), from, to)) : node;
+    }
+
+    private static String renamedIri(String iri, String from, String to) {
+        return iri.startsWith(from) ? to + iri.substring(from.length()) : iri;
+    }
+
     private static final String RICO_STUB_RESOURCE = "rdf/rico-vocabulary.ttl";
 
     /**

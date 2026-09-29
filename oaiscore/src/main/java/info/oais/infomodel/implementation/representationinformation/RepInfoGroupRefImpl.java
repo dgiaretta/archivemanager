@@ -2,8 +2,7 @@ package info.oais.infomodel.implementation.representationinformation;
 
 import java.util.ArrayList;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreType;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import info.oais.infomodel.implementation.RepresentationInformationRefImpl;
 import info.oais.infomodel.interfaces.RepresentationInformation;
@@ -16,10 +15,12 @@ import info.oais.infomodel.interfaces.representationinformation.RepInfoGroup;
  * Groups may be tagged as a RepInfoAndGroup or a RepInfoOrGroup by implementing the approriate interface. If neither
  * is  implemented then the default is that it is a RepInfoAndGroup.
  *
+ * <p>In JSON the members are an array named after the kind of group: {@code "RepInfoGroup"}, or
+ * {@code "RepInfoAndGroup"} / {@code "RepInfoOrGroup"} for the subclasses.</p>
+ *
  * @author David
  *
  */
-@JsonIgnoreType
 public class RepInfoGroupRefImpl extends RepresentationInformationRefImpl implements RepInfoGroup {
 
 	ArrayList<RepresentationInformation> m_Group = null;
@@ -38,17 +39,11 @@ public class RepInfoGroupRefImpl extends RepresentationInformationRefImpl implem
 	}
 
 	/**
-	 * For array of objects
-	 */
-	private ArrayList<RepresentationInformation> group = null;
-
-	/**
 	 * Get the InfoGroup for the vertex.
 	 *
 	 * @return The array of Info in the Group
 	 */
-	//@JsonProperty("RepInfoGroup")
-	@JsonIgnore
+	@JsonProperty("RepInfoGroup")
 	public ArrayList<RepresentationInformation> getGroup(){
 		return m_Group;
 	}
@@ -58,7 +53,7 @@ public class RepInfoGroupRefImpl extends RepresentationInformationRefImpl implem
 	 *
 	 * @param group An ArrayList of RepInfo
 	 */
-	@JsonIgnore
+	@JsonProperty("RepInfoGroup")
 	public void setGroup(ArrayList<RepresentationInformation> group) {
 		m_Group = group;
 	}

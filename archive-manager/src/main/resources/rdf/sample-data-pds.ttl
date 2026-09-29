@@ -25,7 +25,7 @@
 @prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd:    <http://www.w3.org/2001/XMLSchema#> .
 @prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
-@prefix im:     <http://ontology.oais.org/im/> .
+@prefix im:     <http://ontology.oais.info/im/> .
 @prefix bridge: <https://oais.info/bridge#> .
 @prefix ex:     <http://example.org/archive/> .
 

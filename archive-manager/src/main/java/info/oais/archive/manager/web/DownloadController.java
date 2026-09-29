@@ -31,6 +31,12 @@ public class DownloadController {
         return download("rdf/oais_im_schema-sh-v5.ttl", "oais_im_schema-sh-v5.ttl");
     }
 
+    /** The OAIS schema's local extensions (e.g. groups of Representation Information). */
+    @GetMapping("/download/oais-local-extensions")
+    public ResponseEntity<Resource> downloadOaisExtensions() {
+        return download("rdf/oais-im-local-extensions.ttl", "oais-im-local-extensions.ttl");
+    }
+
     private ResponseEntity<Resource> download(String classpath, String filename) {
         Resource resource = new ClassPathResource(classpath);
         return ResponseEntity.ok()

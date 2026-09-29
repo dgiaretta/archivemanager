@@ -20,15 +20,24 @@ import java.util.Map;
  * Information -- via {@link EditService}'s existing primitives only, so this
  * stays consistent with every other write path in the app.
  *
- * <p>Models one overall {@code im:SemanticRepresentationInformation} per save
- * (field meanings don't change depending on which tool reads the bytes) plus
- * one {@code im:RepresentationInformation}/{@code im:StructureRepresentationInformation}
- * pair per generated format actually saved -- {@code im:RepresentationInformation}
- * caps both {@code hasStructureRepresentationInformation} and
- * {@code hasSemanticRepresentationInformation} at one each (see
- * {@code oais_im_schema-sh-v5.ttl}), so two formats for the same data means
- * two RepresentationInformation individuals, both {@code interpretedUsing}
- * from the same DataObject.
+ * <p><strong>Groups.</strong> Saved as groups of Representation Information
+ * ({@code im:RepInfoAndGroup}, {@code im:RepInfoOrGroup}, local extensions in
+ * {@code oais-im-local-extensions.ttl}): the Data Object is
+ * {@code interpretedUsing} one AND group of its Structure and its Semantic
+ * Representation Information. The structure is an OR group of the saved
+ * descriptions -- DFDL, Kaitai Struct, DRB are equivalent alternatives, any
+ * one of which is enough -- and each alternative is itself an AND group of
+ * the description and the software that applies it (a shared
+ * {@code im:OtherRepresentationInformation} per kind of description, see
+ * {@link Processor}). One overall {@code im:SemanticRepresentationInformation}
+ * serves them all, since field meanings don't depend on which tool reads the
+ * bytes. Alongside the groups, the AND group also has the usual
+ * {@code hasStructureRepresentationInformation} (the OR group, itself typed
+ * as Structure Representation Information) and
+ * {@code hasSemanticRepresentationInformation}, one each as the schema allows.
+ * Descriptions saved before groups existed -- one RepresentationInformation
+ * per format, sharing a Semantic Representation Information -- are converted
+ * by {@link RepInfoGroupMigration}.
  *
  * <p><strong>Per-element structure.</strong> Underneath that one overall
  * Semantic Representation Information, every element of a byte-layout
@@ -74,29 +83,136 @@ public class FormatDescriptionRdfService {
                 : dataObjectIri;
 
         String semanticRi = edit.createEntity(Ns.IM + "SemanticRepresentationInformation");
+        edit.addLiteral(semanticRi, Ns.RDFS + "label", "Semantics of " + def.getName());
         edit.addLiteral(semanticRi, Ns.RDFS + "comment", semanticSummary(def));
         addFieldSemantics(def, semanticRi);
 
+        Map<String, String> structures = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : generatedByFormat.entrySet()) {
             String formatLabel = entry.getKey();
             String generatedText = entry.getValue();
             if (generatedText == null || generatedText.isBlank()) {
                 continue;
             }
-
             String structureRi = edit.createEntity(Ns.IM + "StructureRepresentationInformation");
+            edit.addLiteral(structureRi, Ns.RDFS + "label", def.getName() + ": " + formatLabel + " description");
             edit.addLiteral(structureRi, Ns.RDFS + "comment",
                     "Byte/logical layout of \"" + def.getName() + "\" as a " + formatLabel + " description:\n\n" + generatedText);
+            structures.put(formatLabel, structureRi);
+        }
+        linkAsGroups(dataObject, def.getName(), semanticRi, structures, def.getKind() == FormatDefinitionKind.BYTE_LAYOUT);
+        return dataObject;
+    }
 
-            String repInfo = edit.createEntity(Ns.IM + "RepresentationInformation");
-            edit.addLiteral(repInfo, Ns.RDFS + "comment",
-                    "\"" + def.getName() + "\" interpreted via its " + formatLabel + " description.");
-            edit.addRelationship(repInfo, Ns.IM + "hasStructureRepresentationInformation", structureRi);
-            edit.addRelationship(repInfo, Ns.IM + "hasSemanticRepresentationInformation", semanticRi);
-            edit.addRelationship(dataObject, Ns.IM + "interpretedUsing", repInfo);
+    /**
+     * Links {@code dataObject} to its Representation Information as groups
+     * (see this class's comment): an AND group of the Semantic Representation
+     * Information and an OR group of the structure descriptions, each
+     * alternative an AND group with the software that applies it.
+     *
+     * @param structures  structure description individuals by their format label (e.g. "DFDL")
+     * @param applyWithSoftware whether the descriptions are applied by software (a byte layout's are; a
+     *                          logical tree's generated DRB outputs are documentation)
+     * @return the AND group
+     */
+    String linkAsGroups(String dataObject, String name, String semanticRi, Map<String, String> structures,
+                        boolean applyWithSoftware) {
+        String top = edit.createEntity(Ns.IM + "RepInfoAndGroup");
+        edit.addType(top, Ns.IM + "RepresentationInformation");
+        edit.addLiteral(top, Ns.RDFS + "label", "Representation Information for " + name);
+        edit.addLiteral(top, Ns.RDFS + "comment", "Everything needed to interpret \"" + name + "\", used together: "
+                + (structures.isEmpty() ? "" : "its structure (any one of the descriptions) and ") + "its semantics.");
+        edit.addRelationship(dataObject, Ns.IM + "interpretedUsing", top);
+        edit.addRelationship(top, Ns.IM + "hasGroupMember", semanticRi);
+        edit.addRelationship(top, Ns.IM + "hasSemanticRepresentationInformation", semanticRi);
+        if (structures.isEmpty()) {
+            return top;
+        }
+        String alternatives = edit.createEntity(Ns.IM + "RepInfoOrGroup");
+        edit.addType(alternatives, Ns.IM + "StructureRepresentationInformation");
+        edit.addLiteral(alternatives, Ns.RDFS + "label", "Structure of " + name + ": any one of "
+                + String.join(", ", structures.keySet()));
+        edit.addLiteral(alternatives, Ns.RDFS + "comment", "Equivalent descriptions of the structure of \"" + name
+                + "\", generated from the same engine-neutral description by archive-manager's RepInfo Tools"
+                + " (or written by hand where the label says so); any one of them is enough.");
+        edit.addRelationship(top, Ns.IM + "hasGroupMember", alternatives);
+        edit.addRelationship(top, Ns.IM + "hasStructureRepresentationInformation", alternatives);
+        for (Map.Entry<String, String> structure : structures.entrySet()) {
+            Processor processor = applyWithSoftware ? Processor.forLabel(structure.getKey()) : null;
+            String member = structure.getValue();
+            if (processor != null) {
+                member = edit.createEntity(Ns.IM + "RepInfoAndGroup");
+                edit.addType(member, Ns.IM + "RepresentationInformation");
+                edit.addLiteral(member, Ns.RDFS + "label", name + ": " + structure.getKey() + " description, applied with "
+                        + processor.label);
+                edit.addRelationship(member, Ns.IM + "hasGroupMember", structure.getValue());
+                edit.addRelationship(member, Ns.IM + "hasGroupMember", software(processor));
+                edit.addRelationship(member, Ns.IM + "hasStructureRepresentationInformation", structure.getValue());
+                edit.addRelationship(member, Ns.IM + "hasOtherRepresentationInformation", software(processor));
+            }
+            edit.addRelationship(alternatives, Ns.IM + "hasGroupMember", member);
+        }
+        return top;
+    }
+
+    /** The software that applies each kind of description, as shared Other Representation Information. */
+    enum Processor {
+        DFDL("Apache Daffodil 3.11", "https://daffodil.apache.org/",
+                "Apache Daffodil, the reference implementation of the Open Grid Forum's Data Format Description "
+                        + "Language (DFDL 1.0): compiles a DFDL schema and uses it to parse data into an infoset (XML or "
+                        + "JSON) and to write it back. The descriptions were tested with version 3.11."),
+        KAITAI("Kaitai Struct compiler 0.11", "https://kaitai.io/",
+                "The Kaitai Struct compiler, which turns a .ksy description into a parser in one of several "
+                        + "programming languages (Java, Python, C++, ...), together with that language's Kaitai "
+                        + "Struct runtime. The descriptions were tested with version 0.11 and its Java runtime."),
+        DRB_JAVA("GAEL DRB 2.5.13 (Java)", "https://www.gael-systems.com/",
+                "GAEL Systems' Data Request Broker for Java (fr.gael.drb), which applies a DRB SDF schema to data "
+                        + "and presents it as a tree of nodes. The descriptions were tested with version 2.5.13."),
+        DRB_PYTHON("drb-python 2", "https://gitlab.com/drb-python",
+                "Python 3 with drb-python 2 (pip install drb), into which the generated driver package is "
+                        + "installed; drb-python then decodes files of the format with it.");
+
+        final String label;
+        final String url;
+        final String description;
+
+        Processor(String label, String url, String description) {
+            this.label = label;
+            this.url = url;
+            this.description = description;
         }
 
-        return dataObject;
+        /** The software for a saved description's format label, e.g. "DFDL, written by hand"; null if none. */
+        static Processor forLabel(String formatLabel) {
+            if (formatLabel.startsWith("Kaitai Struct")) {
+                return KAITAI;
+            }
+            if (formatLabel.startsWith("DFDL")) {
+                return DFDL;
+            }
+            if (formatLabel.startsWith("DRB SDF schema")) {
+                return DRB_JAVA;
+            }
+            if (formatLabel.startsWith("DRB (Python")) {
+                return DRB_PYTHON;
+            }
+            return null;
+        }
+
+        String iri() {
+            return Ns.EX + "software-" + name().toLowerCase().replace('_', '-');
+        }
+    }
+
+    /** The shared Other Representation Information for {@code processor}, created the first time it's needed. */
+    private String software(Processor processor) {
+        String iri = processor.iri();
+        if (edit.createEntityIfAbsent(iri, Ns.IM + "OtherRepresentationInformation")) {
+            edit.addLiteral(iri, Ns.RDFS + "label", processor.label);
+            edit.addLiteral(iri, Ns.RDFS + "comment", processor.description);
+            edit.addRelationship(iri, Ns.RDFS + "seeAlso", processor.url);
+        }
+        return iri;
     }
 
     /**
