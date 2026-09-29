@@ -57,6 +57,59 @@ public class DataObjectViewService {
         this.fetcher = fetcher;
     }
 
+    /**
+     * An application that shows data, and what a Data Object's
+     * Representation Information has to provide for it.
+     *
+     * @param mtype      the SAMP message type it's sent with
+     * @param clientName its SAMP name, to send the data to it alone
+     */
+    public record Viewer(String id, String label, String mtype, String clientName) {
+    }
+
+    /** TOPCAT: any table. */
+    public static final Viewer TOPCAT = new Viewer("topcat", "View with TOPCAT", "table.load.votable", "topcat");
+    /** SPLAT: a spectrum -- a table whose columns are all numeric (wavelength, flux, ...). */
+    public static final Viewer SPLAT = new Viewer("splat", "View with SPLAT", "spectrum.load.ssa-generic", "splat");
+
+    private static final java.util.regex.Pattern COLUMN_TYPE =
+            java.util.regex.Pattern.compile("<column\\b[^>]*\\btype=\"([^\"]+)\"");
+    private static final Set<String> NUMERIC = Set.of("int", "long", "short", "byte", "float", "double",
+            "biginteger", "bigdecimal");
+
+    /**
+     * The applications {@code dataObject}'s data can be viewed with: those
+     * whose needs its Representation Information network -- followed from
+     * {@code im:interpretedUsing} through its groups -- meets. Its bits need a
+     * storage location, a structure description the server can apply (DFDL or
+     * DRB SDF) and a table view; that's enough for TOPCAT, and SPLAT also needs
+     * the table view's columns all to be numeric, as a spectrum's are.
+     */
+    public List<Viewer> viewers(String dataObject) {
+        Optional<DescribedData> described = describe(dataObject, URI::create);
+        if (described.isEmpty() || described.get().structures().stream().noneMatch(s ->
+                s.language().equals(StructureDescription.DFDL) || s.language().equals(StructureDescription.DRB_SDF))) {
+            return List.of();
+        }
+        Optional<ViewDescription> table = described.get().view(ViewDescription.TABLE);
+        if (table.isEmpty()) {
+            return List.of();
+        }
+        List<Viewer> viewers = new ArrayList<>(List.of(TOPCAT));
+        String view = specification(table.get().iri()).map(Specification::text).orElse("");
+        java.util.regex.Matcher m = COLUMN_TYPE.matcher(view);
+        int columns = 0;
+        boolean allNumeric = true;
+        while (m.find()) {
+            columns++;
+            allNumeric &= NUMERIC.contains(m.group(1).toLowerCase());
+        }
+        if (columns >= 2 && allNumeric) {
+            viewers.add(SPLAT);
+        }
+        return viewers;
+    }
+
     /** A structure description's or view specification's text, and what kind of file it is. */
     public record Specification(String text, String language, boolean view) {
         public String mediaType() {

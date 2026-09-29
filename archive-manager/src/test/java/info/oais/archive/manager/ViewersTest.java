@@ -54,6 +54,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -130,7 +131,7 @@ class ViewersTest {
             String id = archive.encodeId(dataObject);
 
             mockMvc.perform(get("/resource/{id}", id))
-                    .andExpect(content().string(containsString("View in TOPCAT")))
+                    .andExpect(content().string(containsString("View with TOPCAT")))
                     .andExpect(content().string(containsString("/api/data-objects/" + id + "/repinfo.ttl")));
 
             String turtle = mockMvc.perform(get("/api/data-objects/{id}/repinfo.ttl", id)).andExpect(status().isOk())
@@ -152,9 +153,59 @@ class ViewersTest {
                     .andExpect(content().string(containsString("<VOTABLE")))
                     .andExpect(content().string(containsString("unit=\"Cel\"")))
                     .andExpect(content().string(containsString("XY9")));
+
+            // Its right-click menu in the graph offers TOPCAT -- not SPLAT: the station column is text.
+            mockMvc.perform(get("/api/graph/{id}", id)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.nodes[?(@.id == '" + dataObject + "')].viewers[*].id").value(
+                            org.hamcrest.Matchers.contains("topcat")))
+                    .andExpect(jsonPath("$.nodes[?(@.id == '" + dataObject + "')].viewers[0].votableUrl").value(
+                            org.hamcrest.Matchers.contains("/api/data-objects/" + id + "/votable")));
+            mockMvc.perform(get("/graph/{id}", id))
+                    .andExpect(content().string(containsString("/js/samp-send.js")))
+                    .andExpect(content().string(containsString("View the data")));
         } finally {
             server.stop(0);
             removeReachable(dataObject);
+        }
+    }
+
+    @Test
+    void offersSplatWhenTheTableViewIsAllNumbersAndNothingWithoutAStorageLocation() throws Exception {
+        String[] objects = write(() -> {
+            String spectrum = edit.createEntity(Ns.IM + "DigitalObject");
+            edit.addRelationship(spectrum, Ns.BRIDGE + "hasStorageLocation", "https://example.org/spectrum.csv");
+            String top = edit.createEntity(Ns.IM + "RepInfoAndGroup");
+            edit.addRelationship(spectrum, Ns.IM + "interpretedUsing", top);
+            String dfdl = edit.createEntity(Ns.IM + "StructureRepresentationInformation");
+            edit.addLiteral(dfdl, Ns.IM + "specificationLanguage", "DFDL");
+            edit.addLiteral(dfdl, Ns.IM + "specificationText", "<xs:schema/>");
+            String semantics = edit.createEntity(Ns.IM + "SemanticRepresentationInformation");
+            String view = edit.createEntity(Ns.IM + "ViewSpecification");
+            edit.addLiteral(view, Ns.IM + "viewKind", "table");
+            edit.addLiteral(view, Ns.IM + "specificationText", "<tableView><rows select=\"children\" name=\"row\"/>"
+                    + "<columns><column name=\"wavelength\" type=\"double\"/><column name=\"flux\" type=\"double\"/>"
+                    + "</columns></tableView>");
+            edit.addRelationship(top, Ns.IM + "hasGroupMember", dfdl);
+            edit.addRelationship(top, Ns.IM + "hasGroupMember", semantics);
+            edit.addRelationship(semantics, Ns.IM + "interpretedUsingRecurse", view);
+            String unstored = edit.createEntity(Ns.IM + "DigitalObject");
+            edit.addRelationship(unstored, Ns.IM + "interpretedUsing", top);
+            return new String[] {spectrum, unstored};
+        });
+        try {
+            mockMvc.perform(get("/api/graph/{id}", archive.encodeId(objects[0])))
+                    .andExpect(jsonPath("$.nodes[?(@.id == '" + objects[0] + "')].viewers[*].id").value(
+                            org.hamcrest.Matchers.containsInAnyOrder("topcat", "splat")))
+                    .andExpect(jsonPath("$.nodes[?(@.id == '" + objects[0] + "')].viewers[?(@.id == 'splat')].mtype")
+                            .value(org.hamcrest.Matchers.contains("spectrum.load.ssa-generic")));
+            mockMvc.perform(get("/api/graph/{id}", archive.encodeId(objects[1])))
+                    .andExpect(jsonPath("$.nodes[?(@.id == '" + objects[1] + "')].viewers[*]").isEmpty());
+            mockMvc.perform(get("/resource/{id}", archive.encodeId(objects[0])))
+                    .andExpect(content().string(containsString("View with SPLAT")))
+                    .andExpect(content().string(containsString("data-samp-client=\"splat\"")));
+        } finally {
+            removeReachable(objects[0]);
+            removeReachable(objects[1]);
         }
     }
 

@@ -21,6 +21,15 @@ import java.util.List;
  * @param links     literal properties whose value is itself a URL (e.g. an external
  *                  {@code rdfs:seeAlso}) -- offered in the client's right-click menu
  *                  as things to open directly, distinct from {@code detailUrl}.
+ * @param viewers   for a Data Object whose Representation Information network leads to what
+ *                  an application needs to show its data: those applications (TOPCAT, SPLAT,
+ *                  ...), also offered on the right-click menu. Empty otherwise.
  */
-public record GraphNode(String id, String label, String group, List<String> types, List<String> properties, String title, String detailUrl, List<GraphLink> links) {
+public record GraphNode(String id, String label, String group, List<String> types, List<String> properties, String title,
+                        String detailUrl, List<GraphLink> links, List<GraphViewer> viewers) {
+
+    public GraphNode(String id, String label, String group, List<String> types, List<String> properties, String title,
+                     String detailUrl, List<GraphLink> links) {
+        this(id, label, group, types, properties, title, detailUrl, links, List.of());
+    }
 }

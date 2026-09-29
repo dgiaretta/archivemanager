@@ -590,6 +590,18 @@ wanted.
       which sends that VOTable to TOPCAT on the viewer's computer over SAMP
       (Web Profile, `static/js/samp-send.js`; TOPCAT asks the viewer to allow
       it). No plugin is needed for VOTable.
+    - *Which viewers:* `DataObjectViewService.viewers` follows a Data Object's
+      Representation Information network through the triples
+      (`im:interpretedUsing`, then its AND/OR groups and
+      `im:interpretedUsingRecurse`) and offers each application whose needs
+      it meets: a storage location, a DFDL or DRB SDF description the server
+      can apply and a table view give TOPCAT (`table.load.votable`); SPLAT
+      (`spectrum.load.ssa-generic`, VOTable) also needs the table view's
+      columns all numeric, as a spectrum's are. The Data Object's page shows
+      a "View with ..." button for each, and so does its right-click menu in
+      the graph ("View the data", with its manifest). The data goes to the
+      named application only, found through the SAMP hub, since TOPCAT also
+      accepts spectra. More viewers are a `Viewer` in that service.
     - *Fetching:* serving VOTable makes the server fetch the bits from the
       storage location (`StorageFetcher`): http(s) only, at most
       `archive.fetch.max-bytes` within `archive.fetch.timeout-seconds`, and not

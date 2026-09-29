@@ -54,6 +54,7 @@
 
     <div id="network"></div>
     <div id="node-context-menu" class="node-context-menu" style="display:none;"></div>
+    <p id="viewer-status" class="muted" aria-live="polite"></p>
     <p class="muted">
         <span id="node-count">0</span> nodes, <span id="edge-count">0</span> edges.
         Scroll to zoom, drag to pan, double-click a node to open it, right-click for its links.
@@ -79,6 +80,7 @@
 <div th:replace="~{fragments :: footer}"></div>
 
 <script src="https://unpkg.com/vis-network@9/standalone/umd/vis-network.min.js"></script>
+<script th:src="@{/js/samp-send.js}"></script>
 <script th:inline="javascript">
     /*<![CDATA[*/
     const apiUrl = /*[[${apiUrl}]]*/ '/api/graph';
@@ -227,9 +229,37 @@
                         window.open(n.detailUrl, '_blank', 'noopener,noreferrer');
                     });
                 }
+                // A Data Object whose Representation Information network leads to what an
+                // application needs to show it: send its data (as VOTable) to that
+                // application on this computer, over SAMP.
+                const viewers = n.viewers || [];
+                if (viewers.length > 0) {
+                    if (n.detailUrl) {
+                        const divider = document.createElement('div');
+                        divider.className = 'menu-divider';
+                        contextMenu.appendChild(divider);
+                    }
+                    const heading = document.createElement('div');
+                    heading.className = 'menu-heading';
+                    heading.textContent = 'View the data';
+                    contextMenu.appendChild(heading);
+                    const status = document.getElementById('viewer-status');
+                    viewers.forEach(function (v) {
+                        addMenuItem(v.label, 'sent over SAMP', function () {
+                            window.OaisSamp.send({
+                                url: v.votableUrl, name: n.label, mtype: v.mtype, client: v.clientName,
+                                label: v.label.replace(/^View with /, ''),
+                                say: function (text) { status.textContent = n.label + ': ' + text; }
+                            });
+                        });
+                    });
+                    addMenuItem('Representation Information manifest', 'for TOPCAT and SPLAT by URL', function () {
+                        window.open(viewers[0].manifestUrl, '_blank', 'noopener,noreferrer');
+                    });
+                }
                 const links = n.links || [];
                 if (links.length > 0) {
-                    if (n.detailUrl) {
+                    if (n.detailUrl || viewers.length > 0) {
                         const divider = document.createElement('div');
                         divider.className = 'menu-divider';
                         contextMenu.appendChild(divider);

@@ -48,7 +48,11 @@ public class GraphService {
     private final Set<String> eventLocalNames;
     private final Set<String> mandateLocalNames;
 
-    public GraphService(RdfStore store, QueryRunner q, ArchiveService archive, OntologyService ontology) {
+    private final info.oais.archive.manager.service.format.DataObjectViewService views;
+
+    public GraphService(RdfStore store, QueryRunner q, ArchiveService archive, OntologyService ontology,
+                        info.oais.archive.manager.service.format.DataObjectViewService views) {
+        this.views = views;
         this.store = store;
         this.q = q;
         this.archive = archive;
@@ -340,11 +344,28 @@ public class GraphService {
             List<String> properties = new ArrayList<>(propertiesByNode.getOrDefault(iri, Set.of()));
             properties.sort(String.CASE_INSENSITIVE_ORDER);
             List<GraphLink> links = linksByNode.getOrDefault(iri, List.of());
-            enrichedNodes.put(iri, new GraphNode(iri, node.label(), node.group(), node.types(), properties, node.title(), node.detailUrl(), links));
+            enrichedNodes.put(iri, new GraphNode(iri, node.label(), node.group(), node.types(), properties, node.title(),
+                    node.detailUrl(), links, viewersFor(iri)));
         }
         List<String> propertyNames = new ArrayList<>(knownPropertyNames);
         propertyNames.sort(String.CASE_INSENSITIVE_ORDER);
         return new GraphData(new ArrayList<>(enrichedNodes.values()), edges, truncated, propertyNames);
+    }
+
+    /**
+     * The applications this node's data can be viewed with -- for a Data
+     * Object whose Representation Information network, followed through the
+     * triples, leads to what each needs (see {@code DataObjectViewService#viewers}).
+     */
+    private List<info.oais.archive.manager.model.GraphViewer> viewersFor(String iri) {
+        List<info.oais.archive.manager.service.format.DataObjectViewService.Viewer> found = views.viewers(iri);
+        if (found.isEmpty()) {
+            return List.of();
+        }
+        String id = archive.encodeId(iri);
+        return found.stream().map(v -> new info.oais.archive.manager.model.GraphViewer(v.id(), v.label(), v.mtype(),
+                v.clientName(), "/api/data-objects/" + id + "/votable", "/api/data-objects/" + id + "/repinfo.ttl"))
+                .toList();
     }
 
     private GraphNode makeNode(String iri, List<String> properties) {

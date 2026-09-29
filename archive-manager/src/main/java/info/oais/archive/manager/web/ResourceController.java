@@ -1,5 +1,7 @@
 package info.oais.archive.manager.web;
 
+import java.util.List;
+
 import info.oais.archive.manager.service.ArchiveService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -42,8 +44,9 @@ public class ResourceController {
         // offer it to viewers (its manifest for TOPCAT/SPLAT, and VOTable when it has a table view).
         views.describe(iri, java.net.URI::create).ifPresent(d -> {
             model.addAttribute("describedData", d);
-            model.addAttribute("tableViewable", !d.structures().isEmpty()
-                    && d.view(info.oais.infomodel.structure.manifest.ViewDescription.TABLE).isPresent());
+            List<info.oais.archive.manager.service.format.DataObjectViewService.Viewer> viewers = views.viewers(iri);
+            model.addAttribute("viewers", viewers);
+            model.addAttribute("tableViewable", !viewers.isEmpty());
         });
         return "resource/view";
     }

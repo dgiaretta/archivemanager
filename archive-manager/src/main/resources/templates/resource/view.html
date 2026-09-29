@@ -25,13 +25,16 @@
             open it by that address.
         </p>
         <p th:if="${tableViewable}">
-            <button type="button" th:attr="data-samp-votable=@{/api/data-objects/{id}/votable(id=${id})},data-samp-name=${describedData.name()}">View in TOPCAT</button>
+            <button type="button" th:each="v : ${viewers}" th:text="${v.label()}"
+                    th:attr="data-samp-votable=@{/api/data-objects/{id}/votable(id=${id})},data-samp-name=${describedData.name()},data-samp-mtype=${v.mtype()},data-samp-client=${v.clientName()},data-samp-label=${#strings.replace(v.label(), 'View with ', '')}">View with TOPCAT</button>
             <a class="button button-secondary" th:href="@{/api/data-objects/{id}/votable(id=${id})}">VOTable &rarr;</a>
             <span class="muted" data-samp-status></span>
         </p>
         <p class="muted" th:if="${tableViewable}">
-            "View in TOPCAT" sends the data, decoded on the server as a VOTable, to TOPCAT running on your
-            computer (over SAMP; TOPCAT asks you to allow it). The VOTable link works in any VO tool.
+            "View with ..." sends the data, decoded on the server as a VOTable, to that application running on
+            your computer (over SAMP; it asks you to allow this page). SPLAT is offered when the table's columns
+            are all numeric, as a spectrum's are. The VOTable link works in any VO tool. The same choices are on
+            the Data Object's right-click menu in the graph.
         </p>
         <p class="muted" th:unless="${tableViewable}">
             It has no DFDL or DRB SDF description with a table view to decode it by on the server; saving
