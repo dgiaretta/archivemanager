@@ -43,7 +43,8 @@ src/main/resources/rdf/
                               im:RepInfoOrGroup, im:hasGroupMember), and
                               Designated Community, Preservation Objective and
                               Transformation Information Property with their
-                              properties, moved out of the schema unchanged.
+                              properties, moved out of the schema (now marked
+                              local-extension).
   oais-ric-bridge.ttl        The bridging ontology: RiC-O <-> OAIS class
                               correspondences (SKOS mapping relations) plus
                               bridge:hasOAISCounterpart / bridge:hasRiCDescription,
@@ -558,6 +559,32 @@ wanted.
     language not generated and why. Choosing Kaitai Struct also rules out
     element names that are Java reserved words (e.g. `class`), since its
     descriptions are compiled to Java.
+  - **Describing data whose format is already known** (`/repinfo-tools/known`,
+    `KnownFormatController`, "Or describe data whose format is already
+    known" on the start page). For a spreadsheet or delimited text -- .xlsx,
+    .xls, .ods, .csv (`KnownFormat`) -- whose structure is defined by a
+    published specification and which software already reads, only the
+    meaning is described: one variable per column, each column found by its
+    header on a sheet's header row, with the same semantics as an element
+    (semantic name, definition, units, codes, scale and offset, fill value,
+    valid range, concept). The sheets and columns can be taken from a sample
+    file, and the description tested against one (`SpreadsheetReader`, with
+    Apache POI for .xlsx/.xls): each column found, its first values and what
+    they mean, and counts of values outside their code list or valid range,
+    fill values and blanks. Saving (`FormatDescriptionRdfService.saveKnownFormat`)
+    makes an AND group of three: the columns' Semantic Representation
+    Information (each column's recording where it is, e.g.
+    `Readings!"Air temperature"`); Structure Representation Information --
+    a new `im:FormatProfile`, or existing Structure Representation
+    Information chosen from the archive; and Other Representation Information
+    -- the format's shared OR group of the software that reads it (e.g.
+    Microsoft Excel, LibreOffice Calc, or any application that reads OOXML
+    spreadsheets), or existing Other Representation Information. A format
+    profile refines the format's registry identifier (e.g. `PRONOM fmt/214`)
+    with what it leaves out -- the specification's version or conformance
+    class, and for text the character encoding, line endings, delimiter and
+    quote -- since a registry identifier alone generally isn't enough to read
+    a file (PRONOM's `x-fmt/111`, plain text, says nothing about encoding).
   - **Writing a description by hand.** For what the element tree can't
     express -- checksums, encryption, other compression, records spread over
     several lines, anything else a language can do -- a Kaitai Struct, DFDL

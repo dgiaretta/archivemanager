@@ -184,7 +184,14 @@
                 back</em>: decode a sample and write it again with the same description, to check
                 that the result is byte-for-byte identical (the description is then enough to
                 re-create the file), or to write a copy with some values changed
-                (<code>/header/count = 3</code>) and download it.</li>
+                (<code>/header/count = 3</code>) and download it.
+                For a spreadsheet or delimited text (.xlsx, .xls, .ods, .csv), whose format is
+                already defined and which software already reads, describe only what each column
+                means &mdash; the columns can be taken from a sample file and tested against one.
+                That's saved with a format profile (the format's registry identifier, refined with
+                its version and, for text, its character encoding and delimiter) and the software
+                that reads it (e.g. Excel or any application that reads OOXML spreadsheets, any one
+                of which will do), or with Representation Information already in the archive.</li>
         </ul>
     </section>
 

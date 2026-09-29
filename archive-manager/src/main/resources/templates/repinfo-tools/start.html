@@ -91,6 +91,33 @@
         </form>
     </div>
 
+    <h2>Or describe data whose format is already known</h2>
+    <p class="muted">
+        For a spreadsheet or delimited text, whose structure is defined by a published specification
+        and which software already reads: describe only what each column means. It's saved as
+        Semantic Representation Information, used together with a format profile (Structure
+        Representation Information) and the software that reads the format (Other Representation
+        Information: any one of several applications), or with Representation Information already in
+        the archive.
+    </p>
+    <div class="callout" th:if="${hasKnownDraft}">
+        <strong>You have a known-format description in progress.</strong>
+        <p><a class="button" th:href="@{/repinfo-tools/known}">Resume editing &rarr;</a></p>
+    </div>
+    <div class="repinfo-template-grid">
+        <form th:each="f : ${knownFormats}" th:action="@{/repinfo-tools/known/start}" method="post"
+              class="repinfo-template-card">
+            <input type="hidden" name="format" th:value="${f.key()}"/>
+            <h3 th:text="${f.label()}">Excel workbook (.xlsx)</h3>
+            <p class="muted">
+                <span th:text="${f.registryId()}">PRONOM fmt/214</span>, read by
+                <span th:text="${#strings.listJoin(f.software().![label()], ' or ')}">Microsoft Excel</span>.
+                <span th:if="${f.readable()}">Columns can be taken from a sample file, and tested against one.</span>
+            </p>
+            <button type="submit">Describe its columns &rarr;</button>
+        </form>
+    </div>
+
     <h2>Or start blank</h2>
     <div class="repinfo-template-grid">
         <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">

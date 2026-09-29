@@ -231,59 +231,7 @@
                 </th:block>
             </fieldset>
 
-            <fieldset>
-                <legend>Meaning (Semantic Representation Information)</legend>
-                <label>
-                    Semantic name (what it represents, e.g. "Temperature")
-                    <input type="text" name="semanticName" th:value="${form.semanticName}"/>
-                </label>
-                <label>
-                    Definition
-                    <textarea name="definition" rows="3" th:text="${form.definition}"></textarea>
-                </label>
-                <th:block th:if="${form.kind == 'field'}">
-                    <label>
-                        Units (e.g. "K", "hPa")
-                        <input type="text" name="units" th:value="${form.units}"/>
-                    </label>
-                    <label>
-                        Units in a vocabulary (optional link, e.g. a QUDT unit)
-                        <input type="url" name="unitsUri" th:value="${form.unitsUri}" placeholder="https://qudt.org/vocab/unit/K"/>
-                    </label>
-                    <label>
-                        Coded values, one per line as <code>value = meaning</code>
-                        <textarea name="codes" rows="3" th:text="${form.codes}" placeholder="1 = housekeeping&#10;2 = science"></textarea>
-                    </label>
-                    <div class="form-row">
-                        <label>
-                            Scale (physical value = raw &times; scale + offset)
-                            <input type="text" name="scale" th:value="${form.scale}" placeholder="1"/>
-                        </label>
-                        <label>
-                            Offset
-                            <input type="text" name="offset" th:value="${form.offset}" placeholder="0"/>
-                        </label>
-                    </div>
-                    <label>
-                        Fill value (the raw value meaning "no data")
-                        <input type="text" name="fillValue" th:value="${form.fillValue}"/>
-                    </label>
-                    <div class="form-row">
-                        <label>
-                            Smallest valid value
-                            <input type="text" name="validMin" th:value="${form.validMin}"/>
-                        </label>
-                        <label>
-                            Largest valid value
-                            <input type="text" name="validMax" th:value="${form.validMax}"/>
-                        </label>
-                    </div>
-                </th:block>
-                <label>
-                    Concept in a vocabulary or ontology (optional link)
-                    <input type="url" name="conceptUri" th:value="${form.conceptUri}"/>
-                </label>
-            </fieldset>
+            <fieldset th:replace="~{repinfo-tools/semantics-fields :: semanticsFields(${form}, ${form.kind == 'field'})}"></fieldset>
             <button type="submit">Save</button>
         </form>
 

@@ -103,6 +103,8 @@ public class RepInfoToolController {
     @GetMapping
     public String start(HttpSession session, Model model) {
         model.addAttribute("hasDraft", draft(session) != null);
+        model.addAttribute("knownFormats", info.oais.archive.manager.service.format.KnownFormat.ALL);
+        model.addAttribute("hasKnownDraft", session.getAttribute(KnownFormatController.SESSION_KEY) != null);
         return "repinfo-tools/start";
     }
 
@@ -344,48 +346,7 @@ public class RepInfoToolController {
 
     /** The semantics part of the edit form; see {@code Semantics} for what each part means. */
     private static Semantics semantics(Map<String, String> form) {
-        Map<String, String> codes = new LinkedHashMap<>();
-        for (String line : form.getOrDefault("codes", "").split("\\R")) {
-            if (line.isBlank()) {
-                continue;
-            }
-            int sep = line.indexOf('=') >= 0 ? line.indexOf('=') : line.indexOf(':');
-            if (sep <= 0) {
-                throw new IllegalArgumentException("Write each coded value as 'value = meaning', e.g. '1 = housekeeping' (not '"
-                        + line.strip() + "').");
-            }
-            codes.put(line.substring(0, sep).strip(), line.substring(sep + 1).strip());
-        }
-        return new Semantics(form.get("semanticName"), form.get("definition"), form.get("units"),
-                uri(form.get("unitsUri"), "The units link"), uri(form.get("conceptUri"), "The concept link"), codes,
-                decimal(form.get("scale"), "The scale"), decimal(form.get("offset"), "The offset"), form.get("fillValue"),
-                decimal(form.get("validMin"), "The smallest valid value"), decimal(form.get("validMax"), "The largest valid value"));
-    }
-
-    private static java.net.URI uri(String text, String what) {
-        if (text == null || text.isBlank()) {
-            return null;
-        }
-        try {
-            java.net.URI uri = new java.net.URI(text.strip());
-            if (uri.getScheme() == null) {
-                throw new IllegalArgumentException(what + " must be a full web address, starting http:// or https://.");
-            }
-            return uri;
-        } catch (java.net.URISyntaxException e) {
-            throw new IllegalArgumentException(what + " isn't a valid web address.");
-        }
-    }
-
-    private static java.math.BigDecimal decimal(String text, String what) {
-        if (text == null || text.isBlank()) {
-            return null;
-        }
-        try {
-            return new java.math.BigDecimal(text.strip());
-        } catch (NumberFormatException e) {
-            throw new IllegalArgumentException(what + " must be a number (not '" + text.strip() + "').");
-        }
+        return SemanticsForm.parse(form);
     }
 
     private static String required(String value, String what) {

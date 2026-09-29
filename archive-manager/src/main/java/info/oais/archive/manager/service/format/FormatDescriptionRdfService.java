@@ -2,6 +2,7 @@ package info.oais.archive.manager.service.format;
 
 import info.oais.archive.manager.model.format.FormatDefinition;
 import info.oais.archive.manager.model.format.FormatDefinitionKind;
+import info.oais.archive.manager.model.format.KnownFormatDescription;
 import info.oais.archive.manager.model.format.Hdf5Node;
 import info.oais.archive.manager.rdf.Ns;
 import info.oais.archive.manager.service.EditService;
@@ -12,6 +13,7 @@ import info.oais.infomodel.structure.description.Semantics;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -245,9 +247,27 @@ public class FormatDescriptionRdfService {
     private void addElementSemantics(ElementDescription e, String parentPath, String parentRi,
                                      Map<String, String> unitsByLabel) {
         String path = parentPath.isEmpty() ? e.name() : parentPath + "." + e.name();
-        Semantics s = e.semantics();
+        String ri = semanticIndividual(e.name(), path, e.semantics(), parentRi, unitsByLabel);
+        if (e instanceof RecordDescription r) {
+            for (ElementDescription child : r.children()) {
+                addElementSemantics(child, path, ri, unitsByLabel);
+            }
+        } else if (e instanceof ChoiceDescription c) {
+            for (ChoiceDescription.Branch b : c.branches()) {
+                addElementSemantics(b.record(), path, ri, unitsByLabel);
+            }
+        }
+    }
+
+    /**
+     * One element's Semantic Representation Information, linked from its
+     * parent's: labelled with its semantic name (else {@code name}), where it
+     * is ({@code path}), and everything {@code s} says about it.
+     */
+    private String semanticIndividual(String name, String path, Semantics s, String parentRi,
+                                      Map<String, String> unitsByLabel) {
         String ri = edit.createEntity(Ns.IM + "SemanticRepresentationInformation");
-        edit.addLiteral(ri, Ns.RDFS + "label", s.semanticName() == null ? e.name() : s.semanticName());
+        edit.addLiteral(ri, Ns.RDFS + "label", s.semanticName() == null ? name : s.semanticName());
         edit.addLiteral(ri, Ns.BRIDGE + "structuralPath", path);
         edit.addLiteral(ri, Ns.SKOS + "definition", s.definition());
         addUnits(ri, s.units(), s.unitsUri(), unitsByLabel);
@@ -279,16 +299,133 @@ public class FormatDescriptionRdfService {
             edit.addRelationship(ri, Ns.BRIDGE + "hasCodeList", scheme);
         }
         edit.addRelationship(parentRi, Ns.IM + "interpretedUsingRecurse", ri);
+        return ri;
+    }
 
-        if (e instanceof RecordDescription r) {
-            for (ElementDescription child : r.children()) {
-                addElementSemantics(child, path, ri, unitsByLabel);
-            }
-        } else if (e instanceof ChoiceDescription c) {
-            for (ChoiceDescription.Branch b : c.branches()) {
-                addElementSemantics(b.record(), path, ri, unitsByLabel);
+    /**
+     * Saves the meaning of data whose format is already known (a spreadsheet,
+     * delimited text) as Semantic Representation Information, used together
+     * with the format's Structure and Other Representation Information -- an
+     * AND group of the three. The structure is an existing individual, or a
+     * new {@code im:FormatProfile} refining the format's registry identifier;
+     * the software is an existing individual, or the format's shared OR group
+     * of the applications that read it (see {@link KnownFormat#software()}).
+     * Each column's Semantic Representation Information is linked from its
+     * sheet's, which is linked from the overall one, with
+     * {@code bridge:structuralPath} saying where it is, e.g.
+     * {@code Readings!"Air temperature"}.
+     *
+     * @param structureIri existing Structure Representation Information to use, or null for a new format profile
+     * @param otherIri     existing Other Representation Information to use, or null for the format's software
+     * @return the Data Object IRI (existing or newly created)
+     */
+    public String saveKnownFormat(KnownFormatDescription d, String dataObjectIri, String structureIri, String otherIri) {
+        KnownFormat format = KnownFormat.of(d.getFormat());
+        String dataObject = (dataObjectIri == null || dataObjectIri.isBlank())
+                ? edit.createEntity(Ns.IM + "DigitalObject") : dataObjectIri;
+        String name = d.getName().isBlank() ? format.label() : d.getName();
+
+        String semanticRi = edit.createEntity(Ns.IM + "SemanticRepresentationInformation");
+        edit.addLiteral(semanticRi, Ns.RDFS + "label", "Semantics of " + name);
+        StringBuilder summary = new StringBuilder("Semantics of \"" + name + "\", " + format.label()
+                + ", one variable per column:\n");
+        if (!d.getNotes().isBlank()) {
+            summary.append('\n').append(d.getNotes()).append('\n');
+        }
+        Map<String, String> unitsByLabel = new LinkedHashMap<>();
+        for (KnownFormatDescription.Part part : d.getParts()) {
+            summary.append("\n").append(part.name()).append(" (headers on row ").append(part.headerRow()).append("):\n");
+            String partRi = semanticIndividual(part.name(), part.name(), Semantics.NONE, semanticRi, unitsByLabel);
+            for (KnownFormatDescription.Item item : part.items()) {
+                semanticIndividual(item.header(), KnownFormatDescription.locator(part, item), item.semantics(), partRi,
+                        unitsByLabel);
+                summary.append("  - ").append(item.header());
+                if (item.semantics().semanticName() != null) {
+                    summary.append(": ").append(item.semantics().semanticName());
+                }
+                if (item.semantics().units() != null) {
+                    summary.append(" [").append(item.semantics().units()).append(']');
+                }
+                summary.append('\n');
             }
         }
+        edit.addLiteral(semanticRi, Ns.RDFS + "comment", summary.toString());
+
+        String structure = structureIri != null && !structureIri.isBlank() ? structureIri : formatProfile(d, format);
+        String other = otherIri != null && !otherIri.isBlank() ? otherIri : softwareFor(format);
+
+        String top = edit.createEntity(Ns.IM + "RepInfoAndGroup");
+        edit.addType(top, Ns.IM + "RepresentationInformation");
+        edit.addLiteral(top, Ns.RDFS + "label", "Representation Information for " + name);
+        edit.addLiteral(top, Ns.RDFS + "comment", "Everything needed to interpret \"" + name + "\", used together: "
+                + "its format, software that reads it, and the meaning of its columns.");
+        edit.addRelationship(dataObject, Ns.IM + "interpretedUsing", top);
+        for (String member : List.of(structure, semanticRi, other)) {
+            edit.addRelationship(top, Ns.IM + "hasGroupMember", member);
+        }
+        edit.addRelationship(top, Ns.IM + "hasStructureRepresentationInformation", structure);
+        edit.addRelationship(top, Ns.IM + "hasSemanticRepresentationInformation", semanticRi);
+        edit.addRelationship(top, Ns.IM + "hasOtherRepresentationInformation", other);
+        return dataObject;
+    }
+
+    /** A new format profile for {@code d}: the registry identifier, refined with what it leaves out. */
+    private String formatProfile(KnownFormatDescription d, KnownFormat format) {
+        String profile = edit.createEntity(Ns.IM + "FormatProfile");
+        edit.addType(profile, Ns.IM + "StructureRepresentationInformation");
+        String version = d.getVersion().isBlank() ? format.version() : d.getVersion();
+        String registryId = d.getRegistryId().isBlank() ? format.registryId() : d.getRegistryId();
+        edit.addLiteral(profile, Ns.RDFS + "label", format.label() + ", " + version
+                + (format.text() && !d.getCharacterEncoding().isBlank() ? ", " + d.getCharacterEncoding() : ""));
+        edit.addLiteral(profile, Ns.RDFS + "comment", "The format of the data: " + format.label() + " as specified by "
+                + format.specLabel() + " (" + version + "), " + registryId + "."
+                + (format.text() ? " Character encoding " + orUnstated(d.getCharacterEncoding()) + ", line endings "
+                        + orUnstated(d.getLineEnding()) + ", fields separated by " + orUnstated(d.getDelimiter())
+                        + " and quoted with " + orUnstated(d.getQuote()) + "." : ""));
+        edit.addLiteral(profile, Ns.IM + "formatRegistryIdentifier", registryId);
+        edit.addLiteral(profile, Ns.IM + "formatVersion", version);
+        edit.addLiteral(profile, Ns.IM + "mediaType", format.mediaType());
+        if (format.text()) {
+            edit.addLiteral(profile, Ns.IM + "characterEncoding", d.getCharacterEncoding());
+            edit.addLiteral(profile, Ns.IM + "lineEnding", d.getLineEnding());
+            edit.addLiteral(profile, Ns.IM + "fieldDelimiter", d.getDelimiter());
+            edit.addLiteral(profile, Ns.IM + "quoteCharacter", d.getQuote());
+        }
+        edit.addRelationship(profile, Ns.RDFS + "seeAlso", format.specUrl());
+        if (registryId.startsWith("PRONOM ")) {
+            edit.addRelationship(profile, Ns.RDFS + "seeAlso",
+                    "https://www.nationalarchives.gov.uk/PRONOM/" + registryId.substring("PRONOM ".length()).strip());
+        }
+        return profile;
+    }
+
+    private static String orUnstated(String value) {
+        return value == null || value.isBlank() ? "(not stated)" : value;
+    }
+
+    /**
+     * The shared OR group of the software that reads {@code format} -- any one
+     * will do -- created the first time it's needed, as are its members.
+     */
+    private String softwareFor(KnownFormat format) {
+        String group = Ns.EX + "software-for-" + format.key();
+        if (edit.createEntityIfAbsent(group, Ns.IM + "RepInfoOrGroup")) {
+            edit.addType(group, Ns.IM + "OtherRepresentationInformation");
+            edit.addLiteral(group, Ns.RDFS + "label", "Software that reads " + format.label() + ": any one of "
+                    + String.join(", ", format.software().stream().map(KnownFormat.Software::label).toList()));
+            for (KnownFormat.Software software : format.software()) {
+                String iri = Ns.EX + "software-" + software.key();
+                if (edit.createEntityIfAbsent(iri, Ns.IM + "OtherRepresentationInformation")) {
+                    edit.addLiteral(iri, Ns.RDFS + "label", software.label());
+                    edit.addLiteral(iri, Ns.RDFS + "comment", software.description());
+                    if (software.url() != null) {
+                        edit.addRelationship(iri, Ns.RDFS + "seeAlso", software.url());
+                    }
+                }
+                edit.addRelationship(group, Ns.IM + "hasGroupMember", iri);
+            }
+        }
+        return group;
     }
 
     private void addUnits(String ri, String units, java.net.URI unitsUri, Map<String, String> unitsByLabel) {

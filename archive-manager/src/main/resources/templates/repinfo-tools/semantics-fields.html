@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- The "Meaning" inputs, shared by the element editor (edit.html) and the column editor (known.html).
+     sem: anything with the SemanticsForm accessors; values: whether to offer units, codes, scale, fill and range. -->
+    <fieldset th:fragment="semanticsFields(sem, values)">
+        <legend>Meaning (Semantic Representation Information)</legend>
+        <label>
+            Semantic name (what it represents, e.g. "Temperature")
+            <input type="text" name="semanticName" th:value="${sem.semanticName}"/>
+        </label>
+        <label>
+            Definition
+            <textarea name="definition" rows="3" th:text="${sem.definition}"></textarea>
+        </label>
+        <th:block th:if="${values}">
+            <label>
+                Units (e.g. "K", "hPa")
+                <input type="text" name="units" th:value="${sem.units}"/>
+            </label>
+            <label>
+                Units in a vocabulary (optional link, e.g. a QUDT unit)
+                <input type="url" name="unitsUri" th:value="${sem.unitsUri}" placeholder="https://qudt.org/vocab/unit/K"/>
+            </label>
+            <label>
+                Coded values, one per line as <code>value = meaning</code>
+                <textarea name="codes" rows="3" th:text="${sem.codes}" placeholder="1 = housekeeping&#10;2 = science"></textarea>
+            </label>
+            <div class="form-row">
+                <label>
+                    Scale (physical value = raw &times; scale + offset)
+                    <input type="text" name="scale" th:value="${sem.scale}" placeholder="1"/>
+                </label>
+                <label>
+                    Offset
+                    <input type="text" name="offset" th:value="${sem.offset}" placeholder="0"/>
+                </label>
+            </div>
+            <label>
+                Fill value (the raw value meaning "no data")
+                <input type="text" name="fillValue" th:value="${sem.fillValue}"/>
+            </label>
+            <div class="form-row">
+                <label>
+                    Smallest valid value
+                    <input type="text" name="validMin" th:value="${sem.validMin}"/>
+                </label>
+                <label>
+                    Largest valid value
+                    <input type="text" name="validMax" th:value="${sem.validMax}"/>
+                </label>
+            </div>
+        </th:block>
+        <label>
+            Concept in a vocabulary or ontology (optional link)
+            <input type="url" name="conceptUri" th:value="${sem.conceptUri}"/>
+        </label>
+    </fieldset>
+</body>
+</html>
