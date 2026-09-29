@@ -2,14 +2,10 @@ package info.oais.infomodel.structure.splat;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Files;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import uk.ac.starlink.splat.data.SpecData;
 
@@ -21,36 +17,20 @@ import uk.ac.starlink.splat.data.SpecData;
  * {@code run-in-splat.bat}, alongside these fixtures, for actually opening
  * one by hand).
  *
- * <p>Uses its own {@code spectrum.csv}/{@code spectrum.dfdl.xsd} fixture
- * (ten wavelength/flux rows) rather than oais-structure-topcat's
+ * <p>Uses its own fixture -- {@code spectrum-manifest.ttl} naming
+ * {@code spectrum.csv} (ten wavelength/flux rows), its DFDL schema and its
+ * table view -- rather than oais-structure-topcat's
  * {@code point.bin}: SPLAT's {@code TableSpecDataImpl} requires every column
  * to be numeric (a spectrum is X/Y data, not an arbitrary table), which
  * {@code point.bin}'s "label" string column would violate.</p>
  */
 class OaisStructureSpectrumLauncherTest {
 
-    private static final String SPECTRUM_CSV = "/spectrum.csv";
-    private static final String SPECTRUM_DFDL_XSD = "/spectrum.dfdl.xsd";
-    private static final String SPECTRUM_VIEW_XML = "/spectrum-table-view.xml";
-
-    @TempDir
-    Path tempDir;
-
-    private Path dataPath;
-
-    @BeforeEach
-    void copyDataAndSidecars() throws IOException {
-        dataPath = tempDir.resolve("spectrum.csv");
-        copyResource(SPECTRUM_CSV, dataPath);
-        copyResource(SPECTRUM_DFDL_XSD, tempDir.resolve("spectrum.dfdl.xsd"));
-        copyResource(SPECTRUM_VIEW_XML, tempDir.resolve("spectrum-table-view.xml"));
-    }
-
     @Test
     void wrapsADfdlDescribedSpectrumAsASpecData() throws Exception {
-        SpecData spectrum = OaisStructureSpectrumLauncher.toSpecData(dataPath);
+        SpecData spectrum = OaisStructureSpectrumLauncher.toSpecData(fixture("spectrum-manifest.ttl").toString());
 
-        assertEquals("spectrum.csv", spectrum.getShortName());
+        assertEquals("Test spectrum", spectrum.getShortName());
         assertEquals(10, spectrum.size());
         assertEquals(4000.0, spectrum.getXData()[0], 1e-9);
         assertEquals(1.2, spectrum.getYData()[0], 1e-9);
@@ -58,12 +38,14 @@ class OaisStructureSpectrumLauncherTest {
         assertEquals(0.2, spectrum.getYData()[9], 1e-9);
     }
 
-    private static void copyResource(String resourcePath, Path destination) throws IOException {
-        try (InputStream in = OaisStructureSpectrumLauncherTest.class.getResourceAsStream(resourcePath)) {
-            if (in == null) {
-                throw new IllegalStateException("Test fixture not found on classpath: " + resourcePath);
-            }
-            Files.copy(in, destination);
-        }
+    @Test
+    void takesPathsAndUrls() {
+        assertEquals("https", OaisStructureSpectrumLauncher.toUri("https://example.org/m.ttl").getScheme());
+        assertEquals("file", OaisStructureSpectrumLauncher.toUri("C:\data\m.ttl").getScheme());
+        assertEquals("file", OaisStructureSpectrumLauncher.toUri("data/m.ttl").getScheme());
+    }
+
+    private static Path fixture(String name) throws URISyntaxException {
+        return Path.of(OaisStructureSpectrumLauncherTest.class.getResource("/" + name).toURI());
     }
 }

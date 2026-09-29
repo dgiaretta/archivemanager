@@ -17,16 +17,21 @@
     data described by a DFDL schema, a Kaitai Struct generated class, or a
     DRB descriptor -- reusing oais-structure-api's existing
     StructureInterpreterFactory / TableSemanticRepInfo pipeline rather than
-    parsing anything itself. See this module's own README section (in the
-    project root README) for the sidecar-file convention this builder looks
-    for and the -Dstartable.readers launch flag needed to register it with
-    TOPCAT.
+    parsing anything itself. The data and its descriptions are named
+    explicitly by a Representation Information manifest (see
+    oais-structure-manifest); see the project root README for the
+    -Dstartable.readers launch flag needed to register it with TOPCAT.
   </description>
 
   <dependencies>
     <dependency>
       <groupId>info.oais.infomodel</groupId>
       <artifactId>oais-structure-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-manifest</artifactId>
     </dependency>
 
     <dependency>

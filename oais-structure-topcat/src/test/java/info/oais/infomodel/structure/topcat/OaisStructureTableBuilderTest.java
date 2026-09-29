@@ -1,186 +1,112 @@
 package info.oais.infomodel.structure.topcat;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
+import java.net.URISyntaxException;
 import java.nio.file.Path;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 import uk.ac.starlink.table.StarTable;
 import uk.ac.starlink.table.StoragePolicy;
 import uk.ac.starlink.table.TableFormatException;
-import uk.ac.starlink.util.FileDataSource;
+import uk.ac.starlink.util.DataSource;
 
 /**
- * End-to-end tests against this project's own demo fixtures: real bytes,
- * through the real DFDL, Kaitai and DRB adapters, into a real STIL
- * {@link StarTable}. No TOPCAT installation needed for this -- it exercises
- * exactly the same {@link OaisStructureTableBuilder#makeStarTable} path
- * TOPCAT itself would call (see {@code run-in-topcat.bat}, alongside these
- * fixtures, for actually opening them in TOPCAT by hand).
- *
- * <p>{@code point.bin} (single row, x=42/y=-7/label="hi" -- copied from
- * {@code oais-structure-demo/src/main/resources/point.bin}) covers the
- * single-record case; {@code points.csv}/{@code points-kaitai.csv} (ten
- * rows, deliberately scoped to this module rather than editing the shared
- * {@code points.csv} other modules' tests already assert exact row content
- * against) cover the repeated-row case, via both engines.</p>
+ * End-to-end tests: Representation Information manifests naming real data
+ * and descriptions, through the real DFDL, Kaitai and DRB adapters, into a
+ * real STIL {@link StarTable} -- the same {@link OaisStructureTableBuilder#makeStarTable}
+ * path TOPCAT itself calls (see {@code run-in-topcat.bat}, alongside these
+ * fixtures, for opening them in TOPCAT by hand). The fixtures' file names are
+ * arbitrary: every file is named explicitly in a manifest.
  */
 class OaisStructureTableBuilderTest {
 
-    private static final String POINT_VIEW_XML = "/point-table-view.xml";
-    private static final String POINT_BIN = "/point.bin";
-    private static final String POINT_DFDL_XSD = "/point.dfdl.xsd";
-    private static final String KAITAI_GENERATED_CLASS =
-            "info.oais.infomodel.structure.kaitai.generated.Point2d";
+	private final OaisStructureTableBuilder builder = new OaisStructureTableBuilder();
 
-    private static final String POINTS_CSV = "/points.csv";
-    private static final String POINTS_DFDL_XSD = "/points.dfdl.xsd";
-    private static final String POINTS_VIEW_XML = "/points-table-view.xml";
-    private static final String POINTS_KAITAI_VIEW_XML = "/points-kaitai-table-view.xml";
-    private static final String CSV_POINTS_KAITAI_GENERATED_CLASS =
-            "info.oais.infomodel.structure.kaitai.generated.CsvPoints";
+	private StarTable open(String manifest, String dataObject) throws IOException {
+		String location = fixture(manifest).toString() + (dataObject == null ? "" : "#" + dataObject);
+		return builder.makeStarTable(DataSource.makeDataSource(location), false, StoragePolicy.PREFER_MEMORY);
+	}
 
-    private final OaisStructureTableBuilder builder = new OaisStructureTableBuilder();
+	private static Path fixture(String name) {
+		try {
+			return Path.of(OaisStructureTableBuilderTest.class.getResource("/" + name).toURI());
+		} catch (URISyntaxException e) {
+			throw new IllegalStateException(e);
+		}
+	}
 
-    @TempDir
-    Path tempDir;
+	@Test
+	void readsAPointThroughItsPreferredDescriptionWithUnitsFromItsSemantics() throws IOException {
+		StarTable table = open("point-manifest.ttl", null);
 
-    private Path dataPath;
+		assertColumns(table);
+		assertEquals(1, table.getRowCount());
+		assertEquals(42, table.getCell(0, 0));
+		assertEquals(-7, table.getCell(0, 1));
+		assertEquals("hi", table.getCell(0, 2));
+		assertEquals("m", table.getColumnInfo(0).getUnitString());
+		assertEquals("X ordinate: Distance along the x axis.", table.getColumnInfo(0).getDescription());
+	}
 
-    @BeforeEach
-    void copyDataAndViewSidecar() throws IOException {
-        dataPath = tempDir.resolve("point.bin");
-        copyResource(POINT_BIN, dataPath);
-        copyResource(POINT_VIEW_XML, tempDir.resolve("point-table-view.xml"));
-    }
+	@Test
+	void readsAPointThroughAGeneratedKaitaiClass() throws IOException {
+		StarTable table = open("kaitai-only-point.ttl", null);
 
-    @Test
-    void readsDfdlDescribedPointAsATable() throws IOException {
-        copyResource(POINT_DFDL_XSD, tempDir.resolve("point.dfdl.xsd"));
+		assertColumns(table);
+		assertEquals(42, table.getCell(0, 0));
+		assertEquals("hi", table.getCell(0, 2));
+	}
 
-        StarTable table = builder.makeStarTable(
-                new FileDataSource(dataPath.toFile()), false, StoragePolicy.PREFER_MEMORY);
+	@Test
+	void choosesAUsableAlternativeAndTheNamedDataObject() throws IOException {
+		StarTable viaDfdl = open("ten-points.ttl", "dfdl-or-drb");
+		StarTable viaKaitai = open("ten-points.ttl", "kaitai");
+		StarTable viaDrb = open("drb-only-points.ttl", null);
 
-        assertColumns(table);
-        assertEquals(1, table.getRowCount());
-        assertEquals(42, table.getCell(0, 0));
-        assertEquals(-7, table.getCell(0, 1));
-        assertEquals("hi", table.getCell(0, 2));
-    }
+		for (StarTable table : new StarTable[] {viaDfdl, viaKaitai, viaDrb}) {
+			assertColumns(table);
+			assertEquals(10, table.getRowCount());
+			assertEquals(42, table.getCell(0, 0));
+			assertEquals("hi", table.getCell(0, 2));
+			assertEquals(-500, table.getCell(9, 0));
+			assertEquals(500, table.getCell(9, 1));
+			assertEquals("deneb", table.getCell(9, 2));
+		}
+	}
 
-    @Test
-    void readsKaitaiDescribedPointAsATable() throws IOException {
-        Files.writeString(tempDir.resolve("point.ksy.classname"), KAITAI_GENERATED_CLASS, StandardCharsets.UTF_8);
+	@Test
+	void asksWhichDataObjectWhenAManifestHasSeveral() {
+		TableFormatException e = assertThrows(TableFormatException.class, () -> open("ten-points.ttl", null));
+		assertTrue(e.getMessage().contains("dfdl-or-drb, kaitai"), e.getMessage());
+	}
 
-        StarTable table = builder.makeStarTable(
-                new FileDataSource(dataPath.toFile()), false, StoragePolicy.PREFER_MEMORY);
+	@Test
+	void declinesWhatIsNotAManifest() {
+		assertThrows(TableFormatException.class, () -> open("points.csv", null));
+		assertThrows(TableFormatException.class, () -> open("point.dfdl.xsd", null));
+	}
 
-        assertColumns(table);
-        assertEquals(1, table.getRowCount());
-        assertEquals(42, table.getCell(0, 0));
-        assertEquals(-7, table.getCell(0, 1));
-        assertEquals("hi", table.getCell(0, 2));
-    }
+	@Test
+	void recognisesManifestsByContentNotName() {
+		assertTrue(builder.looksLikeFile(fixture("point-manifest.ttl").toString()));
+		assertTrue(builder.looksLikeFile(fixture("ten-points.ttl") + "#kaitai"));
+		assertFalse(builder.looksLikeFile(fixture("points.csv").toString()));
+		assertFalse(builder.looksLikeFile(fixture("point.bin").toString()));
+		assertFalse(builder.looksLikeFile("https://example.org/not-local.ttl"));
+	}
 
-    @Test
-    void readsDfdlDescribedTenRowCsvAsATable() throws IOException {
-        Path csvPath = tempDir.resolve("points.csv");
-        copyResource(POINTS_CSV, csvPath);
-        copyResource(POINTS_DFDL_XSD, tempDir.resolve("points.dfdl.xsd"));
-        copyResource(POINTS_VIEW_XML, tempDir.resolve("points-table-view.xml"));
-
-        StarTable table = builder.makeStarTable(
-                new FileDataSource(csvPath.toFile()), false, StoragePolicy.PREFER_MEMORY);
-
-        assertColumns(table);
-        assertEquals(10, table.getRowCount());
-        assertEquals(42, table.getCell(0, 0));
-        assertEquals("hi", table.getCell(0, 2));
-        assertEquals(-500, table.getCell(9, 0));
-        assertEquals(500, table.getCell(9, 1));
-        assertEquals("deneb", table.getCell(9, 2));
-    }
-
-    @Test
-    void readsDrbDescribedTenRowCsvAsATable() throws IOException {
-        Path csvPath = tempDir.resolve("points.csv");
-        copyResource(POINTS_CSV, csvPath);
-        copyResource("/points.drb.xsd", tempDir.resolve("points.drb.xsd"));
-        copyResource(POINTS_VIEW_XML, tempDir.resolve("points-table-view.xml"));
-
-        StarTable table = builder.makeStarTable(
-                new FileDataSource(csvPath.toFile()), false, StoragePolicy.PREFER_MEMORY);
-
-        assertColumns(table);
-        assertEquals(10, table.getRowCount());
-        assertEquals(42, table.getCell(0, 0));
-        assertEquals("hi", table.getCell(0, 2));
-        assertEquals(-500, table.getCell(9, 0));
-        assertEquals(500, table.getCell(9, 1));
-        assertEquals("deneb", table.getCell(9, 2));
-    }
-
-    @Test
-    void readsKaitaiDescribedTenRowCsvAsATable() throws IOException {
-        Path csvPath = tempDir.resolve("points-kaitai.csv");
-        copyResource("/points-kaitai.csv", csvPath);
-        Files.writeString(tempDir.resolve("points-kaitai.ksy.classname"), CSV_POINTS_KAITAI_GENERATED_CLASS,
-                StandardCharsets.UTF_8);
-        copyResource(POINTS_KAITAI_VIEW_XML, tempDir.resolve("points-kaitai-table-view.xml"));
-
-        StarTable table = builder.makeStarTable(
-                new FileDataSource(csvPath.toFile()), false, StoragePolicy.PREFER_MEMORY);
-
-        assertColumns(table);
-        assertEquals(10, table.getRowCount());
-        assertEquals(42, table.getCell(0, 0));
-        assertEquals("hi", table.getCell(0, 2));
-        assertEquals(-500, table.getCell(9, 0));
-        assertEquals(500, table.getCell(9, 1));
-        assertEquals("deneb", table.getCell(9, 2));
-    }
-
-    @Test
-    void declinesAFileWithNoFormatSidecar() {
-        // Only the view sidecar was copied in @BeforeEach -- no .dfdl.xsd,
-        // .ksy.classname, .drb.xsd or .drb, so this builder shouldn't
-        // claim it.
-        assertThrows(TableFormatException.class, () ->
-                builder.makeStarTable(new FileDataSource(dataPath.toFile()), false, StoragePolicy.PREFER_MEMORY));
-    }
-
-    @Test
-    void looksLikeFileAgreesWithMakeStarTable() throws IOException {
-        assertTrue(!builder.looksLikeFile(dataPath.toString()), "no format sidecar yet");
-
-        copyResource(POINT_DFDL_XSD, tempDir.resolve("point.dfdl.xsd"));
-        assertTrue(builder.looksLikeFile(dataPath.toString()), "DFDL sidecar now present");
-    }
-
-    private void assertColumns(StarTable table) {
-        assertEquals(3, table.getColumnCount());
-        assertEquals("x", table.getColumnInfo(0).getName());
-        assertEquals("y", table.getColumnInfo(1).getName());
-        assertEquals("label", table.getColumnInfo(2).getName());
-        assertEquals(Integer.class, table.getColumnInfo(0).getContentClass());
-        assertEquals(String.class, table.getColumnInfo(2).getContentClass());
-    }
-
-    private static void copyResource(String resourcePath, Path destination) throws IOException {
-        try (InputStream in = OaisStructureTableBuilderTest.class.getResourceAsStream(resourcePath)) {
-            if (in == null) {
-                throw new IllegalStateException("Test fixture not found on classpath: " + resourcePath);
-            }
-            Files.copy(in, destination);
-        }
-    }
+	private static void assertColumns(StarTable table) {
+		assertEquals(3, table.getColumnCount());
+		assertEquals("x", table.getColumnInfo(0).getName());
+		assertEquals("y", table.getColumnInfo(1).getName());
+		assertEquals("label", table.getColumnInfo(2).getName());
+		assertEquals(Integer.class, table.getColumnInfo(0).getContentClass());
+		assertEquals(String.class, table.getColumnInfo(2).getContentClass());
+	}
 }

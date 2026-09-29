@@ -1,0 +1,27 @@
+# A test spectrum: ten wavelength/flux rows of delimited text, described in
+# DFDL, viewed as a table of its two numeric columns.
+@prefix im:     <http://ontology.oais.info/im/> .
+@prefix bridge: <https://oais.info/bridge#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
+
+<#spectrum> a im:DigitalObject ;
+    rdfs:label "Test spectrum" ;
+    bridge:hasStorageLocation <spectrum.csv> ;
+    im:interpretedUsing <#repinfo> .
+
+<#repinfo> a im:RepInfoAndGroup , im:RepresentationInformation ;
+    im:hasGroupMember <#dfdl> , <#semantics> ;
+    im:hasStructureRepresentationInformation <#dfdl> ;
+    im:hasSemanticRepresentationInformation <#semantics> .
+
+<#dfdl> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "DFDL" ;
+    bridge:hasStorageLocation <spectrum.dfdl.xsd> .
+
+<#semantics> a im:SemanticRepresentationInformation ;
+    im:interpretedUsingRecurse <#view> .
+
+<#view> a im:ViewSpecification , im:SemanticRepresentationInformation ;
+    im:viewKind "table" ;
+    bridge:hasStorageLocation <spectrum-table-view.xml> .

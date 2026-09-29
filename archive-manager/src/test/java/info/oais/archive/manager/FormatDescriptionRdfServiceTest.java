@@ -100,10 +100,24 @@ class FormatDescriptionRdfServiceTest {
                           <%s> im:interpretedUsingRecurse ?field .
                           ?field rdfs:label ?label .
                           OPTIONAL { ?field skos:definition ?definition . }
+                          FILTER NOT EXISTS { ?field a im:ViewSpecification }
                         }
                         """.formatted(container));
                 perField.forEach(row -> toClean.add(row.get("field")));
                 assertThat(perField).hasSize(3);
+
+                // Alongside the fields' semantics: the table view, as a view specification with its text.
+                List<Map<String, String>> views = q.select(store.dataModel(), Ns.PREFIXES + """
+                        SELECT ?view ?kind ?text WHERE {
+                          <%s> im:interpretedUsingRecurse ?view .
+                          ?view a im:ViewSpecification ; im:viewKind ?kind ; im:specificationText ?text .
+                        }
+                        """.formatted(container));
+                views.forEach(row -> toClean.add(row.get("view")));
+                assertThat(views).singleElement().satisfies(v -> {
+                    assertThat(v.get("kind")).isEqualTo("table");
+                    assertThat(v.get("text")).contains("<rows select=\"self\"/>").contains("name=\"t\" type=\"float\"");
+                });
                 assertThat(perField).extracting(row -> row.get("label"))
                         .containsExactlyInAnyOrder("Temperature", "p", "raw");
 

@@ -3,30 +3,44 @@ package info.oais.infomodel.structure.topcat;
 import java.awt.datatransfer.DataFlavor;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystemNotFoundException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+
+import javax.xml.parsers.DocumentBuilderFactory;
+
+import org.w3c.dom.Element;
+import org.w3c.dom.NodeList;
 
 import io.kaitai.struct.KaitaiStruct;
-
 import info.oais.infomodel.implementation.DigitalObjectRefImpl;
-import info.oais.infomodel.interfaces.DigitalObject;
 import info.oais.infomodel.interfaces.utility.OaisIfTable;
-import info.oais.infomodel.structure.ExecutableStructureRepInfo;
 import info.oais.infomodel.structure.FormatSpecification;
+import info.oais.infomodel.structure.SpecificationLanguage;
 import info.oais.infomodel.structure.StructureInterpretationException;
 import info.oais.infomodel.structure.StructureInterpreterFactory;
 import info.oais.infomodel.structure.StructureNode;
 import info.oais.infomodel.structure.dfdl.DfdlFormatSpecification;
 import info.oais.infomodel.structure.drb.DrbFormatSpecification;
 import info.oais.infomodel.structure.kaitai.KaitaiFormatSpecification;
+import info.oais.infomodel.structure.manifest.DescribedData;
+import info.oais.infomodel.structure.manifest.ElementMeaning;
+import info.oais.infomodel.structure.manifest.RepInfoManifest;
+import info.oais.infomodel.structure.manifest.StructureDescription;
+import info.oais.infomodel.structure.manifest.ViewDescription;
+import info.oais.infomodel.structure.semantic.ColumnMapping;
+import info.oais.infomodel.structure.semantic.TableMapping;
 import info.oais.infomodel.structure.semantic.TableSemanticRepInfo;
 import info.oais.infomodel.structure.semantic.TableViewSpecification;
+import info.oais.infomodel.structure.semantic.TableViewSpecificationReader;
 import info.oais.infomodel.structure.semantic.ViewSpecificationException;
-
 import uk.ac.starlink.table.ColumnInfo;
 import uk.ac.starlink.table.RowListStarTable;
 import uk.ac.starlink.table.StarTable;
@@ -37,220 +51,259 @@ import uk.ac.starlink.table.TableSink;
 import uk.ac.starlink.util.DataSource;
 
 /**
- * A {@link TableBuilder} that opens a data file described by a DFDL schema,
- * a Kaitai Struct generated class, or a DRB descriptor, by running it
- * through {@code oais-structure-api}'s existing engine-agnostic pipeline
- * ({@link StructureInterpreterFactory} -&gt; {@link StructureNode} -&gt;
- * {@link TableSemanticRepInfo} -&gt; {@link OaisIfTable}) rather than parsing
- * anything itself.
+ * A {@link TableBuilder} for TOPCAT/STIL that opens data through its OAIS
+ * Representation Information: a Representation Information manifest (see
+ * oais-structure-manifest's {@link RepInfoManifest}) -- a Turtle excerpt
+ * naming the data file, its structure descriptions (DFDL, Kaitai Struct, DRB
+ * SDF: equivalent alternatives, any one of which will do), a table view
+ * specification, and what its elements mean. Nothing is found by file name:
+ * every file is named in the manifest, relative to it or as a URL, so a
+ * manifest can be opened from disk or straight from the archive's web
+ * address for a Data Object.
  *
- * <h2>Sidecar files</h2>
- * <p>DFDL/Kaitai/DRB descriptions are inherently external to the raw data
- * bytes, unlike a self-describing format such as FITS or VOTable, so this
- * builder needs a convention for finding them. For a data file at
- * {@code some/dir/foo.ext}, it looks for these siblings (same directory,
- * {@code foo} being the data file's name with its own last extension
- * stripped) -- the same {@code point.bin} + {@code point.dfdl.xsd} +
- * {@code point-table-view.xml} naming already used by this project's own
- * demo fixtures, not a new convention invented for this module:</p>
- * <ul>
- *   <li>{@code foo.dfdl.xsd} -- a DFDL schema; used via
- *       {@link DfdlFormatSpecification}.</li>
- *   <li>{@code foo.ksy.classname} -- a one-line text file naming an
- *       already-compiled, already-on-classpath Kaitai Struct generated class
- *       (see {@link KaitaiFormatSpecification}'s own Javadoc for why a
- *       runtime {@code .ksy} path alone is not enough).</li>
- *   <li>{@code foo.drb.xsd} -- a DRB SDF schema (an XML Schema with
- *       {@code sdf:block} annotations), applied via
- *       {@link DrbFormatSpecification}; or {@code foo.drb} (present, even
- *       empty) to let DRB recognise the format itself from the data file's
- *       own extension ({@link DrbFormatSpecification#autoDetect}).</li>
- *   <li>{@code foo-table-view.xml} -- required alongside any of the above:
- *       the {@link TableViewSpecification} describing how to view the
- *       resulting {@link StructureNode} tree as rows and columns.</li>
- * </ul>
- * <p>Requiring an explicit sidecar for every engine -- including DRB, whose
- * underlying library can auto-detect a format with no hint at all -- keeps
- * {@link #looksLikeFile} predictable: this builder only ever claims a file
- * it has direct sidecar evidence for, so it can't out-compete some other
- * {@code TableBuilder} on an unrelated file via DRB's own content-sniffing.</p>
+ * <p>The first structure alternative whose engine is available is used, in
+ * the order DFDL, DRB SDF, Kaitai Struct (whose generated class must be on the
+ * classpath), DRB's own format recognition. The data is decoded with it,
+ * viewed as rows and columns by the table view, and each column's units and
+ * description come from the view, else from the element semantics in the
+ * manifest (matched by structural path).</p>
+ *
+ * <p>A manifest describing several Data Objects is opened with the one to
+ * use after a {@code #}, e.g. {@code station.ttl#readings}.</p>
  *
  * <h2>Registering with TOPCAT</h2>
- * <p>Put this module's jar (and whichever of {@code oais-structure-dfdl}/
- * {@code oais-structure-kaitai}/{@code oais-structure-drb} you need) on
- * TOPCAT's classpath, then launch it with
+ * <p>Put this module's jar (and its dependencies) on TOPCAT's classpath, then
+ * launch it with
  * {@code -Dstartable.readers=info.oais.infomodel.structure.topcat.OaisStructureTableBuilder}
  * (STIL's {@code StarTableFactory.KNOWN_BUILDERS_PROPERTY}) -- no fork or
- * patch of starjava itself is needed.</p>
- *
- * <p>Only file-backed {@link DataSource}s are supported, since sidecar
- * resolution works by resolving sibling paths next to the data file's own
- * location; a {@link DataSource} with no resolvable local path (e.g. one
- * backed directly by an in-memory stream) is declined via
- * {@link TableFormatException}.</p>
+ * patch of starjava itself is needed. Choose the format {@code OAIS-RepInfo}
+ * when loading a manifest by URL; a manifest file on disk is also recognised
+ * by its content.</p>
  */
 public class OaisStructureTableBuilder implements TableBuilder {
 
-    private static final String DFDL_SUFFIX = ".dfdl.xsd";
-    private static final String KAITAI_CLASSNAME_SUFFIX = ".ksy.classname";
-    private static final String DRB_SCHEMA_SUFFIX = ".drb.xsd";
-    private static final String DRB_MARKER_SUFFIX = ".drb";
-    private static final String VIEW_SUFFIX = "-table-view.xml";
+	/** The order structure alternatives are tried in. */
+	static final List<String> PREFERENCE = StructureDescription.LANGUAGES;
 
-    @Override
-    public StarTable makeStarTable(DataSource datsrc, boolean wantRandom, StoragePolicy storagePolicy)
-            throws IOException {
-        Path dataPath = toPath(datsrc);
-        if (!hasFormatSidecar(dataPath)) {
-            throw new TableFormatException(
-                    "No " + DFDL_SUFFIX + " / " + KAITAI_CLASSNAME_SUFFIX + " / " +  DRB_SCHEMA_SUFFIX
-                            + " / " + DRB_MARKER_SUFFIX + " sidecar found next to " + dataPath);
-        }
-        Path viewPath = siblingOf(dataPath, VIEW_SUFFIX);
-        if (!Files.exists(viewPath)) {
-            throw new TableFormatException("No " + VIEW_SUFFIX + " sidecar (" + viewPath + ") found next to "
-                    + dataPath + " -- a format sidecar alone isn't enough, this builder also needs to know "
-                    + "how to view the result as rows and columns");
-        }
+	/** How much of a file {@link #looksLikeFile} reads to recognise a manifest. */
+	private static final int SNIFF_BYTES = 64 * 1024;
 
-        FormatSpecification spec = resolveFormatSpecification(dataPath);
-        OaisIfTable table;
-        try (InputStream in = datsrc.getInputStream()) {
-            DigitalObject digitalObject = new DigitalObjectRefImpl(in);
-            ExecutableStructureRepInfo structureRepInfo = new StructureInterpreterFactory().create(spec);
-            StructureNode tree = structureRepInfo.apply(digitalObject);
-            table = new TableSemanticRepInfo(new TableViewSpecification(viewPath.toUri())).apply(tree);
-        } catch (StructureInterpretationException | ViewSpecificationException | IllegalStateException e) {
-            throw new IOException("Failed to interpret " + dataPath + " via " + spec, e);
-        }
+	/** A manifest is a small text file; anything larger is something else. */
+	private static final int MAX_MANIFEST_BYTES = 4 * 1024 * 1024;
 
-        return toStarTable(table);
-    }
+	@Override
+	public StarTable makeStarTable(DataSource datsrc, boolean wantRandom, StoragePolicy storagePolicy)
+			throws IOException {
+		byte[] content;
+		try (InputStream in = datsrc.getInputStream()) {
+			content = in.readNBytes(MAX_MANIFEST_BYTES + 1);
+		}
+		if (content.length > MAX_MANIFEST_BYTES
+				|| !RepInfoManifest.looksLikeManifest(new String(content, StandardCharsets.UTF_8))) {
+			throw new TableFormatException(datsrc.getName() + " isn't a Representation Information manifest");
+		}
+		URL url = datsrc.getURL();
+		if (url == null) {
+			throw new TableFormatException("A Representation Information manifest names its files relative to its "
+					+ "own location, so it has to be opened from a file or URL (" + datsrc.getName() + " has none)");
+		}
+		DescribedData data;
+		try {
+			URI location = url.toURI();
+			URI base = new URI(location.getScheme(), location.getSchemeSpecificPart(), null);
+			data = RepInfoManifest.read(new java.io.ByteArrayInputStream(content), base).select(datsrc.getPosition());
+		} catch (URISyntaxException | RepInfoManifest.ManifestException e) {
+			throw new TableFormatException(e.getMessage(), e);
+		}
+		return open(data);
+	}
 
-    @Override
-    public void streamStarTable(InputStream istrm, TableSink sink, String pos) throws IOException {
-        throw new TableFormatException(
-                "OaisStructureTableBuilder needs random access to locate its sidecar files, so it can't "
-                        + "read from a bare InputStream");
-    }
+	/**
+	 * Decodes the data {@code data} describes and views it as a table, with
+	 * its columns' units and descriptions -- the whole pipeline, for callers
+	 * other than TOPCAT (e.g. SPLAT, or a server writing VOTable).
+	 */
+	public static StarTable open(DescribedData data) throws IOException {
+		List<Path> temporary = new ArrayList<>();
+		try {
+			FormatSpecification spec = formatSpecification(data, temporary);
+			ViewDescription view = data.view(ViewDescription.TABLE).orElseThrow(() -> new TableFormatException(
+					"The manifest gives no table view for " + data.name() + ": it needs an im:ViewSpecification with "
+							+ "im:viewKind \"table\" to know how to show the data as rows and columns"));
+			Path viewFile = local(view.location(), ".xml", temporary);
+			TableMapping mapping = withMeanings(
+					TableViewSpecificationReader.read(new TableViewSpecification(viewFile.toUri())), rowName(viewFile), data);
+			OaisIfTable table;
+			try (InputStream in = data.data().toURL().openStream()) {
+				StructureNode tree = new StructureInterpreterFactory().create(spec).apply(new DigitalObjectRefImpl(in));
+				table = new TableSemanticRepInfo(mapping).apply(tree);
+			} catch (StructureInterpretationException | ViewSpecificationException | IllegalStateException e) {
+				throw new IOException("Failed to interpret " + data.data() + " via " + spec + ": " + e.getMessage(), e);
+			}
+			return toStarTable(table, mapping.columns());
+		} finally {
+			for (Path p : temporary) {
+				Files.deleteIfExists(p);
+			}
+		}
+	}
 
-    @Override
-    public boolean canImport(DataFlavor flavor) {
-        // No drag-and-drop MIME-type story for this format -- format detection
-        // here is entirely sidecar-file-based (see looksLikeFile), which drag
-        // and drop can't supply.
-        return false;
-    }
+	/** The first usable structure alternative, as the engine's format specification. */
+	private static FormatSpecification formatSpecification(DescribedData data, List<Path> temporary) throws IOException {
+		Set<SpecificationLanguage> engines = new StructureInterpreterFactory().availableLanguages();
+		StructureDescription chosen = data.structure(PREFERENCE, s -> usable(s, engines)).orElseThrow(() ->
+				new TableFormatException("None of the structure descriptions the manifest gives for " + data.name()
+						+ " can be used here (" + String.join(", ", data.structures().stream()
+								.map(s -> s.language() + (s.language().equals(StructureDescription.KAITAI)
+										? " " + s.generatedClassName() : "")).toList())
+						+ "): add one in a language whose engine is installed, or put the Kaitai Struct class on the "
+						+ "classpath"));
+		switch (chosen.language()) {
+			case StructureDescription.DFDL:
+				return new DfdlFormatSpecification(local(chosen.location(), ".dfdl.xsd", temporary).toUri());
+			case StructureDescription.DRB_SDF:
+				return new DrbFormatSpecification(local(chosen.location(), ".drb.xsd", temporary).toUri());
+			case StructureDescription.KAITAI:
+				return new KaitaiFormatSpecification(kaitaiClass(chosen.generatedClassName()));
+			default:
+				String path = data.data().getPath();
+				int dot = path == null ? -1 : path.lastIndexOf('.');
+				if (dot < 0 || dot == path.length() - 1) {
+					throw new TableFormatException("DRB recognises formats by file extension, and " + data.data()
+							+ " has none: give a DRB SDF schema instead");
+				}
+				return DrbFormatSpecification.autoDetect(path.substring(dot + 1));
+		}
+	}
 
-    @Override
-    public boolean looksLikeFile(String location) {
-        try {
-            Path path = Path.of(location);
-            return hasFormatSidecar(path) && Files.exists(siblingOf(path, VIEW_SUFFIX));
-        } catch (Exception e) {
-            // Not a resolvable local path (e.g. a remote URL) -- sidecar
-            // resolution can't work, so this isn't a file we recognise.
-            return false;
-        }
-    }
+	private static boolean usable(StructureDescription s, Set<SpecificationLanguage> engines) {
+		switch (s.language()) {
+			case StructureDescription.DFDL:
+				return engines.contains(SpecificationLanguage.DFDL) && s.location() != null;
+			case StructureDescription.DRB_SDF:
+				return engines.contains(SpecificationLanguage.DRB) && s.location() != null;
+			case StructureDescription.DRB:
+				return engines.contains(SpecificationLanguage.DRB);
+			case StructureDescription.KAITAI:
+				if (!engines.contains(SpecificationLanguage.KAITAI_STRUCT) || s.generatedClassName() == null) {
+					return false;
+				}
+				try {
+					kaitaiClass(s.generatedClassName());
+					return true;
+				} catch (IOException e) {
+					return false;
+				}
+			default:
+				return false;
+		}
+	}
 
-    @Override
-    public String getFormatName() {
-        return "OAIS-Structure";
-    }
+	private static Class<? extends KaitaiStruct> kaitaiClass(String name) throws IOException {
+		try {
+			return Class.forName(name).asSubclass(KaitaiStruct.class);
+		} catch (ClassNotFoundException e) {
+			throw new IOException("The Kaitai Struct class '" + name + "' isn't on the classpath", e);
+		} catch (ClassCastException e) {
+			throw new IOException("'" + name + "' isn't a class generated by Kaitai Struct", e);
+		}
+	}
 
-    private static boolean hasFormatSidecar(Path dataPath) {
-        return Files.exists(siblingOf(dataPath, DFDL_SUFFIX))
-                || Files.exists(siblingOf(dataPath, KAITAI_CLASSNAME_SUFFIX))
-                || Files.exists(siblingOf(dataPath, DRB_SCHEMA_SUFFIX))
-                || Files.exists(siblingOf(dataPath, DRB_MARKER_SUFFIX));
-    }
+	/** {@code location} as a local file: itself if it is one, else a temporary copy (deleted afterwards). */
+	private static Path local(URI location, String suffix, List<Path> temporary) throws IOException {
+		if ("file".equals(location.getScheme())) {
+			return Path.of(location);
+		}
+		Path copy = Files.createTempFile("oais-repinfo-", suffix);
+		temporary.add(copy);
+		try (InputStream in = location.toURL().openStream()) {
+			Files.copy(in, copy, StandardCopyOption.REPLACE_EXISTING);
+		}
+		return copy;
+	}
 
-    /** Constructs the {@link FormatSpecification} for whichever sidecar {@link #hasFormatSidecar} found, checked in this order. */
-    private static FormatSpecification resolveFormatSpecification(Path dataPath) throws IOException {
-        Path dfdlPath = siblingOf(dataPath, DFDL_SUFFIX);
-        if (Files.exists(dfdlPath)) {
-            return new DfdlFormatSpecification(dfdlPath.toUri());
-        }
+	/** The table view's row element name ({@code <rows name="...">}), which qualifies column meanings; or null. */
+	private static String rowName(Path view) {
+		try {
+			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+			factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+			NodeList rows = factory.newDocumentBuilder().parse(view.toFile()).getElementsByTagName("rows");
+			String name = rows.getLength() == 0 ? "" : ((Element) rows.item(0)).getAttribute("name");
+			return name.isBlank() ? null : name;
+		} catch (Exception e) {
+			return null;
+		}
+	}
 
-        Path ksyClassnamePath = siblingOf(dataPath, KAITAI_CLASSNAME_SUFFIX);
-        if (Files.exists(ksyClassnamePath)) {
-            String className = Files.readString(ksyClassnamePath, StandardCharsets.UTF_8).strip();
-            try {
-                return new KaitaiFormatSpecification(Class.forName(className).asSubclass(KaitaiStruct.class));
-            } catch (ClassNotFoundException e) {
-                throw new IOException("Kaitai class '" + className + "' named in " + ksyClassnamePath
-                        + " is not on the classpath", e);
-            } catch (ClassCastException e) {
-                throw new IOException("Class '" + className + "' named in " + ksyClassnamePath
-                        + " does not extend KaitaiStruct", e);
-            }
-        }
+	/** Each column's units and description from the manifest's element semantics, where the view gives none. */
+	private static TableMapping withMeanings(TableMapping mapping, String rowName, DescribedData data) {
+		List<ColumnMapping> columns = mapping.columns().stream().map(c -> data.meaningOf(rowName, c.name())
+				.map(m -> c.withMetadataDefaults(m.units(), description(m), null)).orElse(c)).toList();
+		return new TableMapping(mapping.rowSelector(), columns);
+	}
 
-        Path drbSchemaPath = siblingOf(dataPath, DRB_SCHEMA_SUFFIX);
-        if (Files.exists(drbSchemaPath)) {
-            return new DrbFormatSpecification(drbSchemaPath.toUri());
-        }
+	private static String description(ElementMeaning m) {
+		if (m.label() != null && m.definition() != null) {
+			return m.label() + ": " + m.definition();
+		}
+		return m.label() != null ? m.label() : m.definition();
+	}
 
-        Path drbMarkerPath = siblingOf(dataPath, DRB_MARKER_SUFFIX);
-        if (Files.exists(drbMarkerPath)) {
-            String fileName = dataPath.getFileName().toString();
-            int dot = fileName.lastIndexOf('.');
-            if (dot < 0 || dot == fileName.length() - 1) {
-                throw new IOException(drbMarkerPath + " asks DRB to recognise " + dataPath
-                        + " itself, but DRB goes by file extension and this file has none");
-            }
-            return DrbFormatSpecification.autoDetect(fileName.substring(dot + 1));
-        }
+	private static StarTable toStarTable(OaisIfTable table, List<ColumnMapping> columns) {
+		int columnCount = table.getColumnCount();
+		ColumnInfo[] columnInfos = new ColumnInfo[columnCount];
+		for (int col = 0; col < columnCount; col++) {
+			ColumnMapping mapping = col < columns.size() ? columns.get(col) : null;
+			columnInfos[col] = new ColumnInfo(table.getColumnName(col), table.getColumnClass(col),
+					mapping == null ? null : mapping.description());
+			if (mapping != null && mapping.unit() != null) {
+				columnInfos[col].setUnitString(mapping.unit());
+			}
+			if (mapping != null && mapping.ucd() != null) {
+				columnInfos[col].setUCD(mapping.ucd());
+			}
+		}
+		RowListStarTable starTable = new RowListStarTable(columnInfos);
+		long rowCount = table.getRowCount();
+		for (long row = 0; row < rowCount; row++) {
+			Object[] values = new Object[columnCount];
+			for (int col = 0; col < columnCount; col++) {
+				values[col] = table.getValueAt(row, col);
+			}
+			starTable.addRow(values);
+		}
+		return starTable;
+	}
 
-        // hasFormatSidecar() is always checked by makeStarTable before this is
-        // called, so reaching here would mean the two disagree -- a bug here,
-        // not a normal "unrecognised file" outcome.
-        throw new IllegalStateException("No format sidecar found next to " + dataPath
-                + " despite hasFormatSidecar() reporting one -- resolveFormatSpecification() is out of sync "
-                + "with it");
-    }
+	@Override
+	public void streamStarTable(InputStream istrm, TableSink sink, String pos) throws IOException {
+		throw new TableFormatException("A Representation Information manifest names its files relative to its own "
+				+ "location, so it can't be read from a bare stream");
+	}
 
-    private static StarTable toStarTable(OaisIfTable table) {
-        int columnCount = table.getColumnCount();
-        ColumnInfo[] columnInfos = new ColumnInfo[columnCount];
-        for (int col = 0; col < columnCount; col++) {
-            columnInfos[col] = new ColumnInfo(table.getColumnName(col), table.getColumnClass(col), null);
-        }
+	@Override
+	public boolean canImport(DataFlavor flavor) {
+		return false;
+	}
 
-        RowListStarTable starTable = new RowListStarTable(columnInfos);
-        long rowCount = table.getRowCount();
-        for (long row = 0; row < rowCount; row++) {
-            Object[] values = new Object[columnCount];
-            for (int col = 0; col < columnCount; col++) {
-                values[col] = table.getValueAt(row, col);
-            }
-            starTable.addRow(values);
-        }
-        return starTable;
-    }
+	/** A local file whose content is a Representation Information manifest, whatever it's called. */
+	@Override
+	public boolean looksLikeFile(String location) {
+		try {
+			Path path = Path.of(location.replaceFirst("#.*$", ""));
+			if (!Files.isRegularFile(path)) {
+				return false;
+			}
+			try (InputStream in = Files.newInputStream(path)) {
+				return RepInfoManifest.looksLikeManifest(new String(in.readNBytes(SNIFF_BYTES), StandardCharsets.UTF_8));
+			}
+		} catch (Exception e) {
+			return false;
+		}
+	}
 
-    private static Path toPath(DataSource datsrc) throws IOException {
-        URL url = datsrc.getURL();
-        if (url == null) {
-            throw new TableFormatException(
-                    "OaisStructureTableBuilder needs a file-backed DataSource to locate sidecar files ("
-                            + datsrc.getName() + " has none)");
-        }
-        try {
-            return Path.of(url.toURI());
-        } catch (URISyntaxException | FileSystemNotFoundException | IllegalArgumentException e) {
-            throw new TableFormatException(
-                    "OaisStructureTableBuilder only supports local, file-backed data sources; got " + url, e);
-        }
-    }
-
-    /** {@code some/dir/foo.ext} + {@code suffix} -&gt; {@code some/dir/foo<suffix>} (the data file's own last extension is dropped first). */
-    private static Path siblingOf(Path dataPath, String suffix) {
-        String fileName = dataPath.getFileName().toString();
-        int dot = fileName.lastIndexOf('.');
-        String baseName = dot > 0 ? fileName.substring(0, dot) : fileName;
-        Path parent = dataPath.getParent();
-        return parent != null ? parent.resolve(baseName + suffix) : Path.of(baseName + suffix);
-    }
+	@Override
+	public String getFormatName() {
+		return "OAIS-RepInfo";
+	}
 }

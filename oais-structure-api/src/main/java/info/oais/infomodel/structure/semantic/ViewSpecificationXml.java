@@ -181,6 +181,13 @@ final class ViewSpecificationXml {
 		Class<?> columnClass = classFor(requiredAttribute(columnElement, "type", location), location);
 		String childName = columnElement.hasAttribute("child") ? columnElement.getAttribute("child") : name;
 		return new ColumnMapping(name, columnClass,
-				row -> row.child(childName).flatMap(StructureNode::getValue).orElse(null));
+				row -> row.child(childName).flatMap(StructureNode::getValue).orElse(null),
+				optionalAttribute(columnElement, "unit"), optionalAttribute(columnElement, "description"),
+				optionalAttribute(columnElement, "ucd"));
+	}
+
+	private static String optionalAttribute(Element element, String name) {
+		String value = element.getAttribute(name).strip();
+		return value.isEmpty() ? null : value;
 	}
 }

@@ -15,6 +15,30 @@
         <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}">Edit &rarr;</a>
     </p>
 
+    <section class="editor-section" th:if="${describedData != null}">
+        <h3>Open the data</h3>
+        <p class="muted">
+            This Data Object's bits have a storage location, and its Representation Information says
+            how to read them. Its <a th:href="@{/api/data-objects/{id}/repinfo.ttl(id=${id})}">Representation
+            Information manifest</a> (Turtle) names the data and each description explicitly; TOPCAT (with
+            the <code>oais-structure-topcat</code> reader, format <code>OAIS-RepInfo</code>) and SPLAT
+            open it by that address.
+        </p>
+        <p th:if="${tableViewable}">
+            <button type="button" th:attr="data-samp-votable=@{/api/data-objects/{id}/votable(id=${id})},data-samp-name=${describedData.name()}">View in TOPCAT</button>
+            <a class="button button-secondary" th:href="@{/api/data-objects/{id}/votable(id=${id})}">VOTable &rarr;</a>
+            <span class="muted" data-samp-status></span>
+        </p>
+        <p class="muted" th:if="${tableViewable}">
+            "View in TOPCAT" sends the data, decoded on the server as a VOTable, to TOPCAT running on your
+            computer (over SAMP; TOPCAT asks you to allow it). The VOTable link works in any VO tool.
+        </p>
+        <p class="muted" th:unless="${tableViewable}">
+            It has no DFDL or DRB SDF description with a table view to decode it by on the server; saving
+            its description again from RepInfo Tools adds one.
+        </p>
+    </section>
+
     <div class="grid">
         <section th:if="${!attributes.isEmpty()}">
             <h3>Properties</h3>
@@ -59,5 +83,6 @@
     </div>
 </main>
 <div th:replace="~{fragments :: footer}"></div>
+<script th:if="${tableViewable}" th:src="@{/js/samp-send.js}"></script>
 </body>
 </html>

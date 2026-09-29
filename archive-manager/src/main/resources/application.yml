@@ -56,6 +56,17 @@ archive:
     # with the edit password is trusted that far.
     # Env: ARCHIVE_DRB_PYTHON_RUN_HAND_WRITTEN_ADD_INS.
     run-hand-written-add-ins: false
+  # Serving a Data Object as VOTable (/api/data-objects/{id}/votable, "View in
+  # TOPCAT") fetches its bits from its storage location (bridge:hasStorageLocation).
+  # Only http(s), at most max-bytes, within timeout-seconds; never from loopback
+  # or private-network addresses unless allow-private-addresses is true (which
+  # lets anyone who can set a storage location make this server fetch from its
+  # own network). Env: ARCHIVE_FETCH_MAX_BYTES, ARCHIVE_FETCH_TIMEOUT_SECONDS,
+  # ARCHIVE_FETCH_ALLOW_PRIVATE_ADDRESSES.
+  fetch:
+    max-bytes: 104857600
+    timeout-seconds: 60
+    allow-private-addresses: false
   # RepInfo Tools' Kaitai sample test runs the bundled Kaitai Struct compiler
   # as a separate Java process (with this JVM's own java); it's stopped after
   # this many seconds. Env: ARCHIVE_KAITAI_TIMEOUT_SECONDS.

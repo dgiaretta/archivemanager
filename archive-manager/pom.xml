@@ -85,6 +85,18 @@
       <artifactId>oais-structure-kaitai</artifactId>
       <version>${oais.structure.version}</version>
     </dependency>
+    <!-- Representation Information manifests (Turtle) for TOPCAT and SPLAT, and the
+         TOPCAT reader itself, which the server uses to serve Data Objects as VOTable. -->
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-manifest</artifactId>
+      <version>${oais.structure.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-topcat</artifactId>
+      <version>${oais.structure.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.eclipse.jdt</groupId>
       <artifactId>ecj</artifactId>

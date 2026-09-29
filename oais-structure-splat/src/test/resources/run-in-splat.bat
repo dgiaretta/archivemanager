@@ -14,17 +14,19 @@ REM   2. From the oais-structure-splat module directory:
 REM        mvn dependency:copy-dependencies -DincludeScope=runtime
 REM        mvn package
 REM
-REM Usage:
-REM   run-in-splat.bat                (defaults to spectrum.csv, 10 rows)
-REM   run-in-splat.bat spectrum.csv
+REM Usage: give a Representation Information manifest -- a Turtle file naming
+REM the data, its descriptions and its table view explicitly -- as a path or
+REM URL, with #dataObject after it when it describes more than one:
+REM   run-in-splat.bat                       (spectrum-manifest.ttl, 10 rows)
+REM   run-in-splat.bat https://archive.example/api/data-objects/ID/repinfo.ttl
 
 setlocal
 
 set "HERE=%~dp0"
 set "MODULE_DIR=%HERE%..\..\.."
 
-set "DATA_FILE=%~1"
-if "%DATA_FILE%"=="" set "DATA_FILE=%HERE%spectrum.csv"
+set "MANIFEST=%~1"
+if "%MANIFEST%"=="" set "MANIFEST=%HERE%spectrum-manifest.ttl"
 
 REM This machine's default `java` on PATH resolves to an old Java 8, which
 REM cannot load this module's classes (UnsupportedClassVersionError). Prefer
@@ -52,4 +54,4 @@ if not exist "%MODULE_DIR%\target\dependency" (
     exit /b 1
 )
 
-"%JAVA_EXE%" -Djava.library.path="%JNIAST_NATIVE_DIR%" -cp "%MODULE_DIR%\target\oais-structure-splat-0.0.1-SNAPSHOT.jar;%MODULE_DIR%\target\dependency\*" info.oais.infomodel.structure.splat.OaisStructureSpectrumLauncher "%DATA_FILE%"
+"%JAVA_EXE%" -Djava.library.path="%JNIAST_NATIVE_DIR%" -cp "%MODULE_DIR%\target\oais-structure-splat-0.0.1-SNAPSHOT.jar;%MODULE_DIR%\target\dependency\*" info.oais.infomodel.structure.splat.OaisStructureSpectrumLauncher "%MANIFEST%"

@@ -1,0 +1,35 @@
+# Two Data Objects: the same ten points, in files read by different
+# descriptions. "dfdl-or-drb" has three alternatives -- one a Kaitai class
+# that isn't on the classpath, so it can't be used -- "kaitai" has one.
+@prefix im:     <http://ontology.oais.info/im/> .
+@prefix bridge: <https://oais.info/bridge#> .
+
+<#dfdl-or-drb> a im:DigitalObject ;
+    bridge:hasStorageLocation <points.csv> ;
+    im:interpretedUsing <#csv-repinfo> .
+<#csv-repinfo> a im:RepInfoAndGroup ;
+    im:hasGroupMember <#csv-structure> , <#csv-view> .
+<#csv-structure> a im:RepInfoOrGroup , im:StructureRepresentationInformation ;
+    im:hasGroupMember <#missing-kaitai> , <#drb> , <#dfdl> .
+<#missing-kaitai> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "Kaitai Struct" ;
+    im:generatedClassName "com.example.NotOnTheClasspath" .
+<#drb> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "DRB SDF" ;
+    bridge:hasStorageLocation <points.drb.xsd> .
+<#dfdl> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "DFDL" ;
+    bridge:hasStorageLocation <points.dfdl.xsd> .
+<#csv-view> a im:ViewSpecification ; im:viewKind "table" ;
+    bridge:hasStorageLocation <points-table-view.xml> .
+
+<#kaitai> a im:DigitalObject ;
+    bridge:hasStorageLocation <points-kaitai.csv> ;
+    im:interpretedUsing <#kaitai-repinfo> .
+<#kaitai-repinfo> a im:RepInfoAndGroup ;
+    im:hasGroupMember <#kaitai-structure> , <#kaitai-view> .
+<#kaitai-structure> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "Kaitai Struct" ;
+    im:generatedClassName "info.oais.infomodel.structure.kaitai.generated.CsvPoints" .
+<#kaitai-view> a im:ViewSpecification ; im:viewKind "table" ;
+    bridge:hasStorageLocation <points-kaitai-table-view.xml> .

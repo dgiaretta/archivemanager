@@ -8,6 +8,7 @@ import info.oais.archive.manager.rdf.Ns;
 import info.oais.archive.manager.service.EditService;
 import info.oais.infomodel.structure.description.ChoiceDescription;
 import info.oais.infomodel.structure.description.ElementDescription;
+import info.oais.infomodel.structure.description.FormatDescription;
 import info.oais.infomodel.structure.description.RecordDescription;
 import info.oais.infomodel.structure.description.Semantics;
 import org.springframework.stereotype.Service;
@@ -98,12 +99,59 @@ public class FormatDescriptionRdfService {
             }
             String structureRi = edit.createEntity(Ns.IM + "StructureRepresentationInformation");
             edit.addLiteral(structureRi, Ns.RDFS + "label", def.getName() + ": " + formatLabel + " description");
-            edit.addLiteral(structureRi, Ns.RDFS + "comment",
-                    "Byte/logical layout of \"" + def.getName() + "\" as a " + formatLabel + " description:\n\n" + generatedText);
+            edit.addLiteral(structureRi, Ns.RDFS + "comment", (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT
+                    ? "Byte layout" : "Logical layout") + " of \"" + def.getName() + "\" as a " + formatLabel
+                    + " description.");
+            edit.addLiteral(structureRi, Ns.IM + "specificationText", generatedText);
+            if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
+                edit.addLiteral(structureRi, Ns.IM + "specificationLanguage", specificationLanguage(formatLabel));
+            }
             structures.put(formatLabel, structureRi);
+        }
+        if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
+            addTableView(def.toFormatDescription(), semanticRi);
         }
         linkAsGroups(dataObject, def.getName(), semanticRi, structures, def.getKind() == FormatDefinitionKind.BYTE_LAYOUT);
         return dataObject;
+    }
+
+    /**
+     * The {@code im:specificationLanguage} of a saved description, from its
+     * format label (e.g. "DFDL, written by hand"): the names a Representation
+     * Information manifest uses ("DFDL", "DRB SDF", "Kaitai Struct"), or
+     * "drb-python" for a drb-python driver. Null for anything else.
+     */
+    static String specificationLanguage(String formatLabel) {
+        Processor processor = Processor.forLabel(formatLabel);
+        if (processor == null) {
+            return null;
+        }
+        return switch (processor) {
+            case DFDL -> info.oais.infomodel.structure.manifest.StructureDescription.DFDL;
+            case KAITAI -> info.oais.infomodel.structure.manifest.StructureDescription.KAITAI;
+            case DRB_JAVA -> info.oais.infomodel.structure.manifest.StructureDescription.DRB_SDF;
+            case DRB_PYTHON -> "drb-python";
+        };
+    }
+
+    /**
+     * The format's table view (see {@link ViewerBundle#tableView}) as a view
+     * specification under its Semantic Representation Information: how
+     * TOPCAT, SPLAT or the archive's VOTable show the data as rows and columns.
+     */
+    private void addTableView(FormatDescription format, String semanticRi) {
+        String view = ViewerBundle.tableView(format);
+        if (view == null) {
+            return;
+        }
+        String viewRi = edit.createEntity(Ns.IM + "ViewSpecification");
+        edit.addType(viewRi, Ns.IM + "SemanticRepresentationInformation");
+        edit.addLiteral(viewRi, Ns.RDFS + "label", "Table view of " + format.name());
+        edit.addLiteral(viewRi, Ns.RDFS + "comment", "How to view \"" + format.name() + "\" as a table of rows and "
+                + "columns, for the tree its DFDL and DRB descriptions decode it into.");
+        edit.addLiteral(viewRi, Ns.IM + "viewKind", info.oais.infomodel.structure.manifest.ViewDescription.TABLE);
+        edit.addLiteral(viewRi, Ns.IM + "specificationText", view);
+        edit.addRelationship(semanticRi, Ns.IM + "interpretedUsingRecurse", viewRi);
     }
 
     /**

@@ -62,7 +62,11 @@ import info.oais.infomodel.structure.StructureNode;
  * or a fully-qualified Java class name resolved via
  * {@link Class#forName(String)};</li>
  * <li>{@code child} (optional) - the row node's child name to read the value
- * from, when it differs from {@code name}.</li>
+ * from, when it differs from {@code name};</li>
+ * <li>{@code unit}, {@code description}, {@code ucd} (optional) - what the
+ * values mean, for viewers that show column metadata: their units (e.g.
+ * {@code K}), a description, and an IVOA Unified Content Descriptor (e.g.
+ * {@code phys.temperature}).</li>
  * </ul>
  *
  * <p>Every value is read from a row via {@link StructureNode#child(String)}

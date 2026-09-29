@@ -36,6 +36,13 @@ import java.util.regex.Pattern;
  * individuals are removed, and the Structure and Semantic Representation
  * Information themselves are kept and reused.
  *
+ * <p>It also moves each saved description's text out of its
+ * {@code rdfs:comment} -- where it used to follow a heading like
+ * {@code Byte/logical layout of "X" as a DFDL description:} -- into
+ * {@code im:specificationText}, with its {@code im:specificationLanguage},
+ * so the archive can serve it as a file (e.g. in a Representation
+ * Information manifest).</p>
+ *
  * <p>Runs once at startup, and finds nothing to do after that. A set is left
  * as it is (with a warning in the log) if anything other than RepInfo Tools
  * has since been attached to one of its old RepresentationInformation
@@ -67,6 +74,10 @@ public class RepInfoGroupMigration {
             int converted = migrate();
             if (converted > 0) {
                 log.info("Converted the Representation Information of {} Data Object(s) into groups", converted);
+            }
+            int moved = moveSpecificationTexts();
+            if (moved > 0) {
+                log.info("Moved the text of {} structure description(s) into im:specificationText", moved);
             }
             success = true;
         } finally {
@@ -124,6 +135,43 @@ public class RepInfoGroupMigration {
             converted++;
         }
         return converted;
+    }
+
+    private static final Pattern OLD_TEXT = Pattern.compile(
+            "(?s)Byte/logical layout of \"(.*?)\" as a (.*?) description:\n\n(.*)");
+
+    /**
+     * Moves saved descriptions' text out of {@code rdfs:comment} into
+     * {@code im:specificationText}; see this class's comment.
+     *
+     * @return how many were moved
+     */
+    public int moveSpecificationTexts() {
+        List<Map<String, String>> rows = q.select(store.dataModel(), Ns.PREFIXES + """
+                SELECT ?ri ?comment WHERE {
+                  ?ri rdf:type im:StructureRepresentationInformation ; rdfs:comment ?comment .
+                  FILTER NOT EXISTS { ?ri im:specificationText ?text }
+                  FILTER (STRSTARTS(?comment, "Byte/logical layout of "))
+                }""");
+        int moved = 0;
+        for (Map<String, String> row : rows) {
+            Matcher m = OLD_TEXT.matcher(row.get("comment"));
+            if (!m.matches()) {
+                continue;
+            }
+            String ri = row.get("ri");
+            boolean applied = appliedBySoftware(new Old(null, ri, m.group(2), m.group(1)));
+            edit.removeLiteral(ri, Ns.RDFS + "comment", row.get("comment"));
+            edit.addLiteral(ri, Ns.RDFS + "comment", "Layout of \"" + m.group(1) + "\" as a " + m.group(2)
+                    + " description.");
+            edit.addLiteral(ri, Ns.IM + "specificationText", m.group(3));
+            if (applied) {
+                edit.addLiteral(ri, Ns.IM + "specificationLanguage",
+                        FormatDescriptionRdfService.specificationLanguage(m.group(2)));
+            }
+            moved++;
+        }
+        return moved;
     }
 
     /** Whether {@code repInfo} has only the triples RepInfo Tools gave it. */

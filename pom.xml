@@ -28,6 +28,7 @@
   <modules>
     <module>oaiscore</module>
     <module>oais-structure-api</module>
+    <module>oais-structure-manifest</module>
     <module>oais-structure-dfdl</module>
     <module>oais-structure-kaitai</module>
     <module>oais-structure-drb</module>
@@ -69,6 +70,9 @@
          from this repository's own third-party/maven-repo (see repositories
          below and third-party/README.md). -->
     <drb.version>2.5.13</drb.version>
+    <!-- Apache Jena, for reading Representation Information manifests (Turtle) in
+         oais-structure-manifest; the same version archive-manager uses. -->
+    <jena.version>4.10.0</jena.version>
   </properties>
 
   <repositories>
@@ -113,6 +117,16 @@
         <groupId>info.oais.infomodel</groupId>
         <artifactId>oais-structure-topcat</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-manifest</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.jena</groupId>
+        <artifactId>jena-arq</artifactId>
+        <version>${jena.version}</version>
       </dependency>
       <dependency>
         <groupId>info.oais.infomodel</groupId>

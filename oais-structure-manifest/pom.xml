@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>info.oais.infomodel</groupId>
+    <artifactId>oais-structure-adapters</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>oais-structure-manifest</artifactId>
+  <name>oais-structure-manifest</name>
+  <description>
+    Reads and writes Representation Information manifests: Turtle excerpts of
+    a Data Object's OAIS Representation Information -- its AND/OR groups, the
+    structure descriptions (DFDL, Kaitai Struct, DRB SDF) that are equivalent
+    alternatives, view specifications and element semantics -- naming every
+    file explicitly, relative to the manifest. Used by the TOPCAT and SPLAT
+    integrations in place of a file-naming convention, and written by
+    archive-manager for its own Data Objects.
+  </description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.apache.jena</groupId>
+      <artifactId>jena-arq</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

@@ -559,6 +559,48 @@ wanted.
     language not generated and why. Choosing Kaitai Struct also rules out
     element names that are Java reserved words (e.g. `class`), since its
     descriptions are compiled to Java.
+  - **Opening data in TOPCAT and SPLAT.** Data is found by its Representation
+    Information, never by file naming: a *Representation Information
+    manifest* (module `oais-structure-manifest`) is a Turtle excerpt of a Data
+    Object's Representation Information that names its bits and every
+    description explicitly (`bridge:hasStorageLocation`, relative to the
+    manifest or as URLs) -- see the root README's "TOPCAT example description".
+    - *Local files:* the preview page's "Open in TOPCAT or SPLAT" downloads a
+      zip (`/repinfo-tools/download/viewers?dataFile=...`, `ViewerBundle`):
+      the manifest, the DFDL and DRB SDF descriptions (generated or written by
+      hand; equivalent alternatives), a table view generated from the element
+      tree (the first repeated record in the root as rows, its fields as
+      columns, with units and meanings), and a README. Put the data file next
+      to the manifest under the name given. Kaitai Struct isn't included:
+      TOPCAT needs a class compiled from the `.ksy` in advance, and Kaitai
+      shows repeated records as one array, so one table view can't serve it
+      and the others.
+    - *Archive data:* saving a byte layout now records each description's
+      text and language (`im:specificationText`, `im:specificationLanguage`,
+      local extensions) instead of burying the text in `rdfs:comment` --
+      older saves are converted at startup (`RepInfoGroupMigration`) -- and
+      saves the table view as an `im:ViewSpecification` under the Semantic
+      Representation Information. A Data Object whose bits have a storage
+      location then gets, on its page, a link to its manifest
+      (`/api/data-objects/{id}/repinfo.ttl`, each description served at
+      `/api/specifications/{id}`), which TOPCAT's reader and SPLAT open by
+      URL; its data as VOTable (`/api/data-objects/{id}/votable`,
+      `DataObjectViewService`), decoded on the server with the TOPCAT reader's
+      own pipeline, with column units and descriptions; and "View in TOPCAT",
+      which sends that VOTable to TOPCAT on the viewer's computer over SAMP
+      (Web Profile, `static/js/samp-send.js`; TOPCAT asks the viewer to allow
+      it). No plugin is needed for VOTable.
+    - *Fetching:* serving VOTable makes the server fetch the bits from the
+      storage location (`StorageFetcher`): http(s) only, at most
+      `archive.fetch.max-bytes` within `archive.fetch.timeout-seconds`, and not
+      from loopback or private-network addresses -- checked for every redirect
+      -- unless `archive.fetch.allow-private-addresses` is true. Storage
+      locations are set by editors but fetched for anyone, so leave that off
+      unless every editor may make the server reach its own network.
+    - `ViewersTest` downloads a bundle and opens it with the real TOPCAT
+      reader, then saves the description, serves a storage location from a
+      local web server, and checks the Data Object page, its manifest, a served
+      description and its VOTable.
   - **Describing data whose format is already known** (`/repinfo-tools/known`,
     `KnownFormatController`, "Or describe data whose format is already
     known" on the start page). For a spreadsheet or delimited text -- .xlsx,

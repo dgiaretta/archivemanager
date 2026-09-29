@@ -2,7 +2,8 @@
 # in the same im: namespace, loaded alongside it.
 #
 # Two kinds of thing are kept here rather than in the generated schema:
-#   - groups of Representation Information and format profiles, new here
+#   - groups of Representation Information, format profiles and the terms
+#     for naming descriptions and view specifications as files, new here
 #     and marked oais:status "local-extension" like the schema's own local
 #     extensions (e.g. im:Agent);
 #   - Designated Community, Preservation Objective and Transformation
@@ -127,6 +128,50 @@ im:quoteCharacter
   oais:status "local-extension" ;
   rdfs:domain im:FormatProfile ;
   rdfs:comment "The character enclosing fields that contain the delimiter in delimited text, e.g. '\"'. LOCAL EXTENSION -- see im:FormatProfile." .
+
+# ---- Descriptions and view specifications as files ----
+#
+# What a Representation Information manifest needs to name each description
+# explicitly (see oais-structure-manifest): which language a structure
+# description is in, its text, the class generated from it where that's how
+# it's applied, and view specifications -- how to view decoded data as a
+# table, time series or vector. Files are given with the bridge ontology's
+# bridge:hasStorageLocation.
+
+im:specificationLanguage
+  a owl:DatatypeProperty ;
+  rdfs:label "specification language" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:RepresentationInformation ;
+  rdfs:comment "The language a machine-readable description is written in, so software knows how to apply it: 'DFDL', 'Kaitai Struct', 'DRB SDF', 'DRB' (no description: DRB recognises the format itself) or 'drb-python' (a driver package). LOCAL EXTENSION." .
+
+im:specificationText
+  a owl:DatatypeProperty ;
+  rdfs:label "specification text" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:RepresentationInformation ;
+  rdfs:comment "The full text of a machine-readable description or view specification held in the archive, e.g. a DFDL schema; the archive serves it as a file. LOCAL EXTENSION." .
+
+im:generatedClassName
+  a owl:DatatypeProperty ;
+  rdfs:label "generated class name" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:StructureRepresentationInformation ;
+  rdfs:comment "For a description applied through code generated from it (a Kaitai Struct .ksy): the fully qualified name of the generated class. LOCAL EXTENSION." .
+
+im:ViewSpecification
+  a owl:Class ;
+  rdfs:label "View Specification" ;
+  oais:status "local-extension" ;
+  rdfs:subClassOf im:SemanticRepresentationInformation ;
+  rdfs:comment "View Specification: Semantic Representation Information saying how to view decoded data -- as a table (which elements are rows, which columns, with their units and meanings), a time series or a vector -- for tools such as TOPCAT and SPLAT. LOCAL EXTENSION." .
+
+im:viewKind
+  a owl:DatatypeProperty ;
+  rdfs:label "view kind" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:ViewSpecification ;
+  rdfs:comment "What a view specification shows the data as: 'table', 'timeSeries' or 'vector'. LOCAL EXTENSION." .
 
 # ---- Designated Community, Preservation Objectives and Transformation ----
 # ---- Information Properties (moved from oais_im_schema-sh-v5.ttl)     ----

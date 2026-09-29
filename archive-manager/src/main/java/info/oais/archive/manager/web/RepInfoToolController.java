@@ -831,6 +831,52 @@ public class RepInfoToolController {
                 .body(resource);
     }
 
+    /**
+     * A zip for opening the data in TOPCAT or SPLAT: a Representation
+     * Information manifest naming the data file ({@code dataFile}), the DFDL
+     * and DRB SDF descriptions (generated or written by hand; either will do),
+     * a table view generated from the element tree, and what each element
+     * means -- see {@link info.oais.archive.manager.service.format.ViewerBundle}.
+     */
+    @GetMapping("/download/viewers")
+    public ResponseEntity<ByteArrayResource> downloadViewerBundle(@RequestParam(defaultValue = "") String dataFile,
+                                                                  HttpSession session) {
+        FormatDefinition def = draft(session);
+        if (def == null || def.getKind() != FormatDefinitionKind.BYTE_LAYOUT) {
+            return ResponseEntity.notFound().build();
+        }
+        String base = safeFileName(def.getName());
+        String data = dataFile.isBlank() ? base + "." + (def.getFileExtensions().isEmpty() ? "dat"
+                : def.getFileExtensions().get(0)) : DrbPythonSampleRunner.safeName(dataFile);
+        String dfdl = descriptionOrNull(def, DescriptionLanguage.DFDL, () -> dfdlGenerator.generate(def));
+        String drb = descriptionOrNull(def, DescriptionLanguage.DRB, () -> drbGenerator.generate(def, DrbTarget.JAVA));
+        Map<String, String> files = info.oais.archive.manager.service.format.ViewerBundle.files(
+                def.toFormatDescription(), base, data, dfdl, drb);
+        if (files == null) {
+            return ResponseEntity.status(409).contentType(MediaType.TEXT_PLAIN).body(new ByteArrayResource((
+                    "TOPCAT and SPLAT need a DFDL or DRB SDF description of this format, and fields directly in "
+                            + "its root record, or in a repeated record there, to show as columns.")
+                    .getBytes(StandardCharsets.UTF_8)));
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType("application/zip"))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + base + "-for-topcat.zip\"")
+                .body(new ByteArrayResource(zip(base + "-for-topcat", files)));
+    }
+
+    /** The description in {@code language} -- written by hand, else generated -- or null if there's none. */
+    private static String descriptionOrNull(FormatDefinition def, DescriptionLanguage language,
+                                            java.util.function.Supplier<String> generate) {
+        if (!def.targets(language)) {
+            return null;
+        }
+        try {
+            return def.handWritten(language).orElseGet(generate);
+        } catch (Feature.UnsupportedFeatureException e) {
+            return null;
+        }
+    }
+
     @PostMapping("/save")
     public String save(@RequestParam(required = false) String dataObjectId,
                         @RequestParam(required = false) List<String> formats,

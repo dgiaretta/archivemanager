@@ -1,0 +1,14 @@
+# The ten points, described only by a DRB SDF schema.
+@prefix im:     <http://ontology.oais.info/im/> .
+@prefix bridge: <https://oais.info/bridge#> .
+
+<#points> a im:DigitalObject ;
+    bridge:hasStorageLocation <points.csv> ;
+    im:interpretedUsing <#repinfo> .
+<#repinfo> a im:RepInfoAndGroup ;
+    im:hasGroupMember <#drb> , <#view> .
+<#drb> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "DRB SDF" ;
+    bridge:hasStorageLocation <points.drb.xsd> .
+<#view> a im:ViewSpecification ;
+    bridge:hasStorageLocation <points-table-view.xml> .

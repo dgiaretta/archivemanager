@@ -113,6 +113,7 @@ root/
 ├─ .gitignore
 ├─ oaiscore/
 ├─ oais-structure-api/
+├─ oais-structure-manifest/  (Representation Information manifests: Turtle, read and written)
 ├─ oais-structure-dfdl/
 ├─ oais-structure-kaitai/
 ├─ oais-structure-drb/
@@ -187,11 +188,18 @@ i.e. that the Representation Information is enough to re-create the file from it
   Demonstrates how the adapters plug into the OAIS model and produce executable structure information
   for a concrete example format.
 
+- `oais-structure-manifest`  
+  Reads and writes Representation Information manifests: Turtle excerpts of a Data Object's OAIS
+  Representation Information that name its data file, its structure descriptions (equivalent
+  alternatives), its view specifications and what its elements mean -- every file explicitly. Used
+  by the TOPCAT and SPLAT integrations, and written by archive-manager.
+
 - `oais-structure-topcat`  
   A `uk.ac.starlink.table.TableBuilder` plugin for [TOPCAT](https://github.com/Starlink/starjava/tree/master/topcat),
   Starlink's astronomy table viewer, so it can open data described by a DFDL schema, a Kaitai Struct
-  generated class, or a DRB descriptor directly, via `StructureInterpreterFactory` and
-  `TableSemanticRepInfo` — no new parsing logic of its own. See "TOPCAT example description" below.
+  generated class, or a DRB descriptor, named by a Representation Information manifest, via
+  `StructureInterpreterFactory` and `TableSemanticRepInfo` — no new parsing logic of its own. See
+  "TOPCAT example description" below.
 
 - `oais-structure-splat`  
   Opens the same DFDL/Kaitai/DRB-described data as a spectrum in [SPLAT](http://www.starlink.ac.uk/splat/),
@@ -301,23 +309,69 @@ no new parsing logic, and no fork of `starjava` itself. STIL is a real published
 artifact (`uk.ac.starlink:stil`), not something requiring a source build.
 
 Because a DFDL/Kaitai/DRB description is inherently external to the raw data bytes (unlike a
-self-describing format such as FITS or VOTable), `OaisStructureTableBuilder` needs a convention
-for finding it. For a data file `some/dir/foo.ext`, it looks for these siblings (`foo` being the
-data file's name with its own last extension stripped) - the same `point.bin` + `point.dfdl.xsd` +
-`point-table-view.xml` naming this project's own demo fixtures already use, not a new convention
-invented for this module:
+self-describing format such as FITS or VOTable), something has to say which description goes with
+which data. Rather than a file-naming convention, that is a **Representation Information
+manifest** (module `oais-structure-manifest`): a Turtle excerpt of the data's OAIS Representation
+Information, naming every file explicitly with `bridge:hasStorageLocation` -- relative to the
+manifest, or as a URL -- so files can have any names and live anywhere:
 
-| Sidecar | Purpose |
+```turtle
+@prefix im:     <http://ontology.oais.info/im/> .
+@prefix bridge: <https://oais.info/bridge#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
+
+<#readings> a im:DigitalObject ;
+    bridge:hasStorageLocation <readings-2026.bin> ;
+    im:interpretedUsing <#repinfo> .
+
+<#repinfo> a im:RepInfoAndGroup ;
+    im:hasGroupMember <#structure> , <#semantics> ;
+    im:hasStructureRepresentationInformation <#structure> ;
+    im:hasSemanticRepresentationInformation <#semantics> .
+
+<#structure> a im:RepInfoOrGroup , im:StructureRepresentationInformation ;
+    im:hasGroupMember <#dfdl> , <#kaitai> .                   # any one will do
+
+<#dfdl> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "DFDL" ;
+    bridge:hasStorageLocation <station-readings.dfdl.xsd> .
+
+<#kaitai> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "Kaitai Struct" ;
+    im:generatedClassName "com.example.StationReadings" .
+
+<#semantics> a im:SemanticRepresentationInformation ;
+    im:interpretedUsingRecurse <#view> , <#temperature> .
+
+<#view> a im:ViewSpecification ;
+    im:viewKind "table" ;
+    bridge:hasStorageLocation <station-readings-table-view.xml> .
+
+<#temperature> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "reading.temperature" ;
+    rdfs:label "Air temperature" ;
+    rico:hasUnitOfMeasurement [ rdfs:label "K" ] .
+```
+
+| In the manifest | Meaning |
 |---|---|
-| `foo.dfdl.xsd` | A DFDL schema, used via `DfdlFormatSpecification`. |
-| `foo.ksy.classname` | A one-line text file naming an already-compiled, already-on-classpath Kaitai Struct generated class (see `KaitaiFormatSpecification`'s own Javadoc for why a runtime `.ksy` path alone is not enough). |
-| `foo.drb.xsd` | A DRB SDF schema, used via `DrbFormatSpecification`. |
-| `foo.drb` | Present (even empty) lets DRB recognise the format itself, from the data file's own extension (`DrbFormatSpecification.autoDetect`). |
-| `foo-table-view.xml` | Required alongside any of the above - the `TableViewSpecification` describing how to view the resulting `StructureNode` tree as rows and columns. |
+| `bridge:hasStorageLocation` on the Data Object | Where its bits are. |
+| `im:specificationLanguage` | A structure description: `"DFDL"`, `"DRB SDF"` (each with its file), `"Kaitai Struct"` (with `im:generatedClassName`: an already-compiled class on the classpath -- see `KaitaiFormatSpecification`'s Javadoc for why a runtime `.ksy` path alone is not enough) or `"DRB"` (no file: DRB recognises the format from the data file's extension). The members of an OR group are equivalent: the first whose engine is available is used, in the order DFDL, DRB SDF, Kaitai Struct, DRB. |
+| `im:ViewSpecification` | How to view the decoded tree (`im:viewKind` `"table"`, the default): a `TableViewSpecification` file of rows and columns, whose columns can give `unit`, `description` and `ucd`. |
+| `bridge:structuralPath` | What an element means; a column without its own units or description takes them from here, matched by path. |
 
-Requiring an explicit sidecar for every engine, including DRB (whose underlying library can
-auto-detect a format with no hint at all), keeps `looksLikeFile()` predictable: this builder only
-ever claims a file it has direct sidecar evidence for.
+archive-manager writes these manifests too: RepInfo Tools downloads one with the descriptions and a
+generated table view for a local data file, and the archive serves one for each Data Object whose bits
+have a storage location (`/api/data-objects/{id}/repinfo.ttl`), so TOPCAT opens archive data by URL.
+The archive also serves that data as VOTable, decoded on the server with this same reader, which
+TOPCAT opens with no plugin at all.
+
+Everything else a manifest holds (software Other Representation Information, provenance, ...) is
+allowed and ignored. A manifest describing several Data Objects is opened with the one to use after
+a `#`, e.g. `station.ttl#readings`. The builder recognises a manifest by its content, never its name.
+The terms are local extensions to the OAIS Information Model (`oais-im-local-extensions.ttl` in
+archive-manager).
 
 **Registering with TOPCAT** needs no source changes to `starjava`: `StarTableFactory` loads extra
 `TableBuilder`s by classname from a system property
@@ -337,7 +391,7 @@ then launch TOPCAT with the module's own jar plus that dependency folder added t
 ```bash
 java -Dstartable.readers=info.oais.infomodel.structure.topcat.OaisStructureTableBuilder \
      -cp "topcat-full.jar:oais-structure-topcat/target/oais-structure-topcat-0.0.1-SNAPSHOT.jar:oais-structure-topcat/target/dependency/*" \
-     uk.ac.starlink.topcat.Driver point.bin
+     uk.ac.starlink.topcat.Driver -f OAIS-RepInfo point-manifest.ttl
 ```
 
 (Windows: use `;` instead of `:` between classpath entries, and give `topcat-full.jar` its full
@@ -353,13 +407,14 @@ needed to see it inside TOPCAT itself.
 
 ## SPLAT example description
 
-`oais-structure-splat` opens the same DFDL/Kaitai/DRB-described data as a spectrum in
+`oais-structure-splat` opens the same DFDL/Kaitai/DRB-described data -- named by a Representation
+Information manifest, exactly as for TOPCAT above -- as a spectrum in
 [SPLAT](http://www.starlink.ac.uk/splat/), Starlink's spectral analysis tool. Unlike TOPCAT, SPLAT
 has no plugin-registration hook equivalent to STIL's `startable.readers` system property -- its own
 format dispatch is a hard-coded switch over known formats, so it can't be told about an arbitrary new
-`TableBuilder` at the command line. Instead `OaisStructureSpectrumLauncher` builds the `StarTable`
-itself, reusing `OaisStructureTableBuilder.makeStarTable` directly (the exact same engine dispatch
-TOPCAT uses), wraps it as a `SpecData` via `SpecDataFactory.get(StarTable, String, String)`, and adds
+`TableBuilder` at the command line. Instead `OaisStructureSpectrumLauncher` takes a manifest (a
+path or URL, with `#dataObject` when it describes several), builds the `StarTable` itself with
+`OaisStructureTableBuilder.open` (the exact same pipeline TOPCAT uses), wraps it as a `SpecData` via `SpecDataFactory.get(StarTable, String, String)`, and adds
 it to a running `SplatBrowser` via `SplatBrowser.addSpectrum(SpecData)` -- confirmed against
 `SplatBrowser`'s own source as the supported way to hand it a programmatically-built spectrum.
 
@@ -429,7 +484,8 @@ config) at that directory; without it, spectrum construction fails with
 
 **Running it.** `OaisStructureSpectrumLauncherTest` (in `oais-structure-splat/src/test`) verifies the
 DFDL-to-`SpecData` path end to end automatically, without opening a GUI window -- using its own
-`spectrum.csv` fixture (ten wavelength/flux rows) rather than the `point.bin` fixture the other
+`spectrum-manifest.ttl` fixture, naming `spectrum.csv` (ten wavelength/flux rows), its DFDL schema
+and its table view, rather than the point fixtures the other
 modules share, since SPLAT's `TableSpecDataImpl` requires every table column to be numeric (a spectrum
 is X/Y data, not an arbitrary table) and `point.bin`'s `label` string column would violate that. To
 see it inside a live SPLAT window:
