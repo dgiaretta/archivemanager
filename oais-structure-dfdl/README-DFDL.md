@@ -46,8 +46,15 @@ for example:
   instrument telemetry, one of the use cases that shaped the standard.
 
 This list is a starting point, not exhaustive. The DFDL Schemas project on
-GitHub (https://github.com/DFDLSchemas) publishes open DFDL schemas for many
-of these formats.
+GitHub publishes open DFDL schemas for many of these formats (see below).
+
+## Galleries of examples
+
+- [DFDL Schemas](https://github.com/DFDLSchemas) -- the community collection
+  of open DFDL schemas on GitHub, one repository per format (e.g. PCAP, PNG,
+  NITF, EDIFACT, ISO 8583), each with test data.
+- [Apache Daffodil examples](https://daffodil.apache.org/examples/) -- small
+  worked examples from the Daffodil project.
 
 ## How the adapter works
 

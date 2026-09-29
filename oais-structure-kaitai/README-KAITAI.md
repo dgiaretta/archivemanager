@@ -51,6 +51,16 @@ specifications include:
 Any of the gallery's `.ksy` files can be compiled and used with this adapter
 in the same way as the examples here.
 
+## Galleries of examples
+
+- [Kaitai Struct format gallery](https://formats.kaitai.io) -- hundreds of
+  `.ksy` descriptions of real formats, by category, each with its generated
+  parsers and documentation.
+- [kaitai_struct_formats](https://github.com/kaitai-io/kaitai_struct_formats)
+  -- the same descriptions as source, on GitHub.
+- [Kaitai Struct Web IDE](https://ide.kaitai.io) -- try a description against
+  a file in the browser.
+
 ## Generating the classes
 
 After editing a `.ksy`, regenerate with the Kaitai Struct compiler (0.11,

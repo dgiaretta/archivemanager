@@ -24,6 +24,18 @@ packages and are not included here. This project's own examples (a binary
 "point" record and a CSV table, the same as in the DFDL and Kaitai modules)
 are in `src/test/resources`.
 
+## Galleries of examples
+
+There is no public gallery of DRB SDF schemas for the Java DRB used here;
+this project's own are in `src/test/resources`. For drb-python, GAEL's
+Python successor, format support comes as driver packages:
+
+- [drb-python on GitLab](https://gitlab.com/drb-python) -- the drivers
+  (e.g. XML, ZIP, TAR, netCDF), the topics that recognise products (e.g.
+  Sentinel SAFE) and the add-ons, as source.
+- [drb-python drivers on PyPI](https://pypi.org/search/?q=drb-driver) --
+  the same drivers as installable packages.
+
 ## Two ways to interpret a Digital Object
 
 `DrbFormatSpecification` selects one:
