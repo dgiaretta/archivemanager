@@ -126,8 +126,15 @@
                 return call("samp.webhub.unregister", [key]);
             })
             .catch(function (e) {
-                say("Couldn't send it: " + e.message + ". Is " + app + " running on this computer? You can also "
-                    + "open the VOTable link in it yourself.");
+                if (!key && e instanceof TypeError) {
+                    // fetch itself failed: nothing is listening at the hub's address.
+                    say("Couldn't send it: no SAMP hub is running on this computer. Start one -- TOPCAT starts "
+                        + "its own; in SPLAT, start its internal hub from the Interop menu -- and try again. "
+                        + "You can also open the VOTable link in " + app + " yourself.");
+                } else {
+                    say("Couldn't send it: " + e.message + ". Is " + app + " running on this computer? You can "
+                        + "also open the VOTable link in it yourself.");
+                }
                 if (key) {
                     call("samp.webhub.unregister", [key]).catch(function () {});
                 }

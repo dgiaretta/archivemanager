@@ -126,7 +126,10 @@ anywhere with `sh` and `curl`: Linux, macOS, or Git Bash on Windows.
 The archive needs the version of archive-manager with TOPCAT and SPLAT support.
 Then, with SPLAT running on your computer, the Data Object's page -- or its
 right-click menu in the graph -- has "View with SPLAT", which sends the
-spectrum to SPLAT over SAMP. For that, SPLAT-VO as installed will do, with none
+spectrum to SPLAT over SAMP. That needs a SAMP hub, which SPLAT doesn't start
+by itself: start its internal hub from SPLAT's Interop menu first (or have
+TOPCAT running, which starts one). The first time, the hub asks whether to
+allow the archive's page. For that, SPLAT-VO as installed will do, with none
 of this project's code: step 1 of "Installing" is all it needs. Or open its
 VOTable address in SPLAT (File → Location), or give its manifest address to
 `open-in-splat`.
