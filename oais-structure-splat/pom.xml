@@ -20,27 +20,42 @@
     SpecDataFactory and handing it to a live SplatBrowser. See this module's
     own README section (in the project root README) for how splat.jar and its
     dependency closure were obtained: unlike stil, splat is not published on
-    Maven Central, so it was built from the starjava source tree and
-    installed into the local Maven repo under the synthetic groupId below.
+    Maven Central, so its jars are taken from an installed SPLAT-VO (or a
+    from-source starjava build) and installed into the local Maven repo under
+    the synthetic groupId below.
   </description>
 
   <properties>
     <!-- splat.jar and everything its own MANIFEST.MF Class-Path names,
-         installed locally from a from-source starjava build (see the root
-         README's "SPLAT example description" section). Not a real,
+         installed locally by scripts/install-splat-deps.sh from an installed
+         SPLAT-VO or a from-source starjava build (see the root README's
+         "SPLAT example description" section). Not a real,
          independently-versioned upstream release, hence "-local". -->
     <starjava.local.version>0.0.1-local</starjava.local.version>
 
     <!-- jniast's native library (used by SPLAT's AST/WCS support, loaded as
          soon as any SpecData is built - see uk.ac.starlink.ast.AstObject)
-         has no Maven Central presence and, unlike splat.jar itself, was
-         never copied into the "installed" starjava/lib tree by "ant
-         install" either - it only exists under the source checkout's own
-         jniast/lib/<arch> (see the root README's "SPLAT example
-         description" section). Point this at that directory; override with
-         -Djniast.native.dir=... if your starjava checkout lives elsewhere. -->
-    <jniast.native.dir>C:\Users\david\starjava\source\jniast\lib\amd64</jniast.native.dir>
+         has no Maven Central presence. An installed SPLAT-VO has it in
+         lib/amd64, used when SPLAT_HOME is set (the splat-vo profile below);
+         a from-source starjava build only has it under the source checkout's
+         own jniast/lib/<arch>, assumed here to be ~/starjava/source.
+         Override with -Djniast.native.dir=... if yours is elsewhere. -->
+    <jniast.native.dir>${user.home}/starjava/source/jniast/lib/amd64</jniast.native.dir>
   </properties>
+
+  <profiles>
+    <profile>
+      <id>splat-vo</id>
+      <activation>
+        <property>
+          <name>env.SPLAT_HOME</name>
+        </property>
+      </activation>
+      <properties>
+        <jniast.native.dir>${env.SPLAT_HOME}/lib/amd64</jniast.native.dir>
+      </properties>
+    </profile>
+  </profiles>
 
   <dependencies>
     <dependency>
@@ -209,11 +224,6 @@
     <dependency>
       <groupId>info.oais.infomodel.starjava.local</groupId>
       <artifactId>vo</artifactId>
-      <version>${starjava.local.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>info.oais.infomodel.starjava.local</groupId>
-      <artifactId>ttools</artifactId>
       <version>${starjava.local.version}</version>
     </dependency>
     <dependency>

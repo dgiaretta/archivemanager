@@ -413,17 +413,30 @@ needed to see it inside TOPCAT itself.
 
 `oais-structure-splat` opens the same DFDL/Kaitai/DRB-described data -- named by a Representation
 Information manifest, exactly as for TOPCAT above -- as a spectrum in
-[SPLAT](http://www.starlink.ac.uk/splat/), Starlink's spectral analysis tool. Unlike TOPCAT, SPLAT
-has no plugin-registration hook equivalent to STIL's `startable.readers` system property -- its own
-format dispatch is a hard-coded switch over known formats, so it can't be told about an arbitrary new
-`TableBuilder` at the command line. Instead `OaisStructureSpectrumLauncher` takes a manifest (a
+[SPLAT](https://www.g-vo.org/pmwiki/About/SPLAT), Starlink's spectral analysis tool, now released
+as SPLAT-VO. Unlike TOPCAT, SPLAT can't be given a new `TableBuilder` at the command line: its own
+format dispatch is a switch over known formats. SPLAT-VO 4.1's STIL does honour
+`startable.readers`, but its window's loading never reaches it for a `.ttl` file (`-t table` only
+tries VOTable, `-t guess` reads text). Instead `OaisStructureSpectrumLauncher` takes a manifest (a
 path or URL, with `#dataObject` when it describes several), builds the `StarTable` itself with
 `OaisStructureTableBuilder.open` (the exact same pipeline TOPCAT uses), wraps it as a `SpecData` via `SpecDataFactory.get(StarTable, String, String)`, and adds
 it to a running `SplatBrowser` via `SplatBrowser.addSpectrum(SpecData)` -- confirmed against
 `SplatBrowser`'s own source as the supported way to hand it a programmatically-built spectrum.
 
-**Building splat.jar.** Unlike `stil`, `splat` is not published on Maven Central, so it has to be
-built from the `starjava` source tree and installed into the local Maven repo:
+**A worked example** is in `examples/splat/`: a binary spectrum whose header gives its number of
+points, with its manifest, DFDL and DRB SDF descriptions and table view (made with archive-manager's
+RepInfo Tools), and scripts that open it in SPLAT or put it into an archive -- see its README.
+
+**SPLAT's jars, from SPLAT-VO (the usual way).** Unlike `stil`, `splat` is not published on Maven
+Central. The simplest source of its jars is an installed SPLAT-VO, from
+<https://github.com/mmpcn/splat-build/releases>: its install folder has `lib/splat/splat.jar`, the
+jars it needs, and jniast's native library in `lib/amd64`. Set `SPLAT_HOME` to that folder, run
+`oais-structure-splat/scripts/install-splat-deps.sh` to put the jars into the local Maven repo,
+then `mvn -Psplat -pl oais-structure-splat install` (with `SPLAT_HOME` set, its tests find jniast
+there). `examples/splat/README.md` has the steps. Tried with SPLAT-VO 4.1 and 3.11-3.
+
+**Building splat.jar from source** is the alternative: it has to be built from the `starjava` source
+tree and installed into the local Maven repo:
 
 ```bash
 sj=~/starjava   # or wherever

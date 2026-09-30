@@ -41,7 +41,7 @@ class OaisStructureSpectrumLauncherTest {
     @Test
     void takesPathsAndUrls() {
         assertEquals("https", OaisStructureSpectrumLauncher.toUri("https://example.org/m.ttl").getScheme());
-        assertEquals("file", OaisStructureSpectrumLauncher.toUri("C:\data\m.ttl").getScheme());
+        assertEquals("file", OaisStructureSpectrumLauncher.toUri("C:\\data\\m.ttl").getScheme());
         assertEquals("file", OaisStructureSpectrumLauncher.toUri("data/m.ttl").getScheme());
     }
 

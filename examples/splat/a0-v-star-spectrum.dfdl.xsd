@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+           xmlns:fn="http://www.w3.org/2005/xpath-functions"
+           targetNamespace="urn:archive-manager:format:a0_v_star_spectrum"
+           xmlns:tns="urn:archive-manager:format:a0_v_star_spectrum"
+           elementFormDefault="qualified">
+
+  <xs:include schemaLocation="/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd"/>
+
+  <xs:annotation>
+    <xs:appinfo source="http://www.ogf.org/dfdl/">
+      <dfdl:defineFormat name="binaryDefaults">
+        <dfdl:format ref="tns:GeneralFormat" representation="binary" byteOrder="littleEndian"
+                     binaryNumberRep="binary" lengthUnits="bytes" lengthKind="explicit"
+                     encoding="US-ASCII" occursCountKind="implicit"
+                     documentFinalTerminatorCanBeMissing="yes"/>
+      </dfdl:defineFormat>
+      <dfdl:format ref="tns:binaryDefaults"/>
+    </xs:appinfo>
+  </xs:annotation>
+
+  <xs:annotation>
+    <xs:documentation>A spectrum in binary: the object's name, the number of points, then one little-endian record per point, in order of wavelength.</xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="a0_v_star_spectrum" dfdl:lengthKind="implicit">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="object" type="xs:string" dfdl:representation="text" dfdl:length="16">
+          <xs:annotation>
+            <xs:documentation>Object: Name of the object observed, padded with spaces.</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="n_points" type="xs:unsignedInt" dfdl:length="4">
+          <xs:annotation>
+            <xs:documentation>Number of points: How many points the spectrum has.</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="point" dfdl:lengthKind="implicit" minOccurs="0" maxOccurs="unbounded" dfdl:occursCountKind="expression" dfdl:occursCount="{ xs:unsignedLong(xs:integer(../tns:n_points)) }">
+          <xs:annotation>
+            <xs:documentation>Point: One point of the spectrum.</xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="wavelength" type="xs:double" dfdl:length="8">
+                <xs:annotation>
+                  <xs:documentation>Wavelength (Angstrom): Wavelength in air. Valid range: 0 to .</xs:documentation>
+                </xs:annotation>
+              </xs:element>
+              <xs:element name="flux" type="xs:float" dfdl:length="4">
+                <xs:annotation>
+                  <xs:documentation>Flux density (erg/cm2/s/Angstrom): Flux density per unit wavelength.</xs:documentation>
+                </xs:annotation>
+              </xs:element>
+              <xs:element name="error" type="xs:float" dfdl:length="4">
+                <xs:annotation>
+                  <xs:documentation>Flux density error (erg/cm2/s/Angstrom): One-sigma uncertainty of the flux density. Valid range: 0 to .</xs:documentation>
+                </xs:annotation>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

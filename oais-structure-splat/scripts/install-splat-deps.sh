@@ -5,23 +5,34 @@
 # "SPLAT example description" section for why: unlike stil, splat is not
 # published on Maven Central, so this mirrors exactly what the starjava
 # Ant build's own manifest already computed as the required closure,
-# nothing guessed.
+# nothing guessed. (Except ttools.jar, which the manifest names but SPLAT-VO
+# doesn't ship: SPLAT runs without it.)
 #
-# Prerequisite: a from-source starjava build with splat installed --
-# see the README section for the full recipe (clone Starlink/starjava,
-# obtain JAI and add it to jsky/jaiutil/sog/splat's own src/lib, then
-# `ant/bin/ant install` from each of those four module directories in
-# that order).
+# The jars come from either
+#   - an installed SPLAT-VO (the usual way: the installer from
+#     https://github.com/mmpcn/splat-build/releases, see
+#     http://www.g-vo.org/pmwiki/About/SPLAT) -- set SPLAT_HOME to the folder
+#     it was installed in, the one holding bin/, etc/ and lib/; or
+#   - a from-source starjava build with splat installed -- set STARJAVA_LIB
+#     to its lib/ directory (see the root README for the recipe).
 #
-# Usage: STARJAVA_LIB=/path/to/starjava/lib ./install-splat-deps.sh
+# Usage: SPLAT_HOME=/path/to/splat-vo ./install-splat-deps.sh
+#        STARJAVA_LIB=/path/to/starjava/lib ./install-splat-deps.sh
 set -e
 
-LIB="${STARJAVA_LIB:-/c/Users/david/starjava/lib}"
+if [ -n "${SPLAT_HOME:-}" ]; then
+  LIB="$SPLAT_HOME/lib"
+elif [ -n "${STARJAVA_LIB:-}" ]; then
+  LIB="$STARJAVA_LIB"
+else
+  echo "Set SPLAT_HOME to an installed SPLAT-VO (or STARJAVA_LIB to a starjava build's lib/ directory)." >&2
+  exit 1
+fi
 GROUP="info.oais.infomodel.starjava.local"
 VERSION="0.0.1-local"
 
 if [ ! -f "$LIB/splat/splat.jar" ]; then
-  echo "splat.jar not found under $LIB -- set STARJAVA_LIB to your starjava install's lib/ directory." >&2
+  echo "splat.jar not found under $LIB -- is that a SPLAT-VO installation (or a starjava lib/ directory)?" >&2
   exit 1
 fi
 
@@ -50,7 +61,7 @@ done
 
 # Sibling starjava module jars
 for m in astgui ndx hdx array tamfits jniast soapserver fits hds pal diva help \
-         table votable jsky datanode vo ttools jsamp; do
+         table votable jsky datanode vo jsamp; do
   install_one "$LIB/$m/$m.jar" "$m"
 done
 
