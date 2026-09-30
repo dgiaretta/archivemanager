@@ -56,14 +56,6 @@ oais:abstract
 
 # -- classes
 
-<http://ontology.oais.info/im/Agent>
-  a owl:Class ;
-  rdfs:label "Agent" ;
-  oais:identifier "c-0029" ;
-  oais:status "local-extension" ;
-  oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
-  rdfs:comment "Agent: A person, organization, or automated system capable of performing an action such as defining a Designated Community or Preservation Objective, or identifying a Transformation Information Property. LOCAL EXTENSION -- the OAIS Information Model does not itself model who performs such actions; that belongs to the Producer/Management/Consumer roles of the Functional Model, out of scope for this Information-Model-only export. See oais-ric-bridge.ttl for its correspondence to rico:Agent, which already models the full Person/Group/CorporateBody/Family/Position/Mechanism hierarchy." .
-
 <http://ontology.oais.info/im/AccessRightsInformation>
   a owl:Class ;
   rdfs:label "Access Rights Information" ;
@@ -331,7 +323,7 @@ oais:abstract
   oais:oaisConcept "OAIS (Open Archival Information System)" ;
   oais:sourceReference "figure 2-1" ;
   oais:sourceReference "figure 2-4" ;
-  rdfs:comment "OAIS (Open Archival Information System): An Archive, consisting of an organization, which may be part of a larger organization, of people and systems, that has accepted the responsibility to preserve information and make it available for a Designated Community. NOTE -- definesDesignatedCommunity, definesPreservationObjective, and identifiesTransformationInformationProperty are no longer asserted here as restrictions on OAIS: only an Agent (see im:Agent) performs those defining/identifying actions, not the Archive-as-system itself." .
+  rdfs:comment "OAIS (Open Archival Information System): An Archive, consisting of an organization, which may be part of a larger organization, of people and systems, that has accepted the responsibility to preserve information and make it available for a Designated Community. NOTE -- definesDesignatedCommunity, definesPreservationObjective, and identifiesTransformationInformationProperty are no longer asserted here as restrictions on OAIS: only an Agent (see im:Agent, a local extension in oais-im-local-extensions.ttl) performs those defining/identifying actions, not the Archive-as-system itself." .
 
 <http://ontology.oais.info/im/OtherRepresentationInformation>
   a owl:Class ;

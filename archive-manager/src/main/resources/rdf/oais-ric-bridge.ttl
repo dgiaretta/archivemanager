@@ -171,8 +171,8 @@ rico:Agent
 im:ProvenanceInformation
   skos:relatedMatch rico:Event , rico:Agent .
 
-# im:Agent is a local extension added to the OAIS Information Model
-# export specifically so that definesDesignatedCommunity,
+# im:Agent is a local extension to the OAIS Information Model (in
+# oais-im-local-extensions.ttl), added specifically so that definesDesignatedCommunity,
 # definesPreservationObjective, and identifiesTransformationInformationProperty
 # have a domain distinct from im:OAIS -- only an Agent performs those
 # actions, not the Archive-as-system. Unlike the functional relatedMatch

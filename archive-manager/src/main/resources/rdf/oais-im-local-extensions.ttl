@@ -4,12 +4,12 @@
 # Two kinds of thing are kept here rather than in the generated schema:
 #   - groups of Representation Information, format profiles and the terms
 #     for naming descriptions and view specifications as files, new here
-#     and marked oais:status "local-extension" like the schema's own local
-#     extensions (e.g. im:Agent);
+#     and marked oais:status "local-extension";
 #   - Designated Community, Preservation Objective and Transformation
 #     Information Property, with the properties that relate them, moved here
 #     from the generated schema, keeping their identifiers but now marked
-#     oais:status "local-extension".
+#     oais:status "local-extension"; and Agent, who defines or identifies
+#     them, moved here too, already a local extension there.
 # The knowledge base the schema is generated from, and its workflow, need the
 # same changes, or regenerating the schema will bring the moved classes back.
 
@@ -174,11 +174,20 @@ im:viewKind
   rdfs:comment "What a view specification shows the data as: 'table', 'timeSeries' or 'vector'. LOCAL EXTENSION." .
 
 # ---- Designated Community, Preservation Objectives and Transformation ----
-# ---- Information Properties (moved from oais_im_schema-sh-v5.ttl)     ----
+# ---- Information Properties, and the Agent who defines or identifies  ----
+# ---- them (moved from oais_im_schema-sh-v5.ttl)                        ----
 
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<http://ontology.oais.info/im/Agent>
+  a owl:Class ;
+  rdfs:label "Agent" ;
+  oais:identifier "c-0029" ;
+  oais:status "local-extension" ;
+  oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
+  rdfs:comment "Agent: A person, organization, or automated system capable of performing an action such as defining a Designated Community or Preservation Objective, or identifying a Transformation Information Property. LOCAL EXTENSION -- the OAIS Information Model does not itself model who performs such actions; that belongs to the Producer/Management/Consumer roles of the Functional Model, out of scope for the Information-Model-only schema. See oais-ric-bridge.ttl for its correspondence to rico:Agent, which already models the full Person/Group/CorporateBody/Family/Position/Mechanism hierarchy." .
 
 <http://ontology.oais.info/im/DesignatedCommunity>
   a owl:Class ;
