@@ -221,6 +221,9 @@ class ViewersTest {
                             .value(org.hamcrest.Matchers.contains("spectrum.load.ssa-generic")));
             mockMvc.perform(get("/api/graph/{id}", archive.encodeId(objects[1])))
                     .andExpect(jsonPath("$.nodes[?(@.id == '" + objects[1] + "')].viewers[*]").isEmpty());
+            // A resource with nothing to view still has a page, without the viewer script.
+            mockMvc.perform(get("/resource/{id}", archive.encodeId(objects[1]))).andExpect(status().isOk())
+                    .andExpect(content().string(org.hamcrest.Matchers.not(containsString("samp-send.js"))));
             mockMvc.perform(get("/resource/{id}", archive.encodeId(objects[0])))
                     .andExpect(content().string(containsString("View with SPLAT")))
                     .andExpect(content().string(containsString("data-samp-client=\"splat\"")));

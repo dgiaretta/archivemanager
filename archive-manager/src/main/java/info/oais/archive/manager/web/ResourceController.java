@@ -42,7 +42,10 @@ public class ResourceController {
         model.addAttribute("incoming", archive.incomingLinks(iri));
         // A Data Object whose bits have a storage location and that has Representation Information:
         // offer it to viewers (its manifest for TOPCAT/SPLAT, VOTable when it has a table view, FITS when
-        // it has an image view).
+        // it has an image view). Both flags are always set, since the template combines them with "or",
+        // which refuses a missing (null) value.
+        model.addAttribute("tableViewable", false);
+        model.addAttribute("imageViewable", false);
         views.describe(iri, java.net.URI::create).ifPresent(d -> {
             model.addAttribute("describedData", d);
             List<info.oais.archive.manager.service.format.DataObjectViewService.Viewer> viewers = views.viewers(iri);
