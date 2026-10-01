@@ -7,8 +7,20 @@ import info.oais.archive.manager.rdf.RdfStore;
 import info.oais.archive.manager.security.EditAuthInterceptor;
 import info.oais.archive.manager.service.ArchiveService;
 import info.oais.archive.manager.service.EditService;
+import info.oais.archive.manager.service.format.DfdlGenerator;
+import info.oais.archive.manager.service.format.DrbGenerator;
 import info.oais.archive.manager.service.format.RepInfoGroupMigration;
 import info.oais.archive.manager.service.format.StorageFetcher;
+import info.oais.archive.manager.service.format.ViewerBundle;
+import info.oais.infomodel.structure.description.Expression;
+import info.oais.infomodel.structure.description.FieldDescription;
+import info.oais.infomodel.structure.description.FormatDescription;
+import info.oais.infomodel.structure.description.Occurrence;
+import info.oais.infomodel.structure.description.PrimitiveType;
+import info.oais.infomodel.structure.description.RecordDescription;
+import info.oais.infomodel.structure.description.Semantics;
+import info.oais.infomodel.structure.image.DecodedImage;
+import info.oais.infomodel.structure.image.OaisStructureImage;
 import info.oais.infomodel.structure.manifest.DescribedData;
 import info.oais.infomodel.structure.manifest.RepInfoManifest;
 import info.oais.infomodel.structure.manifest.StructureDescription;
@@ -36,6 +48,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -61,8 +75,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Viewing data with TOPCAT and SPLAT: RepInfo Tools' bundle (a manifest, the
  * DFDL and DRB SDF descriptions and a table view) opened by the real TOPCAT
  * reader; and a Data Object saved to the archive, with its bits at a storage
- * location, served as a manifest and as VOTable. Private addresses are
- * allowed for fetching here, since the "storage" is a server on this machine.
+ * location, served as a manifest and as VOTable. Images likewise, with an
+ * image view, opened by oais-structure-image and served as FITS for DS9,
+ * Aladin and Fiji. Private addresses are allowed for fetching here, since the
+ * "storage" is a server on this machine.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -70,6 +86,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ViewersTest {
 
     private static final String CSV = "AB12,32,-45\nXY9,33,215\n";
+
+    /** A 4 x 3 image of unsigned 16-bit counts: width, height, then the rows. */
+    private static final int[][] PIXELS = {{0, 1, 2, 3}, {100, 200, 300, 400}, {65535, 40000, 7, 8}};
 
     @Autowired
     private MockMvc mockMvc;
@@ -93,7 +112,7 @@ class ViewersTest {
         session.setAttribute(EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
         mockMvc.perform(post("/repinfo-tools/start").param("template", "csv").session(session));
         mockMvc.perform(get("/repinfo-tools/preview").session(session))
-                .andExpect(content().string(containsString("Open in TOPCAT or SPLAT")));
+                .andExpect(content().string(containsString("Open in TOPCAT, SPLAT or an image viewer")));
 
         byte[] zip = mockMvc.perform(get("/repinfo-tools/download/viewers").param("dataFile", "my readings.csv")
                 .session(session)).andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
@@ -158,7 +177,7 @@ class ViewersTest {
             mockMvc.perform(get("/api/graph/{id}", id)).andExpect(status().isOk())
                     .andExpect(jsonPath("$.nodes[?(@.id == '" + dataObject + "')].viewers[*].id").value(
                             org.hamcrest.Matchers.contains("topcat")))
-                    .andExpect(jsonPath("$.nodes[?(@.id == '" + dataObject + "')].viewers[0].votableUrl").value(
+                    .andExpect(jsonPath("$.nodes[?(@.id == '" + dataObject + "')].viewers[0].dataUrl").value(
                             org.hamcrest.Matchers.contains("/api/data-objects/" + id + "/votable")));
             mockMvc.perform(get("/graph/{id}", id))
                     .andExpect(content().string(containsString("/js/samp-send.js")))
@@ -207,6 +226,136 @@ class ViewersTest {
             removeReachable(objects[0]);
             removeReachable(objects[1]);
         }
+    }
+
+    @Test
+    void opensAnImageFromRepInfoToolsDescriptionsWithEitherEngine() throws Exception {
+        FormatDescription format = image();
+        assertThat(ViewerBundle.tableView(format)).isNull();
+        java.util.Map<String, String> files = ViewerBundle.files(format, "tiny", "tiny.bin",
+                new DfdlGenerator().generate(format), new DrbGenerator().generateSdfSchema(format));
+        assertThat(files).containsKeys("tiny.ttl", "tiny.dfdl.xsd", "tiny.drb.xsd", "tiny-image-view.xml")
+                .doesNotContainKey("tiny-table-view.xml");
+        assertThat(files.get("tiny-image-view.xml")).contains("<rows select=\"children\" name=\"row\"/>")
+                .contains("<pixels select=\"children\" name=\"pixel\"/>").contains("unit=\"ADU\"");
+        assertThat(files.get("README.txt")).contains("ManifestToFits");
+        for (var file : files.entrySet()) {
+            Files.writeString(dir.resolve(file.getKey()), file.getValue());
+        }
+        Files.write(dir.resolve("tiny.bin"), imageBytes());
+        DescribedData described = RepInfoManifest.read(dir.resolve("tiny.ttl").toUri()).select(null);
+        assertThat(described.view(ViewDescription.IMAGE)).isPresent();
+        for (String language : List.of(StructureDescription.DFDL, StructureDescription.DRB_SDF)) {
+            DescribedData only = new DescribedData(described.iri(), described.name(), described.data(),
+                    described.structures().stream().filter(s -> s.language().equals(language)).toList(),
+                    described.views(), described.meanings());
+            DecodedImage image = OaisStructureImage.open(only);
+            assertThat(image.width()).as(language).isEqualTo(4);
+            assertThat(image.height()).as(language).isEqualTo(3);
+            for (int r = 0; r < PIXELS.length; r++) {
+                for (int c = 0; c < PIXELS[r].length; c++) {
+                    assertThat(image.pixels()[r][c].longValue()).as(language + " pixel " + r + "," + c)
+                            .isEqualTo(PIXELS[r][c]);
+                }
+            }
+            assertThat(image.unit()).isEqualTo("ADU");
+        }
+    }
+
+    @Test
+    void servesAnImageDataObjectAsFitsForImageViewers() throws Exception {
+        FormatDescription format = image();
+        String dfdl = new DfdlGenerator().generate(format);
+        String view = ViewerBundle.imageView(format);
+        HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        server.createContext("/tiny.bin", exchange -> {
+            byte[] body = imageBytes();
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        String storage = "http://127.0.0.1:" + server.getAddress().getPort() + "/tiny.bin";
+        String dataObject = write(() -> {
+            String image = edit.createEntity(Ns.IM + "DigitalObject");
+            edit.addLiteral(image, Ns.RDFS + "label", "Tiny image");
+            edit.addRelationship(image, Ns.BRIDGE + "hasStorageLocation", storage);
+            String top = edit.createEntity(Ns.IM + "RepInfoAndGroup");
+            edit.addRelationship(image, Ns.IM + "interpretedUsing", top);
+            String structure = edit.createEntity(Ns.IM + "StructureRepresentationInformation");
+            edit.addLiteral(structure, Ns.IM + "specificationLanguage", "DFDL");
+            edit.addLiteral(structure, Ns.IM + "specificationText", dfdl);
+            String semantics = edit.createEntity(Ns.IM + "SemanticRepresentationInformation");
+            String imageView = edit.createEntity(Ns.IM + "ViewSpecification");
+            edit.addLiteral(imageView, Ns.IM + "viewKind", "image");
+            edit.addLiteral(imageView, Ns.IM + "specificationText", view);
+            edit.addRelationship(top, Ns.IM + "hasGroupMember", structure);
+            edit.addRelationship(top, Ns.IM + "hasGroupMember", semantics);
+            edit.addRelationship(semantics, Ns.IM + "interpretedUsingRecurse", imageView);
+            return image;
+        });
+        try {
+            String id = archive.encodeId(dataObject);
+            mockMvc.perform(get("/api/graph/{id}", id))
+                    .andExpect(jsonPath("$.nodes[?(@.id == '" + dataObject + "')].viewers[*].id").value(
+                            org.hamcrest.Matchers.contains("ds9", "aladin")))
+                    .andExpect(jsonPath("$.nodes[?(@.id == '" + dataObject + "')].viewers[0].dataUrl").value(
+                            org.hamcrest.Matchers.contains("/api/data-objects/" + id + "/fits")))
+                    .andExpect(jsonPath("$.nodes[?(@.id == '" + dataObject + "')].viewers[0].mtype").value(
+                            org.hamcrest.Matchers.contains("image.load.fits")));
+            mockMvc.perform(get("/resource/{id}", id))
+                    .andExpect(content().string(containsString("View with DS9")))
+                    .andExpect(content().string(containsString("data-samp-client=\"aladin\"")))
+                    .andExpect(content().string(containsString("/api/data-objects/" + id + "/fits")))
+                    .andExpect(content().string(containsString("Fiji/ImageJ")))
+                    .andExpect(content().string(org.hamcrest.Matchers.not(containsString("View with TOPCAT"))));
+
+            byte[] fits = mockMvc.perform(get("/api/data-objects/{id}/fits", id)).andExpect(status().isOk())
+                    .andExpect(content().contentTypeCompatibleWith("application/fits"))
+                    .andReturn().getResponse().getContentAsByteArray();
+            assertThat(fits.length % 2880).isZero();
+            String header = new String(fits, 0, 2880, StandardCharsets.US_ASCII);
+            assertThat(header).startsWith("SIMPLE  =                    T")
+                    .contains("NAXIS1  =                    4").contains("NAXIS2  =                    3")
+                    .contains("BZERO   =                32768").contains("BUNIT   = 'ADU     '")
+                    .contains("OBJECT  = 'Tiny image'").contains("HISTORY Decoded from");
+            ByteBuffer data = ByteBuffer.wrap(fits, 2880, 4 * 3 * 2);
+            for (int[] row : PIXELS) {
+                for (int expected : row) {
+                    assertThat(data.getShort() + 32768).isEqualTo(expected);
+                }
+            }
+        } finally {
+            server.stop(0);
+            removeReachable(dataObject);
+        }
+    }
+
+    /** An image as RepInfo Tools describes one: its size, then rows, each a repeated pixel field. */
+    private static FormatDescription image() {
+        FieldDescription pixel = new FieldDescription("pixel", "pixel", PrimitiveType.UINT16, null, null,
+                new Occurrence.Repeated(Expression.parse("width")),
+                Semantics.of("Counts", "Detector counts in one pixel", "ADU"));
+        RecordDescription row = RecordDescription.of("row", List.of(pixel))
+                .withOccurrence(new Occurrence.Repeated(Expression.parse("height")));
+        return new FormatDescription("Tiny image", "", info.oais.infomodel.structure.description.ByteOrder.LITTLE_ENDIAN,
+                List.of("bin"), RecordDescription.of("tiny_image", List.of(
+                        new FieldDescription("width", "width", PrimitiveType.UINT32, null, null, Occurrence.ONCE,
+                                Semantics.NONE),
+                        new FieldDescription("height", "height", PrimitiveType.UINT32, null, null, Occurrence.ONCE,
+                                Semantics.NONE),
+                        row)));
+    }
+
+    private static byte[] imageBytes() {
+        ByteBuffer b = ByteBuffer.allocate(8 + 4 * 3 * 2).order(ByteOrder.LITTLE_ENDIAN);
+        b.putInt(4).putInt(3);
+        for (int[] row : PIXELS) {
+            for (int p : row) {
+                b.putShort((short) p);
+            }
+        }
+        return b.array();
     }
 
     @Test

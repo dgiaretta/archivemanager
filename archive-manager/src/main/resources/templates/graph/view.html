@@ -230,8 +230,8 @@
                     });
                 }
                 // A Data Object whose Representation Information network leads to what an
-                // application needs to show it: send its data (as VOTable) to that
-                // application on this computer, over SAMP.
+                // application needs to show it: send its data (as VOTable, or an image
+                // as FITS) to that application on this computer, over SAMP.
                 const viewers = n.viewers || [];
                 if (viewers.length > 0) {
                     if (n.detailUrl) {
@@ -247,12 +247,19 @@
                     viewers.forEach(function (v) {
                         addMenuItem(v.label, 'sent over SAMP', function () {
                             window.OaisSamp.send({
-                                url: v.votableUrl, name: n.label, mtype: v.mtype, client: v.clientName,
+                                url: v.dataUrl, name: n.label, mtype: v.mtype, client: v.clientName,
                                 label: v.label.replace(/^View with /, ''),
                                 say: function (text) { status.textContent = n.label + ': ' + text; }
                             });
                         });
                     });
+                    // Fiji/ImageJ doesn't use SAMP: it opens the FITS file itself.
+                    const image = viewers.filter(function (v) { return v.format === 'fits'; })[0];
+                    if (image) {
+                        addMenuItem('Download as FITS', 'for Fiji/ImageJ or any image viewer', function () {
+                            window.open(image.dataUrl, '_blank', 'noopener,noreferrer');
+                        });
+                    }
                     addMenuItem('Representation Information manifest', 'for TOPCAT and SPLAT by URL', function () {
                         window.open(viewers[0].manifestUrl, '_blank', 'noopener,noreferrer');
                     });

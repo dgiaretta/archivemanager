@@ -97,6 +97,13 @@
       <artifactId>oais-structure-topcat</artifactId>
       <version>${oais.structure.version}</version>
     </dependency>
+    <!-- Images: decoded through their Representation Information and served as FITS, for
+         SAOImage DS9 and Aladin (over SAMP) and Fiji/ImageJ. -->
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-image</artifactId>
+      <version>${oais.structure.version}</version>
+    </dependency>
     <dependency>
       <groupId>org.eclipse.jdt</groupId>
       <artifactId>ecj</artifactId>

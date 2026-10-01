@@ -41,12 +41,16 @@ public class ResourceController {
         model.addAttribute("outgoing", archive.outgoingLinks(iri));
         model.addAttribute("incoming", archive.incomingLinks(iri));
         // A Data Object whose bits have a storage location and that has Representation Information:
-        // offer it to viewers (its manifest for TOPCAT/SPLAT, and VOTable when it has a table view).
+        // offer it to viewers (its manifest for TOPCAT/SPLAT, VOTable when it has a table view, FITS when
+        // it has an image view).
         views.describe(iri, java.net.URI::create).ifPresent(d -> {
             model.addAttribute("describedData", d);
             List<info.oais.archive.manager.service.format.DataObjectViewService.Viewer> viewers = views.viewers(iri);
             model.addAttribute("viewers", viewers);
-            model.addAttribute("tableViewable", !viewers.isEmpty());
+            model.addAttribute("tableViewable", viewers.stream().anyMatch(v ->
+                    v.format().equals(info.oais.archive.manager.service.format.DataObjectViewService.VOTABLE)));
+            model.addAttribute("imageViewable", viewers.stream().anyMatch(v ->
+                    v.format().equals(info.oais.archive.manager.service.format.DataObjectViewService.FITS)));
         });
         return "resource/view";
     }

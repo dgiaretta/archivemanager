@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+           xmlns:fn="http://www.w3.org/2005/xpath-functions"
+           targetNamespace="urn:archive-manager:format:galaxy_field"
+           xmlns:tns="urn:archive-manager:format:galaxy_field"
+           elementFormDefault="qualified">
+
+  <xs:include schemaLocation="/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd"/>
+
+  <xs:annotation>
+    <xs:appinfo source="http://www.ogf.org/dfdl/">
+      <dfdl:defineFormat name="binaryDefaults">
+        <dfdl:format ref="tns:GeneralFormat" representation="binary" byteOrder="littleEndian"
+                     binaryNumberRep="binary" lengthUnits="bytes" lengthKind="explicit"
+                     encoding="US-ASCII" occursCountKind="implicit"
+                     documentFinalTerminatorCanBeMissing="yes"/>
+      </dfdl:defineFormat>
+      <dfdl:format ref="tns:binaryDefaults"/>
+    </xs:appinfo>
+  </xs:annotation>
+
+  <xs:annotation>
+    <xs:documentation>An image in binary: the field's name, the width and height in pixels, then the rows in order, each its pixels' little-endian counts.</xs:documentation>
+  </xs:annotation>
+
+  <xs:element name="galaxy_field" dfdl:lengthKind="implicit">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="object" type="xs:string" dfdl:representation="text" dfdl:length="16">
+          <xs:annotation>
+            <xs:documentation>Object: Name of the field observed, padded with spaces.</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="width" type="xs:unsignedInt" dfdl:length="4">
+          <xs:annotation>
+            <xs:documentation>Width: Number of pixels in each row.</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="height" type="xs:unsignedInt" dfdl:length="4">
+          <xs:annotation>
+            <xs:documentation>Height: Number of rows.</xs:documentation>
+          </xs:annotation>
+        </xs:element>
+        <xs:element name="row" dfdl:lengthKind="implicit" minOccurs="0" maxOccurs="unbounded" dfdl:occursCountKind="expression" dfdl:occursCount="{ xs:unsignedLong(xs:integer(../tns:height)) }">
+          <xs:annotation>
+            <xs:documentation>Row: One row of the image, from the bottom of the field upwards.</xs:documentation>
+          </xs:annotation>
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="pixel" type="xs:unsignedShort" dfdl:length="2" minOccurs="0" maxOccurs="unbounded" dfdl:occursCountKind="expression" dfdl:occursCount="{ xs:unsignedLong(xs:integer(../../tns:width)) }">
+                <xs:annotation>
+                  <xs:documentation>Counts (ADU): Detector counts in one pixel, sky background included.</xs:documentation>
+                </xs:annotation>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

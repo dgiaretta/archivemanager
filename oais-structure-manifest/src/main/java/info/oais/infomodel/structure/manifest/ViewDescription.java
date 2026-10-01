@@ -8,12 +8,13 @@ import java.net.URI;
  * and its siblings for the file formats).
  *
  * @param iri      its IRI in the manifest
- * @param kind     {@link #TABLE}, {@link #TIME_SERIES} or {@link #VECTOR}
+ * @param kind     {@link #TABLE}, {@link #IMAGE}, {@link #TIME_SERIES} or {@link #VECTOR}
  * @param location the view specification file
  */
 public record ViewDescription(String iri, String kind, URI location) {
 
 	public static final String TABLE = "table";
+	public static final String IMAGE = "image";
 	public static final String TIME_SERIES = "timeSeries";
 	public static final String VECTOR = "vector";
 }

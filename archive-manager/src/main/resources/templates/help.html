@@ -87,16 +87,22 @@
                 <code>bridge:hasStorageLocation</code> link to where the file itself lives (e.g. a
                 Dropbox or cloud storage URL); right-click that node and choose it to download or
                 open the file directly. A Data Object whose Representation Information says how to
-                read and view its data also gets "View the data": "View with TOPCAT", and "View with
-                SPLAT" when its table is all numbers (a spectrum), each sending the data to that
-                application running on your computer (over SAMP; it asks you to allow the page), plus
-                its Representation Information manifest. If you don't have them, download
+                read and view its data also gets "View the data": "View with TOPCAT" for a table, and
+                "View with SPLAT" when its table is all numbers (a spectrum); "View with DS9" and "View
+                with Aladin" for an image, plus "Download as FITS" for Fiji/ImageJ, which doesn't use
+                SAMP. Each "View with" sends the data to that application running on your computer
+                (over SAMP; it asks you to allow the page). The menu also has its Representation
+                Information manifest. <a href="#viewers">How the data's kind is decided</a> is below.
+                If you don't have them, download
                 <a href="https://www.star.bris.ac.uk/~mbt/topcat/" target="_blank" rel="noopener">TOPCAT</a>
                 (<code>topcat-full.jar</code>) or
                 <a href="https://github.com/mmpcn/splat-build/releases" target="_blank" rel="noopener">SPLAT-VO</a>
                 (<code>splat-vo-&lt;version&gt;.jar</code>; see
                 <a href="https://www.g-vo.org/pmwiki/About/SPLAT" target="_blank" rel="noopener">About SPLAT</a>),
-                and run either with <code>java -jar</code>. Right-clicking empty background leaves the browser's
+                and run either with <code>java -jar</code>; for images,
+                <a href="https://ds9.si.edu/" target="_blank" rel="noopener">SAOImage DS9</a>,
+                <a href="https://aladin.cds.unistra.fr/AladinDesktop/" target="_blank" rel="noopener">Aladin Desktop</a>
+                or <a href="https://fiji.sc/" target="_blank" rel="noopener">Fiji</a>. Right-clicking empty background leaves the browser's
                 normal menu alone. The menu closes on Escape, on a click elsewhere, or as soon as
                 you drag or zoom.</li>
             <li><strong>Highlighting</strong> &mdash; the checkboxes above the graph, grouped
@@ -203,14 +209,59 @@
                 that reads it (e.g. Excel or any application that reads OOXML spreadsheets, any one
                 of which will do), or with Representation Information already in the archive.
                 To look at the data in
-                <a href="https://www.star.bris.ac.uk/~mbt/topcat/" target="_blank" rel="noopener">TOPCAT</a> or
-                <a href="https://github.com/mmpcn/splat-build/releases" target="_blank" rel="noopener">SPLAT</a>,
-                download a bundle from the preview page: a
+                <a href="https://www.star.bris.ac.uk/~mbt/topcat/" target="_blank" rel="noopener">TOPCAT</a>,
+                <a href="https://github.com/mmpcn/splat-build/releases" target="_blank" rel="noopener">SPLAT</a>
+                or an image viewer, download a bundle from the preview page: a
                 Representation Information manifest naming your data file and each description
-                explicitly, with a generated table view. A Data Object in the archive whose bits have a
-                storage location can be opened straight from its page: its manifest by URL, its data
-                as a VOTable, or sent to TOPCAT on your computer with "View in TOPCAT".</li>
+                explicitly, with a generated table view and, for an image, an image view (see
+                <a href="#viewers">below</a> for when each is made). A Data Object in the archive whose
+                bits have a storage location can be opened straight from its page: its manifest by URL,
+                its data as a VOTable or, for an image, as FITS, or sent to TOPCAT, SPLAT, DS9 or
+                Aladin on your computer with "View with &hellip;".</li>
         </ul>
+    </section>
+
+    <section class="editor-section" id="viewers">
+        <h2>Table, spectrum or image: which viewers are offered</h2>
+        <p>
+            RepInfo Tools doesn't ask what kind of data you have: it works it out from the shape of
+            the byte layout you describe, and saves the answer as <em>view specifications</em>
+            (<code>im:ViewSpecification</code>, with <code>im:viewKind</code> <code>"table"</code> or
+            <code>"image"</code>) in the data's Semantic Representation Information. The archive then
+            reads those back to decide what to offer.
+        </p>
+        <ul>
+            <li><strong>Table</strong> &mdash; the rows are the <em>first</em> record directly in the
+                root that repeats (a stated number of times or to the end of the file), e.g. one
+                <code>reading</code> or <code>star</code> per row; with no such record, the whole file
+                is one row. The columns are that record's fields that occur once and hold a number or
+                text (raw bytes and repeated fields are left out), each with its units and meaning.
+                If there are no such fields, no table view is made. A table is offered to
+                <strong>TOPCAT</strong>, and served as VOTable.</li>
+            <li><strong>Spectrum</strong> &mdash; not a separate view: a table is treated as a
+                spectrum when its table view has at least two columns and every column is a number
+                (e.g. wavelength, flux, error). It's then offered to <strong>SPLAT</strong> as well as
+                TOPCAT. One text column (a station name, say) means TOPCAT only.</li>
+            <li><strong>Image</strong> &mdash; a record directly in the root that repeats (a row)
+                and holds exactly one repeated field of numbers (its pixels, in order), e.g. a
+                <code>row</code> repeated <code>height</code> times, each holding a
+                <code>pixel</code> repeated <code>width</code> times. Any other fields in the row
+                record are ignored for the image. The pixel field's units and meaning become the
+                image's. An image is offered to <strong>DS9</strong> and <strong>Aladin</strong>, and
+                served as FITS (also for Fiji/ImageJ), with the units in <code>BUNIT</code> and the
+                meaning and origin in the header's comments. Rows are kept in the order the data
+                holds them: the first row is FITS row 1, which these viewers show at the bottom.</li>
+        </ul>
+        <p>
+            One description can be both: when the image's row record is the first repeated record
+            and has fields of its own besides its pixels, it gets a table view of those fields and an
+            image view of the pixels. And
+            every viewer needs a DFDL or DRB SDF description, which the server decodes the data with,
+            and a storage location for the Data Object's bits. Since the views are ordinary view
+            specifications, a manifest or Representation Information written by hand can give its
+            own, of either kind, instead. Decoding builds every pixel as an element, so very large
+            images are slow: a 128 &times; 128 image takes a few seconds.
+        </p>
     </section>
 
     <section class="editor-section" id="data-descriptions">

@@ -1,12 +1,12 @@
 /*
- * Sends data to TOPCAT, SPLAT or another SAMP application running on the
- * viewer's own computer, through the SAMP Web Profile: XML-RPC to the SAMP
- * hub at http://localhost:21012/, which asks the viewer to allow this page
- * first. The data is sent by URL (a VOTable the archive serves), so the
- * application fetches it itself, and to the named application only, since
- * several may accept the same kind of message.
+ * Sends data to TOPCAT, SPLAT, DS9, Aladin or another SAMP application running
+ * on the viewer's own computer, through the SAMP Web Profile: XML-RPC to the
+ * SAMP hub at http://localhost:21012/, which asks the viewer to allow this
+ * page first. The data is sent by URL (a VOTable or FITS image the archive
+ * serves), so the application fetches it itself, and to the named application
+ * only, since several may accept the same kind of message.
  *
- * Buttons: <button data-samp-votable="/api/data-objects/ID/votable" data-samp-name="Readings"
+ * Buttons: <button data-samp-url="/api/data-objects/ID/votable" data-samp-name="Readings"
  *                  data-samp-mtype="table.load.votable" data-samp-client="topcat">
  *          with an element [data-samp-status] beside it for messages.
  * Script:  OaisSamp.send({url, name, mtype, client, say: function (message) {...}})
@@ -70,11 +70,14 @@
             });
     }
 
-    /** The message for mtype: a VOTable by URL, as a table or as a spectrum. */
+    /** The message for mtype: a VOTable by URL, as a table or as a spectrum, or a FITS image by URL. */
     function message(mtype, url, name) {
         var params = {"url": url, "name": name};
         if (mtype === "spectrum.load.ssa-generic") {
             params.meta = {"Access.Format": "application/x-votable+xml", "Target.Name": name};
+        }
+        if (mtype === "image.load.fits") {
+            params["image-id"] = url;
         }
         return {"samp.mtype": mtype, "samp.params": params};
     }
@@ -106,7 +109,7 @@
             .then(function (reg) {
                 key = reg["samp.private-key"];
                 return call("samp.webhub.declareMetadata", [key, {"samp.name": "OAIS archive",
-                    "samp.description.text": "Sends Data Objects from the archive as VOTable"}]);
+                    "samp.description.text": "Sends Data Objects from the archive as VOTable or FITS"}]);
             })
             .then(function () {
                 return options.client ? findClient(key, options.mtype, options.client) : null;
@@ -128,12 +131,12 @@
             .catch(function (e) {
                 if (!key && e instanceof TypeError) {
                     // fetch itself failed: nothing is listening at the hub's address.
-                    say("Couldn't send it: no SAMP hub is running on this computer. Start one -- TOPCAT starts "
-                        + "its own; in SPLAT, start its internal hub from the Interop menu -- and try again. "
-                        + "You can also open the VOTable link in " + app + " yourself.");
+                    say("Couldn't send it: no SAMP hub is running on this computer. Start one -- TOPCAT and "
+                        + "Aladin start their own; in SPLAT, start its internal hub from the Interop menu -- and "
+                        + "try again. You can also open the data link in " + app + " yourself.");
                 } else {
                     say("Couldn't send it: " + e.message + ". Is " + app + " running on this computer? You can "
-                        + "also open the VOTable link in it yourself.");
+                        + "also open the data link in it yourself.");
                 }
                 if (key) {
                     call("samp.webhub.unregister", [key]).catch(function () {});
@@ -144,14 +147,14 @@
     window.OaisSamp = {send: send};
 
     document.addEventListener("click", function (event) {
-        var button = event.target.closest("[data-samp-votable]");
+        var button = event.target.closest("[data-samp-url], [data-samp-votable]");
         if (!button) {
             return;
         }
         event.preventDefault();
         var status = button.parentNode.querySelector("[data-samp-status]");
         send({
-            url: button.getAttribute("data-samp-votable"),
+            url: button.getAttribute("data-samp-url") || button.getAttribute("data-samp-votable"),
             name: button.getAttribute("data-samp-name"),
             mtype: button.getAttribute("data-samp-mtype") || "table.load.votable",
             client: button.getAttribute("data-samp-client"),

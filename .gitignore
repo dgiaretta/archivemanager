@@ -37,3 +37,6 @@ Thumbs.db
 # not this project's own build output, too large to commit, and not
 # something every checkout needs.
 /topcat-full.jar
+
+# The image example's FITS file, written by examples/image/open-as-fits.*
+/examples/image/galaxy-field.fits

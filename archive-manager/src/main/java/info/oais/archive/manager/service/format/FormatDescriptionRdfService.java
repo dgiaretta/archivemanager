@@ -110,6 +110,7 @@ public class FormatDescriptionRdfService {
         }
         if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
             addTableView(def.toFormatDescription(), semanticRi);
+            addImageView(def.toFormatDescription(), semanticRi);
         }
         linkAsGroups(dataObject, def.getName(), semanticRi, structures, def.getKind() == FormatDefinitionKind.BYTE_LAYOUT);
         return dataObject;
@@ -150,6 +151,27 @@ public class FormatDescriptionRdfService {
         edit.addLiteral(viewRi, Ns.RDFS + "comment", "How to view \"" + format.name() + "\" as a table of rows and "
                 + "columns, for the tree its DFDL and DRB descriptions decode it into.");
         edit.addLiteral(viewRi, Ns.IM + "viewKind", info.oais.infomodel.structure.manifest.ViewDescription.TABLE);
+        edit.addLiteral(viewRi, Ns.IM + "specificationText", view);
+        edit.addRelationship(semanticRi, Ns.IM + "interpretedUsingRecurse", viewRi);
+    }
+
+    /**
+     * The format's image view, if it describes an image (see
+     * {@link ViewerBundle#imageView}), as a view specification under its
+     * Semantic Representation Information: how the archive's FITS -- for DS9,
+     * Aladin and Fiji/ImageJ -- shows the data as rows of pixels.
+     */
+    private void addImageView(FormatDescription format, String semanticRi) {
+        String view = ViewerBundle.imageView(format);
+        if (view == null) {
+            return;
+        }
+        String viewRi = edit.createEntity(Ns.IM + "ViewSpecification");
+        edit.addType(viewRi, Ns.IM + "SemanticRepresentationInformation");
+        edit.addLiteral(viewRi, Ns.RDFS + "label", "Image view of " + format.name());
+        edit.addLiteral(viewRi, Ns.RDFS + "comment", "How to view \"" + format.name() + "\" as an image, rows of "
+                + "pixels, for the tree its DFDL and DRB descriptions decode it into.");
+        edit.addLiteral(viewRi, Ns.IM + "viewKind", info.oais.infomodel.structure.manifest.ViewDescription.IMAGE);
         edit.addLiteral(viewRi, Ns.IM + "specificationText", view);
         edit.addRelationship(semanticRi, Ns.IM + "interpretedUsingRecurse", viewRi);
     }

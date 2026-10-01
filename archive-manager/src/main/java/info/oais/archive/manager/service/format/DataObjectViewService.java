@@ -7,6 +7,9 @@ import info.oais.infomodel.structure.manifest.ElementMeaning;
 import info.oais.infomodel.structure.manifest.ManifestWriter;
 import info.oais.infomodel.structure.manifest.StructureDescription;
 import info.oais.infomodel.structure.manifest.ViewDescription;
+import info.oais.infomodel.structure.image.DecodedImage;
+import info.oais.infomodel.structure.image.FitsImageWriter;
+import info.oais.infomodel.structure.image.OaisStructureImage;
 import info.oais.infomodel.structure.topcat.OaisStructureTableBuilder;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Property;
@@ -39,7 +42,9 @@ import java.util.stream.Stream;
  * A Data Object in the archive as viewers see it: its Representation
  * Information as a manifest (see oais-structure-manifest) for TOPCAT and
  * SPLAT to open by URL, and its data decoded on the server and served as
- * VOTable, which TOPCAT opens with no plugin. Both follow the Data Object's
+ * VOTable, which TOPCAT opens with no plugin, or -- when its Representation
+ * Information gives an image view -- as FITS, which SAOImage DS9, Aladin and
+ * Fiji/ImageJ open (see oais-structure-image). All follow the Data Object's
  * {@code im:interpretedUsing} through its AND/OR groups to the structure
  * descriptions ({@code im:specificationLanguage}, {@code im:specificationText}),
  * view specifications ({@code im:ViewSpecification}) and element semantics
@@ -63,14 +68,25 @@ public class DataObjectViewService {
      *
      * @param mtype      the SAMP message type it's sent with
      * @param clientName its SAMP name, to send the data to it alone
+     * @param format     what the data is sent as: {@link #VOTABLE} or {@link #FITS}
      */
-    public record Viewer(String id, String label, String mtype, String clientName) {
+    public record Viewer(String id, String label, String mtype, String clientName, String format) {
     }
 
+    /** The data as VOTable: {@code /api/data-objects/{id}/votable}. */
+    public static final String VOTABLE = "votable";
+    /** The data as a FITS image: {@code /api/data-objects/{id}/fits}. */
+    public static final String FITS = "fits";
+
     /** TOPCAT: any table. */
-    public static final Viewer TOPCAT = new Viewer("topcat", "View with TOPCAT", "table.load.votable", "topcat");
+    public static final Viewer TOPCAT = new Viewer("topcat", "View with TOPCAT", "table.load.votable", "topcat", VOTABLE);
     /** SPLAT: a spectrum -- a table whose columns are all numeric (wavelength, flux, ...). */
-    public static final Viewer SPLAT = new Viewer("splat", "View with SPLAT", "spectrum.load.ssa-generic", "splat");
+    public static final Viewer SPLAT = new Viewer("splat", "View with SPLAT", "spectrum.load.ssa-generic", "splat",
+            VOTABLE);
+    /** SAOImage DS9: an image. */
+    public static final Viewer DS9 = new Viewer("ds9", "View with DS9", "image.load.fits", "ds9", FITS);
+    /** Aladin Desktop: an image. */
+    public static final Viewer ALADIN = new Viewer("aladin", "View with Aladin", "image.load.fits", "aladin", FITS);
 
     private static final java.util.regex.Pattern COLUMN_TYPE =
             java.util.regex.Pattern.compile("<column\\b[^>]*\\btype=\"([^\"]+)\"");
@@ -81,33 +97,43 @@ public class DataObjectViewService {
      * The applications {@code dataObject}'s data can be viewed with: those
      * whose needs its Representation Information network -- followed from
      * {@code im:interpretedUsing} through its groups -- meets. Its bits need a
-     * storage location, a structure description the server can apply (DFDL or
-     * DRB SDF) and a table view; that's enough for TOPCAT, and SPLAT also needs
-     * the table view's columns all to be numeric, as a spectrum's are.
+     * storage location and a structure description the server can apply (DFDL
+     * or DRB SDF). Then a table view is enough for TOPCAT, and SPLAT also needs
+     * the table view's columns all to be numeric, as a spectrum's are; an image
+     * view is enough for DS9 and Aladin.
      */
     public List<Viewer> viewers(String dataObject) {
-        Optional<DescribedData> described = describe(dataObject, URI::create);
-        if (described.isEmpty() || described.get().structures().stream().noneMatch(s ->
-                s.language().equals(StructureDescription.DFDL) || s.language().equals(StructureDescription.DRB_SDF))) {
+        Optional<DescribedData> described = decodable(dataObject);
+        if (described.isEmpty()) {
             return List.of();
         }
+        List<Viewer> viewers = new ArrayList<>();
         Optional<ViewDescription> table = described.get().view(ViewDescription.TABLE);
-        if (table.isEmpty()) {
-            return List.of();
+        if (table.isPresent()) {
+            viewers.add(TOPCAT);
+            String view = specification(table.get().iri()).map(Specification::text).orElse("");
+            java.util.regex.Matcher m = COLUMN_TYPE.matcher(view);
+            int columns = 0;
+            boolean allNumeric = true;
+            while (m.find()) {
+                columns++;
+                allNumeric &= NUMERIC.contains(m.group(1).toLowerCase());
+            }
+            if (columns >= 2 && allNumeric) {
+                viewers.add(SPLAT);
+            }
         }
-        List<Viewer> viewers = new ArrayList<>(List.of(TOPCAT));
-        String view = specification(table.get().iri()).map(Specification::text).orElse("");
-        java.util.regex.Matcher m = COLUMN_TYPE.matcher(view);
-        int columns = 0;
-        boolean allNumeric = true;
-        while (m.find()) {
-            columns++;
-            allNumeric &= NUMERIC.contains(m.group(1).toLowerCase());
-        }
-        if (columns >= 2 && allNumeric) {
-            viewers.add(SPLAT);
+        if (described.get().view(ViewDescription.IMAGE).isPresent()) {
+            viewers.add(DS9);
+            viewers.add(ALADIN);
         }
         return viewers;
+    }
+
+    /** {@code dataObject} as a manifest describes it, if the server can decode it (with DFDL or DRB SDF). */
+    private Optional<DescribedData> decodable(String dataObject) {
+        return describe(dataObject, URI::create).filter(d -> d.structures().stream().anyMatch(s ->
+                s.language().equals(StructureDescription.DFDL) || s.language().equals(StructureDescription.DRB_SDF)));
     }
 
     /** A structure description's or view specification's text, and what kind of file it is. */
@@ -121,7 +147,7 @@ public class DataObjectViewService {
 
         public String extension() {
             if (view) {
-                return "-table-view.xml";
+                return "-view.xml";
             }
             if (StructureDescription.DFDL.equals(language)) {
                 return ".dfdl.xsd";
@@ -148,11 +174,11 @@ public class DataObjectViewService {
     /**
      * Whether {@code dataObject} can be viewed: its bits have a storage
      * location, and its Representation Information gives a structure
-     * description and a table view.
+     * description and a table or image view.
      */
     public boolean viewable(String dataObject) {
         return describe(dataObject, iri -> URI.create(iri)).filter(d -> !d.structures().isEmpty()
-                && d.view(ViewDescription.TABLE).isPresent()).isPresent();
+                && (d.view(ViewDescription.TABLE).isPresent() || d.view(ViewDescription.IMAGE).isPresent())).isPresent();
     }
 
     /**
@@ -243,21 +269,52 @@ public class DataObjectViewService {
      * @throws IOException if it can't be viewed, or fetching or decoding fails
      */
     public void writeVotable(String dataObject, OutputStream out) throws IOException {
-        Path work = Files.createTempDirectory("archive-votable-");
-        try {
-            DescribedData remote = describe(dataObject, iri -> URI.create(iri)).orElseThrow(() -> new IOException(
-                    "This Data Object has no storage location for its bits, or no Representation Information"));
-            DescribedData local = new DescribedData(remote.iri(), remote.name(), fetcher.fetch(remote.data(), work).toUri(),
-                    remote.structures().stream().map(s -> new StructureDescription(s.iri(), s.language(),
-                            localCopy(s.iri(), work), s.generatedClassName())).toList(),
-                    remote.views().stream().map(v -> new ViewDescription(v.iri(), v.kind(), localCopy(v.iri(), work)))
-                            .toList(),
-                    remote.meanings());
+        withLocalCopy(dataObject, (remote, local) -> {
             StarTable table = OaisStructureTableBuilder.open(local);
             table.setName(remote.name());
             new VOTableWriter().writeStarTable(table, out);
+        });
+    }
+
+    /**
+     * Decodes {@code dataObject}'s bits as {@link #writeVotable} does, views
+     * them with its image view, and writes them to {@code out} as FITS, with
+     * the pixels' units and meaning, and where they came from, in its header.
+     *
+     * @throws IOException if it can't be viewed as an image, or fetching or decoding fails
+     */
+    public void writeFits(String dataObject, OutputStream out) throws IOException {
+        withLocalCopy(dataObject, (remote, local) -> {
+            DecodedImage image = OaisStructureImage.open(local);
+            FitsImageWriter.write(new DecodedImage(remote.name(), image.pixels(), image.pixelClass(), image.unit(),
+                    image.description(), List.of("Decoded from " + remote.data(),
+                            "through the OAIS Representation Information of " + remote.iri())), out);
+        });
+    }
+
+    private interface LocalWork {
+        void run(DescribedData remote, DescribedData local) throws IOException;
+    }
+
+    /**
+     * Runs {@code work} on {@code dataObject} as described in the archive and
+     * as a local copy -- its bits fetched, each description and view written
+     * to a file, for the engines, which read files -- then deletes the copy.
+     */
+    private void withLocalCopy(String dataObject, LocalWork work) throws IOException {
+        Path dir = Files.createTempDirectory("archive-view-");
+        try {
+            DescribedData remote = describe(dataObject, iri -> URI.create(iri)).orElseThrow(() -> new IOException(
+                    "This Data Object has no storage location for its bits, or no Representation Information"));
+            DescribedData local = new DescribedData(remote.iri(), remote.name(), fetcher.fetch(remote.data(), dir).toUri(),
+                    remote.structures().stream().map(s -> new StructureDescription(s.iri(), s.language(),
+                            localCopy(s.iri(), dir), s.generatedClassName())).toList(),
+                    remote.views().stream().map(v -> new ViewDescription(v.iri(), v.kind(), localCopy(v.iri(), dir)))
+                            .toList(),
+                    remote.meanings());
+            work.run(remote, local);
         } finally {
-            try (Stream<Path> files = Files.walk(work)) {
+            try (Stream<Path> files = Files.walk(dir)) {
                 files.sorted(Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
             }
         }

@@ -364,7 +364,8 @@ public class GraphService {
         }
         String id = archive.encodeId(iri);
         return found.stream().map(v -> new info.oais.archive.manager.model.GraphViewer(v.id(), v.label(), v.mtype(),
-                v.clientName(), "/api/data-objects/" + id + "/votable", "/api/data-objects/" + id + "/repinfo.ttl"))
+                v.clientName(), v.format(), "/api/data-objects/" + id + "/" + v.format(),
+                "/api/data-objects/" + id + "/repinfo.ttl"))
                 .toList();
     }
 

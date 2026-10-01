@@ -1,0 +1,76 @@
+# Galaxy field: Representation Information for viewers
+#
+# A Representation Information manifest: the Data Object(s) below, where their
+# bits are, and the OAIS Representation Information needed to interpret them --
+# structure descriptions (equivalent alternatives: any one will do), how to view
+# the data, and what its elements mean. Every file is named explicitly; relative
+# locations resolve against this file's own location.
+
+@prefix im:     <http://ontology.oais.info/im/> .
+@prefix bridge: <https://oais.info/bridge#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
+
+<#galaxy-field> a im:DigitalObject ;
+    rdfs:label "Galaxy field" ;
+    bridge:hasStorageLocation <galaxy-field.bin> ;
+    im:interpretedUsing <#galaxy-field-repinfo> .
+
+<#galaxy-field-repinfo> a im:RepInfoAndGroup , im:RepresentationInformation ;
+    rdfs:label "Representation Information for Galaxy field" ;
+    im:hasGroupMember <#galaxy-field-structure> , <#galaxy-field-semantics> ;
+    im:hasStructureRepresentationInformation <#galaxy-field-structure> ;
+    im:hasSemanticRepresentationInformation <#galaxy-field-semantics> .
+
+<#galaxy-field-structure> a im:RepInfoOrGroup , im:StructureRepresentationInformation ;
+    rdfs:label "Structure of Galaxy field: any one of these descriptions" ;
+    im:hasGroupMember <#galaxy-field-structure-1> , <#galaxy-field-structure-2> .
+
+<#galaxy-field-structure-1> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "DFDL" ;
+    bridge:hasStorageLocation <galaxy-field.dfdl.xsd> .
+
+<#galaxy-field-structure-2> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "DRB SDF" ;
+    bridge:hasStorageLocation <galaxy-field.drb.xsd> .
+
+<#galaxy-field-semantics> a im:SemanticRepresentationInformation ;
+    rdfs:label "Semantics of Galaxy field" ;
+    im:interpretedUsingRecurse <#galaxy-field-view-1> ,
+        <#galaxy-field-element-1> ,
+        <#galaxy-field-element-2> ,
+        <#galaxy-field-element-3> ,
+        <#galaxy-field-element-4> ,
+        <#galaxy-field-element-5> .
+
+<#galaxy-field-view-1> a im:ViewSpecification , im:SemanticRepresentationInformation ;
+    im:viewKind "image" ;
+    bridge:hasStorageLocation <galaxy-field-image-view.xml> .
+
+<#galaxy-field-element-1> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "object" ;
+    rdfs:label "Object" ;
+    skos:definition "Name of the field observed, padded with spaces." .
+
+<#galaxy-field-element-2> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "width" ;
+    rdfs:label "Width" ;
+    skos:definition "Number of pixels in each row." .
+
+<#galaxy-field-element-3> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "height" ;
+    rdfs:label "Height" ;
+    skos:definition "Number of rows." .
+
+<#galaxy-field-element-4> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "row" ;
+    rdfs:label "Row" ;
+    skos:definition "One row of the image, from the bottom of the field upwards." .
+
+<#galaxy-field-element-5> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "row.pixel" ;
+    rdfs:label "Counts" ;
+    skos:definition "Detector counts in one pixel, sky background included." ;
+    rico:hasUnitOfMeasurement [ rdfs:label "ADU" ] .
+

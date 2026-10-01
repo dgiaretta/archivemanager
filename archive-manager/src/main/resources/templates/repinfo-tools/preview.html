@@ -233,7 +233,7 @@
 
     <section class="editor-section" th:if="${def.kind.name() == 'BYTE_LAYOUT' and (dfdl != null or drbJava != null)}"
              id="viewers">
-        <h2>Open in TOPCAT or SPLAT</h2>
+        <h2>Open in TOPCAT, SPLAT or an image viewer</h2>
         <p class="muted">
             A zip with everything TOPCAT (with the <code>oais-structure-topcat</code> reader) or SPLAT
             (with <code>oais-structure-splat</code>) needs to open your data: a Representation
@@ -243,13 +243,19 @@
             each element means. Every file is named in the manifest, so they can be renamed or moved
             by editing it. Put your data file next to the manifest, under the name you give here.
         </p>
+        <p class="muted">
+            An image &mdash; a repeated record (a row) holding a repeated number field (its pixels)
+            &mdash; also gets an image view: <code>oais-structure-image</code> writes it as FITS for
+            Fiji/ImageJ, SAOImage DS9 or Aladin, and once it's saved to the archive with a storage
+            location, the archive serves that FITS itself.
+        </p>
         <form th:action="@{/repinfo-tools/download/viewers}" method="get" class="form form-row">
             <label>
                 Data file name
                 <input type="text" name="dataFile"
                        th:placeholder="${#strings.toLowerCase(#strings.replace(def.name, ' ', '-'))} + '.' + (${def.fileExtensions.isEmpty()} ? 'dat' : ${def.fileExtensions[0]})"/>
             </label>
-            <button type="submit">Download for TOPCAT / SPLAT (.zip)</button>
+            <button type="submit">Download for viewers (.zip)</button>
         </form>
     </section>
 

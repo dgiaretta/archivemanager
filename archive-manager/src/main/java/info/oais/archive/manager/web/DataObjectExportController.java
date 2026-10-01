@@ -26,13 +26,17 @@ import java.nio.charset.StandardCharsets;
  *   <li>{@code /api/specifications/{id}} -- the text of one structure
  *       description or view specification;</li>
  *   <li>{@code /api/data-objects/{id}/votable} -- its data, decoded on the
- *       server, as VOTable, which TOPCAT opens with no plugin at all.</li>
+ *       server, as VOTable, which TOPCAT opens with no plugin at all;</li>
+ *   <li>{@code /api/data-objects/{id}/fits} -- an image, decoded on the server
+ *       and viewed with its image view, as FITS, which SAOImage DS9, Aladin
+ *       and Fiji/ImageJ open.</li>
  * </ul>
  */
 @RestController
 public class DataObjectExportController {
 
     private static final MediaType VOTABLE = MediaType.parseMediaType("application/x-votable+xml");
+    private static final MediaType FITS = MediaType.parseMediaType("application/fits");
 
     private final ArchiveService archive;
     private final DataObjectViewService views;
@@ -75,6 +79,27 @@ public class DataObjectExportController {
         return ResponseEntity.ok().contentType(VOTABLE)
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"data.vot\"")
                 .body(out.toByteArray());
+    }
+
+    @GetMapping("/api/data-objects/{id}/fits")
+    public ResponseEntity<byte[]> fits(@PathVariable String id) {
+        String iri = archive.decodeId(id);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try {
+            views.writeFits(iri, out);
+        } catch (IOException | RuntimeException e) {
+            return ResponseEntity.unprocessableEntity().contentType(MediaType.TEXT_PLAIN)
+                    .body(("Couldn't make a FITS image of this Data Object: " + e.getMessage()).getBytes(StandardCharsets.UTF_8));
+        }
+        return ResponseEntity.ok().contentType(FITS)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + fileName(archive.label(iri)) + ".fits\"")
+                .body(out.toByteArray());
+    }
+
+    /** {@code label} as a file name: letters, digits, dots, dashes and underscores only. */
+    static String fileName(String label) {
+        String name = label == null ? "" : label.strip().replaceAll("[^A-Za-z0-9._-]+", "-").replaceAll("^[-.]+|-+$", "");
+        return name.isEmpty() ? "image" : name;
     }
 
     private URI specificationUrl(String iri) {

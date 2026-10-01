@@ -565,7 +565,7 @@ wanted.
     Object's Representation Information that names its bits and every
     description explicitly (`bridge:hasStorageLocation`, relative to the
     manifest or as URLs) -- see the root README's "TOPCAT example description".
-    - *Local files:* the preview page's "Open in TOPCAT or SPLAT" downloads a
+    - *Local files:* the preview page's "Open in TOPCAT, SPLAT or an image viewer" downloads a
       zip (`/repinfo-tools/download/viewers?dataFile=...`, `ViewerBundle`):
       the manifest, the DFDL and DRB SDF descriptions (generated or written by
       hand; equivalent alternatives), a table view generated from the element
@@ -602,6 +602,15 @@ wanted.
       the graph ("View the data", with its manifest). The data goes to the
       named application only, found through the SAMP hub, since TOPCAT also
       accepts spectra. More viewers are a `Viewer` in that service.
+    - *Images:* a byte layout with a repeated record holding a repeated
+      number field (rows of pixels) also gets an image view
+      (`ViewerBundle.imageView`, saved with `im:viewKind "image"`, and in the
+      bundle). Such a Data Object is served as FITS
+      (`/api/data-objects/{id}/fits`, `DataObjectViewService.writeFits`,
+      module `oais-structure-image`) and offered to DS9 and Aladin
+      (`image.load.fits`); Fiji/ImageJ, which has no SAMP, gets "Download as
+      FITS" on the graph menu and the FITS link on the page. Help's "Table,
+      spectrum or image" section says how each kind is recognised.
     - *Fetching:* serving VOTable makes the server fetch the bits from the
       storage location (`StorageFetcher`): http(s) only, at most
       `archive.fetch.max-bytes` within `archive.fetch.timeout-seconds`, and not
@@ -612,7 +621,9 @@ wanted.
     - `ViewersTest` downloads a bundle and opens it with the real TOPCAT
       reader, then saves the description, serves a storage location from a
       local web server, and checks the Data Object page, its manifest, a served
-      description and its VOTable.
+      description and its VOTable; and for an image, decodes RepInfo Tools'
+      generated descriptions with DFDL and with DRB, and checks the FITS the
+      archive serves and the DS9 and Aladin offers.
   - **Describing data whose format is already known** (`/repinfo-tools/known`,
     `KnownFormatController`, "Or describe data whose format is already
     known" on the start page). For a spreadsheet or delimited text -- .xlsx,

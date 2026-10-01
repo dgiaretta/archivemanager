@@ -9,9 +9,10 @@ package info.oais.archive.manager.model;
  * @param label       the menu item, e.g. "View with TOPCAT"
  * @param mtype       the SAMP message type to send, e.g. {@code table.load.votable}
  * @param clientName  the application's SAMP name (matched case-insensitively), to send it to that one only
- * @param votableUrl  the data as VOTable (relative to the site)
+ * @param format      what the data is sent as: {@code votable} or {@code fits}
+ * @param dataUrl     the data in that format (relative to the site)
  * @param manifestUrl its Representation Information manifest (relative to the site)
  */
-public record GraphViewer(String id, String label, String mtype, String clientName, String votableUrl,
+public record GraphViewer(String id, String label, String mtype, String clientName, String format, String dataUrl,
                           String manifestUrl) {
 }

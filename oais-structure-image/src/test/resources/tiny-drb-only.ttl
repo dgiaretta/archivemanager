@@ -1,0 +1,65 @@
+# A 4 x 3 test image, decoded with DFDL or DRB SDF.
+
+@prefix im:     <http://ontology.oais.info/im/> .
+@prefix bridge: <https://oais.info/bridge#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
+@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
+
+<#tiny> a im:DigitalObject ;
+    rdfs:label "Tiny image" ;
+    bridge:hasStorageLocation <tiny.bin> ;
+    im:interpretedUsing <#tiny-repinfo> .
+
+<#tiny-repinfo> a im:RepInfoAndGroup , im:RepresentationInformation ;
+    rdfs:label "Representation Information for Tiny image" ;
+    im:hasGroupMember <#tiny-structure> , <#tiny-semantics> ;
+    im:hasStructureRepresentationInformation <#tiny-structure> ;
+    im:hasSemanticRepresentationInformation <#tiny-semantics> .
+
+<#tiny-structure> a im:RepInfoOrGroup , im:StructureRepresentationInformation ;
+    rdfs:label "Structure of Tiny image: any one of these descriptions" ;
+    im:hasGroupMember <#tiny-structure-2> .
+
+<#tiny-structure-2> a im:StructureRepresentationInformation ;
+    im:specificationLanguage "DRB SDF" ;
+    bridge:hasStorageLocation <tiny.drb.xsd> .
+
+<#tiny-semantics> a im:SemanticRepresentationInformation ;
+    rdfs:label "Semantics of Tiny image" ;
+    im:interpretedUsingRecurse <#tiny-view-1> ,
+        <#tiny-element-1> ,
+        <#tiny-element-2> ,
+        <#tiny-element-3> ,
+        <#tiny-element-4> ,
+        <#tiny-element-5> .
+
+<#tiny-view-1> a im:ViewSpecification , im:SemanticRepresentationInformation ;
+    im:viewKind "image" ;
+    bridge:hasStorageLocation <tiny-image-view.xml> .
+
+<#tiny-element-1> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "object" ;
+    rdfs:label "Object" ;
+    skos:definition "Name of the field observed, padded with spaces." .
+
+<#tiny-element-2> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "width" ;
+    rdfs:label "Width" ;
+    skos:definition "Number of pixels in each row." .
+
+<#tiny-element-3> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "height" ;
+    rdfs:label "Height" ;
+    skos:definition "Number of rows." .
+
+<#tiny-element-4> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "row" ;
+    rdfs:label "Row" ;
+    skos:definition "One row of the image, from the bottom of the field upwards." .
+
+<#tiny-element-5> a im:SemanticRepresentationInformation ;
+    bridge:structuralPath "row.pixel" ;
+    rdfs:label "Counts" ;
+    skos:definition "Detector counts in one pixel, sky background included." ;
+    rico:hasUnitOfMeasurement [ rdfs:label "ADU" ] .

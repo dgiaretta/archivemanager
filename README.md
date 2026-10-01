@@ -100,9 +100,11 @@ The value of being able to look at described data with tools such as TOPCAT and 
 proportion of information, once you look past its original container format, logically boils down to
 tabular or vector (spectrum/time-series) form - which is exactly what those two viewers are built to
 show. A significant proportion of the rest is image data, which neither TOPCAT nor SPLAT is the right
-tool for; identifying existing software that can display and work with image data the same way (a
-`StructureNode` → image bridge, analogous to the table/spectrum bridges this project already has) is a
-natural next direction, not yet started.
+tool for. `oais-structure-image` is the `StructureNode` → image bridge, analogous to the
+table/spectrum bridges: it views decoded data as rows of pixels with an image view and writes FITS,
+which SAOImage DS9, Aladin and Fiji/ImageJ open -- see "Image example description" below. A Fiji
+plugin that reads Representation Information manifests itself, as TOPCAT's reader does, would be the
+next step.
 
 ## Module layout
 
@@ -119,6 +121,7 @@ root/
 ├─ oais-structure-drb/
 ├─ oais-structure-demo/
 ├─ oais-structure-topcat/
+├─ oais-structure-image/     (images: DFDL/DRB-described data as FITS)
 ├─ oais-structure-splat/     (only with -Psplat)
 ├─ archive-manager/
 └─ third-party/              (DRB 2.5.13: file-based Maven repo, sources, LGPL texts)
@@ -206,6 +209,13 @@ i.e. that the Representation Information is enough to re-create the file from it
   Starlink's spectral analysis tool, by reusing `oais-structure-topcat`'s `OaisStructureTableBuilder`
   to build a `StarTable`, then wrapping it as a `SpecData` and handing it to a live `SplatBrowser`. See
   "SPLAT example description" below.
+
+- `oais-structure-image`
+  Opens an image described the same way -- named by a Representation Information manifest with an
+  image view (`im:viewKind "image"`) -- and writes it as FITS, with its units and meaning in the
+  header, for SAOImage DS9, Aladin and Fiji/ImageJ. Decoding reuses `oais-structure-topcat`'s
+  `RepInfoDecoder`; FITS is written directly, with no further dependencies. See "Image example
+  description" below.
 
 ## Quick start
 
@@ -518,6 +528,50 @@ oais-structure-splat/src/test/resources/run-in-splat.bat
 `NullPointerException` on `plotSampSpectraToSameWindowItem` during startup when constructed with no
 SAMP communicator, as `OaisStructureSpectrumLauncher` does -- caught internally, does not stop
 startup, and is not something to fix here since it's third-party code.)
+
+## Image example description
+
+`oais-structure-image` does for images what `oais-structure-topcat` does for tables. The data is
+decoded through its Representation Information exactly as for TOPCAT (`RepInfoDecoder`: the first
+usable DFDL, DRB SDF or Kaitai Struct description), then viewed with an **image view** --
+`im:ViewSpecification` with `im:viewKind "image"`, in oais-structure-api's existing
+`ImageViewSpecificationReader` format:
+
+```xml
+<imageView>
+    <rows select="children" name="row"/>
+    <pixels select="children" name="pixel"/>
+    <pixelType type="int" unit="ADU" description="Counts: Detector counts in one pixel."/>
+</imageView>
+```
+
+`unit` and `description` are optional; without them the pixels' meaning comes from the manifest's
+element semantics for the pixel element (`bridge:structuralPath "row.pixel"`).
+
+None of the usual image viewers can be given a new reader the way TOPCAT can, so the decoded image is
+written as **FITS** (`FitsImageWriter`): one 2-D primary HDU, the pixels in the smallest FITS type that
+holds them exactly (8-bit, 16- or 32-bit, with `BZERO` for unsigned values, 64-bit, or 32-/64-bit
+float), `BUNIT` for the units, `COMMENT` cards for the meaning and `HISTORY` cards for where it came
+from. Rows are written in the order the data holds them -- nothing is flipped -- so the first decoded
+row is FITS row 1, which DS9, Aladin and Fiji show at the bottom. FITS is understood by SAOImage DS9,
+Aladin and Fiji/ImageJ alike. `ManifestToFits` does it from the command line:
+
+```bash
+java -cp "oais-structure-image/target/oais-structure-image-0.0.1-SNAPSHOT.jar:oais-structure-topcat/target/oais-structure-topcat-0.0.1-SNAPSHOT.jar:oais-structure-topcat/target/dependency/*" \
+     info.oais.infomodel.structure.image.ManifestToFits image.ttl image.fits
+```
+
+archive-manager uses the same module: RepInfo Tools makes an image view when a byte layout has a
+repeated record (a row) holding a repeated number field (its pixels), and the archive serves such a
+Data Object as FITS (`/api/data-objects/{id}/fits`), sending it to DS9 or Aladin over SAMP
+(`image.load.fits`) or offering it as a download for Fiji, which doesn't use SAMP.
+
+Every pixel is decoded as its own element, as every table cell is for TOPCAT, so this suits images of
+modest size: a 128 × 128 image takes a few seconds, most of it in Daffodil.
+
+**A worked example** is in `examples/image/`: a 128 × 128 image of 16-bit counts, its manifest,
+DFDL and DRB SDF descriptions and image view (made with archive-manager's RepInfo Tools), and scripts
+that write it as FITS and open it, or put it into an archive -- see its README.
 
 ## CSV data descriptions
 

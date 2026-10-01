@@ -832,11 +832,12 @@ public class RepInfoToolController {
     }
 
     /**
-     * A zip for opening the data in TOPCAT or SPLAT: a Representation
-     * Information manifest naming the data file ({@code dataFile}), the DFDL
-     * and DRB SDF descriptions (generated or written by hand; either will do),
-     * a table view generated from the element tree, and what each element
-     * means -- see {@link info.oais.archive.manager.service.format.ViewerBundle}.
+     * A zip for opening the data in TOPCAT or SPLAT, or an image viewer: a
+     * Representation Information manifest naming the data file
+     * ({@code dataFile}), the DFDL and DRB SDF descriptions (generated or
+     * written by hand; either will do), a table view and, for an image, an
+     * image view generated from the element tree, and what each element means
+     * -- see {@link info.oais.archive.manager.service.format.ViewerBundle}.
      */
     @GetMapping("/download/viewers")
     public ResponseEntity<ByteArrayResource> downloadViewerBundle(@RequestParam(defaultValue = "") String dataFile,
@@ -854,14 +855,15 @@ public class RepInfoToolController {
                 def.toFormatDescription(), base, data, dfdl, drb);
         if (files == null) {
             return ResponseEntity.status(409).contentType(MediaType.TEXT_PLAIN).body(new ByteArrayResource((
-                    "TOPCAT and SPLAT need a DFDL or DRB SDF description of this format, and fields directly in "
-                            + "its root record, or in a repeated record there, to show as columns.")
+                    "Viewers need a DFDL or DRB SDF description of this format, and fields directly in its root "
+                            + "record, or in a repeated record there, to show as columns -- or, for an image, a "
+                            + "repeated record there holding a repeated number field, its pixels.")
                     .getBytes(StandardCharsets.UTF_8)));
         }
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/zip"))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + base + "-for-topcat.zip\"")
-                .body(new ByteArrayResource(zip(base + "-for-topcat", files)));
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + base + "-for-viewers.zip\"")
+                .body(new ByteArrayResource(zip(base + "-for-viewers", files)));
     }
 
     /** The description in {@code language} -- written by hand, else generated -- or null if there's none. */

@@ -9,31 +9,19 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
-import io.kaitai.struct.KaitaiStruct;
-import info.oais.infomodel.implementation.DigitalObjectRefImpl;
 import info.oais.infomodel.interfaces.utility.OaisIfTable;
-import info.oais.infomodel.structure.FormatSpecification;
-import info.oais.infomodel.structure.SpecificationLanguage;
-import info.oais.infomodel.structure.StructureInterpretationException;
-import info.oais.infomodel.structure.StructureInterpreterFactory;
 import info.oais.infomodel.structure.StructureNode;
-import info.oais.infomodel.structure.dfdl.DfdlFormatSpecification;
-import info.oais.infomodel.structure.drb.DrbFormatSpecification;
-import info.oais.infomodel.structure.kaitai.KaitaiFormatSpecification;
 import info.oais.infomodel.structure.manifest.DescribedData;
 import info.oais.infomodel.structure.manifest.ElementMeaning;
 import info.oais.infomodel.structure.manifest.RepInfoManifest;
-import info.oais.infomodel.structure.manifest.StructureDescription;
 import info.oais.infomodel.structure.manifest.ViewDescription;
 import info.oais.infomodel.structure.semantic.ColumnMapping;
 import info.oais.infomodel.structure.semantic.TableMapping;
@@ -82,9 +70,6 @@ import uk.ac.starlink.util.DataSource;
  */
 public class OaisStructureTableBuilder implements TableBuilder {
 
-	/** The order structure alternatives are tried in. */
-	static final List<String> PREFERENCE = StructureDescription.LANGUAGES;
-
 	/** How much of a file {@link #looksLikeFile} reads to recognise a manifest. */
 	private static final int SNIFF_BYTES = 64 * 1024;
 
@@ -126,100 +111,23 @@ public class OaisStructureTableBuilder implements TableBuilder {
 	public static StarTable open(DescribedData data) throws IOException {
 		List<Path> temporary = new ArrayList<>();
 		try {
-			FormatSpecification spec = formatSpecification(data, temporary);
 			ViewDescription view = data.view(ViewDescription.TABLE).orElseThrow(() -> new TableFormatException(
 					"The manifest gives no table view for " + data.name() + ": it needs an im:ViewSpecification with "
 							+ "im:viewKind \"table\" to know how to show the data as rows and columns"));
-			Path viewFile = local(view.location(), ".xml", temporary);
+			StructureNode tree = RepInfoDecoder.decode(data, temporary);
+			Path viewFile = RepInfoDecoder.local(view.location(), ".xml", temporary);
 			TableMapping mapping = withMeanings(
 					TableViewSpecificationReader.read(new TableViewSpecification(viewFile.toUri())), rowName(viewFile), data);
 			OaisIfTable table;
-			try (InputStream in = data.data().toURL().openStream()) {
-				StructureNode tree = new StructureInterpreterFactory().create(spec).apply(new DigitalObjectRefImpl(in));
+			try {
 				table = new TableSemanticRepInfo(mapping).apply(tree);
-			} catch (StructureInterpretationException | ViewSpecificationException | IllegalStateException e) {
-				throw new IOException("Failed to interpret " + data.data() + " via " + spec + ": " + e.getMessage(), e);
+			} catch (ViewSpecificationException | IllegalStateException e) {
+				throw new IOException("Failed to view " + data.data() + " as a table: " + e.getMessage(), e);
 			}
 			return toStarTable(table, mapping.columns());
 		} finally {
-			for (Path p : temporary) {
-				Files.deleteIfExists(p);
-			}
+			RepInfoDecoder.deleteAll(temporary);
 		}
-	}
-
-	/** The first usable structure alternative, as the engine's format specification. */
-	private static FormatSpecification formatSpecification(DescribedData data, List<Path> temporary) throws IOException {
-		Set<SpecificationLanguage> engines = new StructureInterpreterFactory().availableLanguages();
-		StructureDescription chosen = data.structure(PREFERENCE, s -> usable(s, engines)).orElseThrow(() ->
-				new TableFormatException("None of the structure descriptions the manifest gives for " + data.name()
-						+ " can be used here (" + String.join(", ", data.structures().stream()
-								.map(s -> s.language() + (s.language().equals(StructureDescription.KAITAI)
-										? " " + s.generatedClassName() : "")).toList())
-						+ "): add one in a language whose engine is installed, or put the Kaitai Struct class on the "
-						+ "classpath"));
-		switch (chosen.language()) {
-			case StructureDescription.DFDL:
-				return new DfdlFormatSpecification(local(chosen.location(), ".dfdl.xsd", temporary).toUri());
-			case StructureDescription.DRB_SDF:
-				return new DrbFormatSpecification(local(chosen.location(), ".drb.xsd", temporary).toUri());
-			case StructureDescription.KAITAI:
-				return new KaitaiFormatSpecification(kaitaiClass(chosen.generatedClassName()));
-			default:
-				String path = data.data().getPath();
-				int dot = path == null ? -1 : path.lastIndexOf('.');
-				if (dot < 0 || dot == path.length() - 1) {
-					throw new TableFormatException("DRB recognises formats by file extension, and " + data.data()
-							+ " has none: give a DRB SDF schema instead");
-				}
-				return DrbFormatSpecification.autoDetect(path.substring(dot + 1));
-		}
-	}
-
-	private static boolean usable(StructureDescription s, Set<SpecificationLanguage> engines) {
-		switch (s.language()) {
-			case StructureDescription.DFDL:
-				return engines.contains(SpecificationLanguage.DFDL) && s.location() != null;
-			case StructureDescription.DRB_SDF:
-				return engines.contains(SpecificationLanguage.DRB) && s.location() != null;
-			case StructureDescription.DRB:
-				return engines.contains(SpecificationLanguage.DRB);
-			case StructureDescription.KAITAI:
-				if (!engines.contains(SpecificationLanguage.KAITAI_STRUCT) || s.generatedClassName() == null) {
-					return false;
-				}
-				try {
-					kaitaiClass(s.generatedClassName());
-					return true;
-				} catch (IOException e) {
-					return false;
-				}
-			default:
-				return false;
-		}
-	}
-
-	private static Class<? extends KaitaiStruct> kaitaiClass(String name) throws IOException {
-		try {
-			return Class.forName(name).asSubclass(KaitaiStruct.class);
-		} catch (ClassNotFoundException e) {
-			throw new IOException("The Kaitai Struct class '" + name + "' isn't on the classpath", e);
-		} catch (ClassCastException e) {
-			throw new IOException("'" + name + "' isn't a class generated by Kaitai Struct", e);
-		}
-	}
-
-	/** {@code location} as a local file: itself if it is one, else a temporary copy (deleted afterwards). */
-	private static Path local(URI location, String suffix, List<Path> temporary) throws IOException {
-		if ("file".equals(location.getScheme())) {
-			return Path.of(location);
-		}
-		Path copy = Files.createTempFile("oais-repinfo-", suffix);
-		temporary.add(copy);
-		try (InputStream in = location.toURL().openStream()) {
-			Files.copy(in, copy, StandardCopyOption.REPLACE_EXISTING);
-		}
-		return copy;
 	}
 
 	/** The table view's row element name ({@code <rows name="...">}), which qualifies column meanings; or null. */
