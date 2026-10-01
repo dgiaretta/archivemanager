@@ -49,7 +49,7 @@ import java.util.stream.Stream;
  * descriptions ({@code im:specificationLanguage}, {@code im:specificationText}),
  * view specifications ({@code im:ViewSpecification}) and element semantics
  * ({@code bridge:structuralPath}); its bits are at its
- * {@code bridge:hasStorageLocation}.
+ * {@code im:hasStorageLocation}.
  */
 @Service
 public class DataObjectViewService {
@@ -189,7 +189,7 @@ public class DataObjectViewService {
     public Optional<DescribedData> describe(String dataObject, Function<String, URI> specificationUrl) {
         Model m = store.dataModel();
         Resource data = m.getResource(dataObject);
-        Statement storage = data.getProperty(m.createProperty(Ns.BRIDGE + "hasStorageLocation"));
+        Statement storage = data.getProperty(m.createProperty(Ns.IM + "hasStorageLocation"));
         Property interpretedUsing = m.createProperty(Ns.IM + "interpretedUsing");
         if (storage == null || !storage.getObject().isURIResource() || !data.hasProperty(interpretedUsing)) {
             return Optional.empty();

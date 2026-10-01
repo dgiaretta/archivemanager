@@ -92,7 +92,7 @@ c -o /dev/null -H "Content-Type: application/json" \
     -d "{\"customProperty\":\"http://www.w3.org/2000/01/rdf-schema#label\",\"value\":\"Bright stars (TOPCAT example)\"}" \
     "$ARCHIVE/api/entities/$id/properties"
 c -o /dev/null -H "Content-Type: application/json" \
-    -d "{\"customProperty\":\"https://oais.info/bridge#hasStorageLocation\",\"customTarget\":\"$(json "$DATA_URL")\"}" \
+    -d "{\"customProperty\":\"http://ontology.oais.info/im/hasStorageLocation\",\"customTarget\":\"$(json "$DATA_URL")\"}" \
     "$ARCHIVE/api/entities/$id/relationships"
 echo "Saved as a Data Object, its bits at $DATA_URL"
 

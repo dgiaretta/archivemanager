@@ -6,7 +6,7 @@
  * im:ArchivalInformationPackage entity in the archive, linked to that
  * record's existing im:InformationObject (the one the CSV bulk-upload
  * importer already created via bridge:hasOAISCounterpart) via
- * im:hasContentInformation, and sets bridge:hasStorageLocation on the new
+ * im:hasContentInformation, and sets im:hasStorageLocation on the new
  * AIP to a URL built from STORAGE_BASE_URL + the filename.
  *
  * One new AIP per file, not a shared one per record: some records have more
@@ -102,9 +102,9 @@ async function sparqlSelect(queryText, columns) {
 
 /** True if some AIP already has this exact storage location -- so a re-run (or a file someone already handled by hand) doesn't create a duplicate. */
 async function storageLocationAlreadyExists(storageUrl) {
-    const query = `PREFIX bridge: <https://oais.info/bridge#>
+    const query = `PREFIX im: <http://ontology.oais.info/im/>
 SELECT ?aip WHERE {
-  ?aip bridge:hasStorageLocation <${storageUrl}> .
+  ?aip im:hasStorageLocation <${storageUrl}> .
 }`;
     const rows = await sparqlSelect(query, ['aip']);
     return rows.length > 0;
@@ -209,7 +209,7 @@ async function main() {
 
             const aip = await createAip();
             await addRelationship(aip.id, 'im:hasContentInformation', infoObject);
-            await addRelationship(aip.id, 'bridge:hasStorageLocation', storageUrl);
+            await addRelationship(aip.id, 'im:hasStorageLocation', storageUrl);
             console.log(`OK    ${filename}  ->  record ${recordNumber}  ->  new AIP ${aip.iri}`);
             ok++;
         } catch (err) {

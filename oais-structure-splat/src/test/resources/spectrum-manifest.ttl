@@ -7,7 +7,7 @@
 
 <#spectrum> a im:DigitalObject ;
     rdfs:label "Test spectrum" ;
-    bridge:hasStorageLocation <spectrum.csv> ;
+    im:hasStorageLocation <spectrum.csv> ;
     im:interpretedUsing <#repinfo> .
 
 <#repinfo> a im:RepInfoAndGroup , im:RepresentationInformation ;
@@ -17,11 +17,11 @@
 
 <#dfdl> a im:StructureRepresentationInformation ;
     im:specificationLanguage "DFDL" ;
-    bridge:hasStorageLocation <spectrum.dfdl.xsd> .
+    im:hasStorageLocation <spectrum.dfdl.xsd> .
 
 <#semantics> a im:SemanticRepresentationInformation ;
     im:interpretedUsingRecurse <#view> .
 
 <#view> a im:ViewSpecification , im:SemanticRepresentationInformation ;
     im:viewKind "table" ;
-    bridge:hasStorageLocation <spectrum-table-view.xml> .
+    im:hasStorageLocation <spectrum-table-view.xml> .

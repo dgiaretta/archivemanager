@@ -19,7 +19,7 @@ import java.time.Duration;
 
 /**
  * Fetches a Data Object's bits from its storage location
- * ({@code bridge:hasStorageLocation}) so the server can decode them, e.g. to
+ * ({@code im:hasStorageLocation}) so the server can decode them, e.g. to
  * serve them as VOTable. Storage locations are set by editors but fetched
  * when anyone asks, so this is careful about what it will fetch:
  * <ul>

@@ -34,13 +34,13 @@ class OntologyServiceTest {
     }
 
     @Test
-    void exposesBridgeHasStorageLocationAsSelectableProperty() {
+    void exposesHasStorageLocationAsAnOaisProperty() {
         rdfStore.beginTransaction(ReadWrite.READ);
         try {
             assertThat(ontologyService.listObjectProperties())
                     .anySatisfy(property -> {
-                        assertThat(property.iri()).isEqualTo(Ns.BRIDGE + "hasStorageLocation");
-                        assertThat(property.source()).isEqualTo("bridge");
+                        assertThat(property.iri()).isEqualTo(Ns.IM + "hasStorageLocation");
+                        assertThat(property.source()).isEqualTo("oais");
                     });
         } finally {
             rdfStore.endTransaction(true);

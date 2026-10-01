@@ -322,7 +322,7 @@ Because a DFDL/Kaitai/DRB description is inherently external to the raw data byt
 self-describing format such as FITS or VOTable), something has to say which description goes with
 which data. Rather than a file-naming convention, that is a **Representation Information
 manifest** (module `oais-structure-manifest`): a Turtle excerpt of the data's OAIS Representation
-Information, naming every file explicitly with `bridge:hasStorageLocation` -- relative to the
+Information, naming every file explicitly with `im:hasStorageLocation` -- relative to the
 manifest, or as a URL -- so files can have any names and live anywhere:
 
 ```turtle
@@ -332,7 +332,7 @@ manifest, or as a URL -- so files can have any names and live anywhere:
 @prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
 
 <#readings> a im:DigitalObject ;
-    bridge:hasStorageLocation <readings-2026.bin> ;
+    im:hasStorageLocation <readings-2026.bin> ;
     im:interpretedUsing <#repinfo> .
 
 <#repinfo> a im:RepInfoAndGroup ;
@@ -345,7 +345,7 @@ manifest, or as a URL -- so files can have any names and live anywhere:
 
 <#dfdl> a im:StructureRepresentationInformation ;
     im:specificationLanguage "DFDL" ;
-    bridge:hasStorageLocation <station-readings.dfdl.xsd> .
+    im:hasStorageLocation <station-readings.dfdl.xsd> .
 
 <#kaitai> a im:StructureRepresentationInformation ;
     im:specificationLanguage "Kaitai Struct" ;
@@ -356,7 +356,7 @@ manifest, or as a URL -- so files can have any names and live anywhere:
 
 <#view> a im:ViewSpecification ;
     im:viewKind "table" ;
-    bridge:hasStorageLocation <station-readings-table-view.xml> .
+    im:hasStorageLocation <station-readings-table-view.xml> .
 
 <#temperature> a im:SemanticRepresentationInformation ;
     bridge:structuralPath "reading.temperature" ;
@@ -366,7 +366,7 @@ manifest, or as a URL -- so files can have any names and live anywhere:
 
 | In the manifest | Meaning |
 |---|---|
-| `bridge:hasStorageLocation` on the Data Object | Where its bits are. |
+| `im:hasStorageLocation` on the Data Object | Where its bits are. |
 | `im:specificationLanguage` | A structure description: `"DFDL"`, `"DRB SDF"` (each with its file), `"Kaitai Struct"` (with `im:generatedClassName`: an already-compiled class on the classpath -- see `KaitaiFormatSpecification`'s Javadoc for why a runtime `.ksy` path alone is not enough) or `"DRB"` (no file: DRB recognises the format from the data file's extension). The members of an OR group are equivalent: the first whose engine is available is used, in the order DFDL, DRB SDF, Kaitai Struct, DRB. |
 | `im:ViewSpecification` | How to view the decoded tree (`im:viewKind` `"table"`, the default): a `TableViewSpecification` file of rows and columns, whose columns can give `unit`, `description` and `ucd`. |
 | `bridge:structuralPath` | What an element means; a column without its own units or description takes them from here, matched by path. |
@@ -381,7 +381,9 @@ Everything else a manifest holds (software Other Representation Information, pro
 allowed and ignored. A manifest describing several Data Objects is opened with the one to use after
 a `#`, e.g. `station.ttl#readings`. The builder recognises a manifest by its content, never its name.
 The terms are local extensions to the OAIS Information Model (`oais-im-local-extensions.ttl` in
-archive-manager).
+archive-manager). `im:hasStorageLocation` was `bridge:hasStorageLocation` in the RiC bridge
+ontology; manifests that use the old name are still read, and the archive renames it in its data at
+startup.
 
 **A worked example** is in `examples/topcat/`: a binary star catalogue with its manifest, DFDL
 and DRB SDF descriptions and table view (made with archive-manager's RepInfo Tools), and scripts

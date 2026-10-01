@@ -8,7 +8,7 @@
 
 <#point> a im:DigitalObject ;
     rdfs:label "A point" ;
-    bridge:hasStorageLocation <point.bin> ;
+    im:hasStorageLocation <point.bin> ;
     im:interpretedUsing <#repinfo> .
 
 <#repinfo> a im:RepInfoAndGroup , im:RepresentationInformation ;
@@ -21,7 +21,7 @@
 
 <#dfdl> a im:StructureRepresentationInformation ;
     im:specificationLanguage "DFDL" ;
-    bridge:hasStorageLocation <point.dfdl.xsd> .
+    im:hasStorageLocation <point.dfdl.xsd> .
 
 <#kaitai> a im:StructureRepresentationInformation ;
     im:specificationLanguage "Kaitai Struct" ;
@@ -32,7 +32,7 @@
 
 <#view> a im:ViewSpecification , im:SemanticRepresentationInformation ;
     im:viewKind "table" ;
-    bridge:hasStorageLocation <point-table-view.xml> .
+    im:hasStorageLocation <point-table-view.xml> .
 
 <#x> a im:SemanticRepresentationInformation ;
     bridge:structuralPath "point.x" ;

@@ -57,7 +57,7 @@ public final class ManifestWriter {
 
 		sb.append(iri(self)).append(" a im:DigitalObject ;\n");
 		sb.append("    rdfs:label ").append(literal(d.name())).append(" ;\n");
-		sb.append("    bridge:hasStorageLocation ").append(iri(d.data())).append(" ;\n");
+		sb.append("    im:hasStorageLocation ").append(iri(d.data())).append(" ;\n");
 		sb.append("    im:interpretedUsing ").append(iri(repInfo)).append(" .\n\n");
 
 		List<String> members = new ArrayList<>();
@@ -89,7 +89,7 @@ public final class ManifestWriter {
 				sb.append(iri(alternatives.get(i))).append(" a im:StructureRepresentationInformation ;\n");
 				sb.append("    im:specificationLanguage ").append(literal(s.language()));
 				if (s.location() != null) {
-					sb.append(" ;\n    bridge:hasStorageLocation ").append(iri(s.location()));
+					sb.append(" ;\n    im:hasStorageLocation ").append(iri(s.location()));
 				}
 				if (s.generatedClassName() != null) {
 					sb.append(" ;\n    im:generatedClassName ").append(literal(s.generatedClassName()));
@@ -116,7 +116,7 @@ public final class ManifestWriter {
 			ViewDescription v = d.views().get(i);
 			sb.append(iri(parts.get(i))).append(" a im:ViewSpecification , im:SemanticRepresentationInformation ;\n");
 			sb.append("    im:viewKind ").append(literal(v.kind())).append(" ;\n");
-			sb.append("    bridge:hasStorageLocation ").append(iri(v.location())).append(" .\n\n");
+			sb.append("    im:hasStorageLocation ").append(iri(v.location())).append(" .\n\n");
 		}
 		for (int i = 0; i < d.meanings().size(); i++) {
 			ElementMeaning e = d.meanings().get(i);

@@ -8,7 +8,7 @@
 
 <#tiny> a im:DigitalObject ;
     rdfs:label "Tiny image" ;
-    bridge:hasStorageLocation <tiny.bin> ;
+    im:hasStorageLocation <tiny.bin> ;
     im:interpretedUsing <#tiny-repinfo> .
 
 <#tiny-repinfo> a im:RepInfoAndGroup , im:RepresentationInformation ;
@@ -23,7 +23,7 @@
 
 <#tiny-structure-2> a im:StructureRepresentationInformation ;
     im:specificationLanguage "DRB SDF" ;
-    bridge:hasStorageLocation <tiny.drb.xsd> .
+    im:hasStorageLocation <tiny.drb.xsd> .
 
 <#tiny-semantics> a im:SemanticRepresentationInformation ;
     rdfs:label "Semantics of Tiny image" ;
@@ -36,7 +36,7 @@
 
 <#tiny-view-1> a im:ViewSpecification , im:SemanticRepresentationInformation ;
     im:viewKind "image" ;
-    bridge:hasStorageLocation <tiny-image-view.xml> .
+    im:hasStorageLocation <tiny-image-view.xml> .
 
 <#tiny-element-1> a im:SemanticRepresentationInformation ;
     bridge:structuralPath "object" ;

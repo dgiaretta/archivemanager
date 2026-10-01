@@ -174,7 +174,7 @@ public class GraphService {
             names.add(q.localName(row.get("p")));
         }
         names.add(q.localName(Ns.RDFS + "seeAlso"));
-        names.add(q.localName(Ns.BRIDGE + "hasStorageLocation"));
+        names.add(q.localName(Ns.IM + "hasStorageLocation"));
         return names;
     }
 

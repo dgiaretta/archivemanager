@@ -14,7 +14,7 @@
 
 <#bright-star-catalogue> a im:DigitalObject ;
     rdfs:label "Bright star catalogue" ;
-    bridge:hasStorageLocation <bright-stars.bin> ;
+    im:hasStorageLocation <bright-stars.bin> ;
     im:interpretedUsing <#bright-star-catalogue-repinfo> .
 
 <#bright-star-catalogue-repinfo> a im:RepInfoAndGroup , im:RepresentationInformation ;
@@ -29,11 +29,11 @@
 
 <#bright-star-catalogue-structure-1> a im:StructureRepresentationInformation ;
     im:specificationLanguage "DFDL" ;
-    bridge:hasStorageLocation <bright-star-catalogue.dfdl.xsd> .
+    im:hasStorageLocation <bright-star-catalogue.dfdl.xsd> .
 
 <#bright-star-catalogue-structure-2> a im:StructureRepresentationInformation ;
     im:specificationLanguage "DRB SDF" ;
-    bridge:hasStorageLocation <bright-star-catalogue.drb.xsd> .
+    im:hasStorageLocation <bright-star-catalogue.drb.xsd> .
 
 <#bright-star-catalogue-semantics> a im:SemanticRepresentationInformation ;
     rdfs:label "Semantics of Bright star catalogue" ;
@@ -47,7 +47,7 @@
 
 <#bright-star-catalogue-view-1> a im:ViewSpecification , im:SemanticRepresentationInformation ;
     im:viewKind "table" ;
-    bridge:hasStorageLocation <bright-star-catalogue-table-view.xml> .
+    im:hasStorageLocation <bright-star-catalogue-table-view.xml> .
 
 <#bright-star-catalogue-element-1> a im:SemanticRepresentationInformation ;
     bridge:structuralPath "star" ;

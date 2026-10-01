@@ -14,7 +14,7 @@
 
 <#a0-v-star-spectrum> a im:DigitalObject ;
     rdfs:label "A0 V star spectrum" ;
-    bridge:hasStorageLocation <a0v-spectrum.bin> ;
+    im:hasStorageLocation <a0v-spectrum.bin> ;
     im:interpretedUsing <#a0-v-star-spectrum-repinfo> .
 
 <#a0-v-star-spectrum-repinfo> a im:RepInfoAndGroup , im:RepresentationInformation ;
@@ -29,11 +29,11 @@
 
 <#a0-v-star-spectrum-structure-1> a im:StructureRepresentationInformation ;
     im:specificationLanguage "DFDL" ;
-    bridge:hasStorageLocation <a0-v-star-spectrum.dfdl.xsd> .
+    im:hasStorageLocation <a0-v-star-spectrum.dfdl.xsd> .
 
 <#a0-v-star-spectrum-structure-2> a im:StructureRepresentationInformation ;
     im:specificationLanguage "DRB SDF" ;
-    bridge:hasStorageLocation <a0-v-star-spectrum.drb.xsd> .
+    im:hasStorageLocation <a0-v-star-spectrum.drb.xsd> .
 
 <#a0-v-star-spectrum-semantics> a im:SemanticRepresentationInformation ;
     rdfs:label "Semantics of A0 V star spectrum" ;
@@ -47,7 +47,7 @@
 
 <#a0-v-star-spectrum-view-1> a im:ViewSpecification , im:SemanticRepresentationInformation ;
     im:viewKind "table" ;
-    bridge:hasStorageLocation <a0-v-star-spectrum-table-view.xml> .
+    im:hasStorageLocation <a0-v-star-spectrum-table-view.xml> .
 
 <#a0-v-star-spectrum-element-1> a im:SemanticRepresentationInformation ;
     bridge:structuralPath "object" ;

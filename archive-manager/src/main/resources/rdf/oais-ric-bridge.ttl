@@ -268,11 +268,10 @@ bridge:hasRiCDescription
   rdfs:label "has RiC-O description"@en ;
   rdfs:comment "Relates an OAIS Information Model individual to the RiC-O individual that represents the same real-world holdings, information, or entity from an archival-description perspective."@en .
 
-bridge:hasStorageLocation
-  a owl:ObjectProperty ;
-  rdfs:label "Has storage location"@en ;
-  rdfs:subPropertyOf rdfs:seeAlso ;
-  rdfs:comment "Points to the actual retrievable location of an object's bits (e.g. a Dropbox link, cloud storage URI) -- more specific and self-documenting than plain rdfs:seeAlso for this one purpose. Usable on either a rico:Instantiation or an im:DataObject/im:DigitalObject, matching the 'describe it from both sides' pattern used throughout this bridge. Deliberately kept in the bridge namespace, not the OAIS schema itself, since OAIS treats bit-location/retrieval as implementation-specific and out of scope for the reference model -- adding it directly to oais_im_schema-sh-v5.ttl would misrepresent it as part of the real standard."@en .
+# The storage location of an object's bits, once bridge:hasStorageLocation,
+# is now im:hasStorageLocation, a local extension to the OAIS Information
+# Model in oais-im-local-extensions.ttl. It is still usable on a
+# rico:Instantiation as well as on an im:DataObject/im:DigitalObject.
 
 # ============================================================
 # Semantics of data elements

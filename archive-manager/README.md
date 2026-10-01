@@ -563,7 +563,7 @@ wanted.
     Information, never by file naming: a *Representation Information
     manifest* (module `oais-structure-manifest`) is a Turtle excerpt of a Data
     Object's Representation Information that names its bits and every
-    description explicitly (`bridge:hasStorageLocation`, relative to the
+    description explicitly (`im:hasStorageLocation`, relative to the
     manifest or as URLs) -- see the root README's "TOPCAT example description".
     - *Local files:* the preview page's "Open in TOPCAT, SPLAT or an image viewer" downloads a
       zip (`/repinfo-tools/download/viewers?dataFile=...`, `ViewerBundle`):

@@ -14,7 +14,7 @@
 
 <#galaxy-field> a im:DigitalObject ;
     rdfs:label "Galaxy field" ;
-    bridge:hasStorageLocation <galaxy-field.bin> ;
+    im:hasStorageLocation <galaxy-field.bin> ;
     im:interpretedUsing <#galaxy-field-repinfo> .
 
 <#galaxy-field-repinfo> a im:RepInfoAndGroup , im:RepresentationInformation ;
@@ -29,11 +29,11 @@
 
 <#galaxy-field-structure-1> a im:StructureRepresentationInformation ;
     im:specificationLanguage "DFDL" ;
-    bridge:hasStorageLocation <galaxy-field.dfdl.xsd> .
+    im:hasStorageLocation <galaxy-field.dfdl.xsd> .
 
 <#galaxy-field-structure-2> a im:StructureRepresentationInformation ;
     im:specificationLanguage "DRB SDF" ;
-    bridge:hasStorageLocation <galaxy-field.drb.xsd> .
+    im:hasStorageLocation <galaxy-field.drb.xsd> .
 
 <#galaxy-field-semantics> a im:SemanticRepresentationInformation ;
     rdfs:label "Semantics of Galaxy field" ;
@@ -46,7 +46,7 @@
 
 <#galaxy-field-view-1> a im:ViewSpecification , im:SemanticRepresentationInformation ;
     im:viewKind "image" ;
-    bridge:hasStorageLocation <galaxy-field-image-view.xml> .
+    im:hasStorageLocation <galaxy-field-image-view.xml> .
 
 <#galaxy-field-element-1> a im:SemanticRepresentationInformation ;
     bridge:structuralPath "object" ;

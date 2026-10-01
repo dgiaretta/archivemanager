@@ -5,7 +5,7 @@
 @prefix bridge: <https://oais.info/bridge#> .
 
 <#dfdl-or-drb> a im:DigitalObject ;
-    bridge:hasStorageLocation <points.csv> ;
+    im:hasStorageLocation <points.csv> ;
     im:interpretedUsing <#csv-repinfo> .
 <#csv-repinfo> a im:RepInfoAndGroup ;
     im:hasGroupMember <#csv-structure> , <#csv-view> .
@@ -16,15 +16,15 @@
     im:generatedClassName "com.example.NotOnTheClasspath" .
 <#drb> a im:StructureRepresentationInformation ;
     im:specificationLanguage "DRB SDF" ;
-    bridge:hasStorageLocation <points.drb.xsd> .
+    im:hasStorageLocation <points.drb.xsd> .
 <#dfdl> a im:StructureRepresentationInformation ;
     im:specificationLanguage "DFDL" ;
-    bridge:hasStorageLocation <points.dfdl.xsd> .
+    im:hasStorageLocation <points.dfdl.xsd> .
 <#csv-view> a im:ViewSpecification ; im:viewKind "table" ;
-    bridge:hasStorageLocation <points-table-view.xml> .
+    im:hasStorageLocation <points-table-view.xml> .
 
 <#kaitai> a im:DigitalObject ;
-    bridge:hasStorageLocation <points-kaitai.csv> ;
+    im:hasStorageLocation <points-kaitai.csv> ;
     im:interpretedUsing <#kaitai-repinfo> .
 <#kaitai-repinfo> a im:RepInfoAndGroup ;
     im:hasGroupMember <#kaitai-structure> , <#kaitai-view> .
@@ -32,4 +32,4 @@
     im:specificationLanguage "Kaitai Struct" ;
     im:generatedClassName "info.oais.infomodel.structure.kaitai.generated.CsvPoints" .
 <#kaitai-view> a im:ViewSpecification ; im:viewKind "table" ;
-    bridge:hasStorageLocation <points-kaitai-table-view.xml> .
+    im:hasStorageLocation <points-kaitai-table-view.xml> .

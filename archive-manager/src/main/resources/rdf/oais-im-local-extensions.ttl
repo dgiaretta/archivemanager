@@ -2,9 +2,11 @@
 # in the same im: namespace, loaded alongside it.
 #
 # Two kinds of thing are kept here rather than in the generated schema:
-#   - groups of Representation Information, format profiles and the terms
-#     for naming descriptions and view specifications as files, new here
-#     and marked oais:status "local-extension";
+#   - groups of Representation Information, format profiles, the terms for
+#     naming descriptions and view specifications as files, and where an
+#     object's bits are stored (im:hasStorageLocation, moved here from the
+#     RiC bridge, where it was bridge:hasStorageLocation), new here and
+#     marked oais:status "local-extension";
 #   - Designated Community, Preservation Objective and Transformation
 #     Information Property, with the properties that relate them, moved here
 #     from the generated schema, keeping their identifiers but now marked
@@ -132,11 +134,18 @@ im:quoteCharacter
 # ---- Descriptions and view specifications as files ----
 #
 # What a Representation Information manifest needs to name each description
-# explicitly (see oais-structure-manifest): which language a structure
-# description is in, its text, the class generated from it where that's how
-# it's applied, and view specifications -- how to view decoded data as a
-# table, time series or vector. Files are given with the bridge ontology's
-# bridge:hasStorageLocation.
+# explicitly (see oais-structure-manifest): where a file is
+# (im:hasStorageLocation, also where a Data Object's own bits are), which
+# language a structure description is in, its text, the class generated from
+# it where that's how it's applied, and view specifications -- how to view
+# decoded data as a table, image, time series or vector.
+
+im:hasStorageLocation
+  a owl:ObjectProperty ;
+  rdfs:label "has storage location" ;
+  oais:status "local-extension" ;
+  rdfs:subPropertyOf rdfs:seeAlso ;
+  rdfs:comment "Points to the actual retrievable location of an object's bits (e.g. a Dropbox link, cloud storage URI) -- more specific and self-documenting than plain rdfs:seeAlso for this one purpose. Used on an im:DataObject/im:DigitalObject, on a description or view specification given as a file, or on a rico:Instantiation, so it has no declared domain. LOCAL EXTENSION -- OAIS treats where bits are kept, and how they are retrieved, as implementation-specific and out of scope for the reference model. Formerly bridge:hasStorageLocation in oais-ric-bridge.ttl; the archive converts that at startup, and Representation Information manifests using it are still read." .
 
 im:specificationLanguage
   a owl:DatatypeProperty ;
@@ -171,7 +180,7 @@ im:viewKind
   rdfs:label "view kind" ;
   oais:status "local-extension" ;
   rdfs:domain im:ViewSpecification ;
-  rdfs:comment "What a view specification shows the data as: 'table', 'timeSeries' or 'vector'. LOCAL EXTENSION." .
+  rdfs:comment "What a view specification shows the data as: 'table', 'image', 'timeSeries' or 'vector'. LOCAL EXTENSION." .
 
 # ---- Designated Community, Preservation Objectives and Transformation ----
 # ---- Information Properties, and the Agent who defines or identifies  ----

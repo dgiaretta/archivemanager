@@ -57,7 +57,7 @@ archive:
     # Env: ARCHIVE_DRB_PYTHON_RUN_HAND_WRITTEN_ADD_INS.
     run-hand-written-add-ins: false
   # Serving a Data Object as VOTable (/api/data-objects/{id}/votable, "View in
-  # TOPCAT") fetches its bits from its storage location (bridge:hasStorageLocation).
+  # TOPCAT") fetches its bits from its storage location (im:hasStorageLocation).
   # Only http(s), at most max-bytes, within timeout-seconds; never from loopback
   # or private-network addresses unless allow-private-addresses is true (which
   # lets anyone who can set a storage location make this server fetch from its

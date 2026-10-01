@@ -26,8 +26,10 @@ import org.apache.jena.vocabulary.RDFS;
  * A Representation Information manifest: a Turtle excerpt of one or more
  * Data Objects' OAIS Representation Information, naming every file
  * explicitly -- the data itself and each description -- with
- * {@code bridge:hasStorageLocation}, relative to the manifest's own location
- * (or as absolute URLs). It has the same shape the archive saves: a Data
+ * {@code im:hasStorageLocation}, relative to the manifest's own location
+ * (or as absolute URLs). Manifests written before that term was in the OAIS
+ * Information Model's local extensions say {@code bridge:hasStorageLocation}
+ * instead, which is still read. It has the same shape the archive saves: a Data
  * Object is {@code im:interpretedUsing} Representation Information, whose
  * AND/OR groups ({@code im:hasGroupMember}) lead to
  * <ul>
@@ -104,10 +106,9 @@ public final class RepInfoManifest {
 
 	private static RepInfoManifest of(Model m, String where) {
 		Property interpretedUsing = m.createProperty(IM + "interpretedUsing");
-		Property storage = m.createProperty(BRIDGE + "hasStorageLocation");
 		List<DescribedData> found = new ArrayList<>();
 		for (Resource dataObject : m.listSubjectsWithProperty(interpretedUsing).toList()) {
-			Statement data = dataObject.getProperty(storage);
+			Statement data = storage(m, dataObject);
 			if (data == null || !data.getObject().isURIResource()) {
 				continue;
 			}
@@ -115,7 +116,7 @@ public final class RepInfoManifest {
 		}
 		if (found.isEmpty()) {
 			throw new ManifestException(where + " describes no Data Object: nothing with both im:interpretedUsing "
-					+ "and a bridge:hasStorageLocation for its bits");
+					+ "and an im:hasStorageLocation for its bits");
 		}
 		found.sort(Comparator.comparing(DescribedData::iri));
 		return new RepInfoManifest(found);
@@ -158,7 +159,7 @@ public final class RepInfoManifest {
 			if (r.hasProperty(RDF.type, m.createResource(IM + "ViewSpecification"))) {
 				URI location = location(m, r);
 				if (location == null) {
-					throw new ManifestException(id(r) + " is a view specification without a bridge:hasStorageLocation");
+					throw new ManifestException(id(r) + " is a view specification without an im:hasStorageLocation");
 				}
 				String kind = literal(r, m.createProperty(IM + "viewKind"));
 				views.add(new ViewDescription(id(r), kind == null ? ViewDescription.TABLE : kind, location));
@@ -208,8 +209,14 @@ public final class RepInfoManifest {
 	}
 
 	private static URI location(Model m, Resource r) {
-		Statement s = r.getProperty(m.createProperty(BRIDGE + "hasStorageLocation"));
+		Statement s = storage(m, r);
 		return s == null || !s.getObject().isURIResource() ? null : URI.create(s.getObject().asResource().getURI());
+	}
+
+	/** {@code r}'s {@code im:hasStorageLocation}, else its {@code bridge:hasStorageLocation} (the term's old name). */
+	private static Statement storage(Model m, Resource r) {
+		Statement s = r.getProperty(m.createProperty(IM + "hasStorageLocation"));
+		return s != null ? s : r.getProperty(m.createProperty(BRIDGE + "hasStorageLocation"));
 	}
 
 	private static String literal(Resource r, Property p) {

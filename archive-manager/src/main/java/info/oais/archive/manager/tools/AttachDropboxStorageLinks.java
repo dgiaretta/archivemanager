@@ -28,7 +28,7 @@ import java.util.stream.Stream;
 /**
  * Adds external file links to the RDF data store by matching filenames to a
  * record's {@code nam:recordNumber} and attaching a
- * {@code bridge:hasStorageLocation} URI to that record.
+ * {@code im:hasStorageLocation} URI to that record.
  *
  * <p>Usage examples:
  * <pre>
@@ -80,7 +80,7 @@ public class AttachDropboxStorageLinks {
         try {
             Model data = dataset.getNamedModel("urn:x-archive:data");
             Property recordNumber = data.createProperty(Ns.NAM + "recordNumber");
-            Property storageLocation = data.createProperty(Ns.BRIDGE + "hasStorageLocation");
+            Property storageLocation = data.createProperty(Ns.IM + "hasStorageLocation");
 
             Map<String, List<Resource>> recordsByNumber = loadRecordsByNumber(data, recordNumber);
 
@@ -259,7 +259,7 @@ public class AttachDropboxStorageLinks {
         System.out.println("Notes:");
         System.out.println("  - Filename must contain a record number like R00003 or R00003_A.jpg");
         System.out.println("  - A matching record is found by nam:recordNumber in the TDB2 data graph.");
-        System.out.println("  - The property added is bridge:hasStorageLocation, which points to the external URL.");
+        System.out.println("  - The property added is im:hasStorageLocation, which points to the external URL.");
     }
 
     private static final class Options {

@@ -25,7 +25,7 @@ class RepInfoManifestTest {
 			@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
 
 			<#readings> a im:DigitalObject ;
-			    bridge:hasStorageLocation <data/readings-2026.bin> ;
+			    im:hasStorageLocation <data/readings-2026.bin> ;
 			    im:interpretedUsing <#repinfo> .
 
 			<#repinfo> a im:RepInfoAndGroup ;
@@ -37,22 +37,22 @@ class RepInfoManifestTest {
 			    im:hasGroupMember <#dfdl> , <#kaitai> .
 			<#dfdl> a im:StructureRepresentationInformation ;
 			    im:specificationLanguage "DFDL" ;
-			    bridge:hasStorageLocation <station.dfdl.xsd> .
+			    im:hasStorageLocation <station.dfdl.xsd> .
 			<#kaitai> a im:StructureRepresentationInformation ;
 			    im:specificationLanguage "Kaitai Struct" ;
-			    bridge:hasStorageLocation <station.ksy> ;
+			    im:hasStorageLocation <station.ksy> ;
 			    im:generatedClassName "com.example.Station" .
 			<#software> a im:OtherRepresentationInformation ; rdfs:label "Apache Daffodil" .
 
 			<#semantics> a im:SemanticRepresentationInformation ;
 			    im:interpretedUsingRecurse <#view> , <#temp> .
-			<#view> a im:ViewSpecification ; bridge:hasStorageLocation <views/station-table.xml> .
+			<#view> a im:ViewSpecification ; im:hasStorageLocation <views/station-table.xml> .
 			<#temp> a im:SemanticRepresentationInformation ;
 			    bridge:structuralPath "reading.temp" ; rdfs:label "Air temperature" ;
 			    rico:hasUnitOfMeasurement [ rdfs:label "K" ] .
 
 			<#other> a im:DigitalObject ;
-			    bridge:hasStorageLocation <https://example.org/data/other.bin> ;
+			    im:hasStorageLocation <https://example.org/data/other.bin> ;
 			    im:interpretedUsing <#repinfo> .
 			""";
 
@@ -77,6 +77,18 @@ class RepInfoManifestTest {
 		assertEquals("Air temperature", temp.label());
 		assertEquals("K", temp.units());
 		assertEquals(URI.create("https://example.org/data/other.bin"), m.select("other.bin").data());
+	}
+
+	@Test
+	void stillReadsTheOldBridgeStorageLocation() {
+		String old = MANIFEST.replace("im:hasStorageLocation", "bridge:hasStorageLocation");
+		RepInfoManifest m = RepInfoManifest.read(new ByteArrayInputStream(old.getBytes(StandardCharsets.UTF_8)),
+				URI.create("file:///x/manifest.ttl"));
+		DescribedData readings = m.select("readings");
+		assertEquals(URI.create("file:///x/data/readings-2026.bin"), readings.data());
+		assertEquals(URI.create("file:///x/views/station-table.xml"),
+				readings.view(ViewDescription.TABLE).orElseThrow().location());
+		assertTrue(RepInfoManifest.looksLikeManifest(old));
 	}
 
 	@Test

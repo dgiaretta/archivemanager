@@ -161,7 +161,7 @@
                 <optgroup label="Bridge">
                     <option th:each="p : ${objectProperties}" th:if="${p.source == 'bridge'}"
                             th:value="${p.iri}" th:text="'bridge:' + ${p.localName} + ' (' + ${p.label} + ')'"
-                            th:title="${propertyBridgeTooltips[p.iri]}">bridge:hasStorageLocation</option>
+                            th:title="${propertyBridgeTooltips[p.iri]}">bridge:hasOAISCounterpart</option>
                 </optgroup>
                 <optgroup label="Common (RDFS)">
                     <option th:each="p : ${objectProperties}" th:if="${p.source == 'rdfs'}"

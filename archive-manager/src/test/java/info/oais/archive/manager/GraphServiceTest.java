@@ -27,7 +27,7 @@ class GraphServiceTest {
             String externalUrl = "https://example.org/external";
             var model = rdfStore.dataModel();
             model.add(model.createResource(subjectIri), model.createProperty("http://www.w3.org/2000/01/rdf-schema#seeAlso"), model.createResource(externalUrl));
-            model.add(model.createResource(subjectIri), model.createProperty("https://oais.info/bridge#hasStorageLocation"), model.createResource(externalUrl));
+            model.add(model.createResource(subjectIri), model.createProperty("http://ontology.oais.info/im/hasStorageLocation"), model.createResource(externalUrl));
 
             GraphData graph = graphService.fullGraph();
 

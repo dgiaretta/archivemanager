@@ -3,7 +3,7 @@
 @prefix bridge: <https://oais.info/bridge#> .
 
 <#point> a im:DigitalObject ;
-    bridge:hasStorageLocation <point.bin> ;
+    im:hasStorageLocation <point.bin> ;
     im:interpretedUsing <#repinfo> .
 <#repinfo> a im:RepInfoAndGroup ;
     im:hasGroupMember <#kaitai> , <#view> .
@@ -11,4 +11,4 @@
     im:specificationLanguage "Kaitai Struct" ;
     im:generatedClassName "info.oais.infomodel.structure.kaitai.generated.Point2d" .
 <#view> a im:ViewSpecification ;
-    bridge:hasStorageLocation <point-table-view.xml> .
+    im:hasStorageLocation <point-table-view.xml> .

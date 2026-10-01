@@ -102,6 +102,8 @@ class ViewersTest {
     private QueryRunner q;
     @Autowired
     private RepInfoGroupMigration migration;
+    @Autowired
+    private info.oais.archive.manager.service.StorageLocationMigration storageMigration;
 
     @TempDir
     Path dir;
@@ -144,7 +146,7 @@ class ViewersTest {
         try {
             String storage = "http://127.0.0.1:" + server.getAddress().getPort() + "/readings.csv";
             write(() -> {
-                edit.addRelationship(dataObject, Ns.BRIDGE + "hasStorageLocation", storage);
+                edit.addRelationship(dataObject, Ns.IM + "hasStorageLocation", storage);
                 return null;
             });
             String id = archive.encodeId(dataObject);
@@ -192,7 +194,7 @@ class ViewersTest {
     void offersSplatWhenTheTableViewIsAllNumbersAndNothingWithoutAStorageLocation() throws Exception {
         String[] objects = write(() -> {
             String spectrum = edit.createEntity(Ns.IM + "DigitalObject");
-            edit.addRelationship(spectrum, Ns.BRIDGE + "hasStorageLocation", "https://example.org/spectrum.csv");
+            edit.addRelationship(spectrum, Ns.IM + "hasStorageLocation", "https://example.org/spectrum.csv");
             String top = edit.createEntity(Ns.IM + "RepInfoAndGroup");
             edit.addRelationship(spectrum, Ns.IM + "interpretedUsing", top);
             String dfdl = edit.createEntity(Ns.IM + "StructureRepresentationInformation");
@@ -279,7 +281,7 @@ class ViewersTest {
         String dataObject = write(() -> {
             String image = edit.createEntity(Ns.IM + "DigitalObject");
             edit.addLiteral(image, Ns.RDFS + "label", "Tiny image");
-            edit.addRelationship(image, Ns.BRIDGE + "hasStorageLocation", storage);
+            edit.addRelationship(image, Ns.IM + "hasStorageLocation", storage);
             String top = edit.createEntity(Ns.IM + "RepInfoAndGroup");
             edit.addRelationship(image, Ns.IM + "interpretedUsing", top);
             String structure = edit.createEntity(Ns.IM + "StructureRepresentationInformation");
@@ -367,6 +369,31 @@ class ViewersTest {
                 .hasMessageContaining("only fetches data from http and https");
         assertThatThrownBy(() -> strict.fetch(URI.create("http://10.1.2.3/x"), dir))
                 .hasMessageContaining("not a public internet address");
+    }
+
+    @Test
+    void renamesTheOldBridgeStorageLocation() {
+        String object = write(() -> {
+            String o = edit.createEntity(Ns.IM + "DigitalObject");
+            edit.addRelationship(o, Ns.BRIDGE + "hasStorageLocation", "https://example.org/old.bin");
+            return o;
+        });
+        try {
+            assertThat(write(() -> storageMigration.migrate())).isEqualTo(1);
+            store.beginTransaction(ReadWrite.READ);
+            try {
+                Model m = store.dataModel();
+                Resource r = m.getResource(object);
+                assertThat(r.getPropertyResourceValue(m.createProperty(Ns.IM + "hasStorageLocation")).getURI())
+                        .isEqualTo("https://example.org/old.bin");
+                assertThat(r.hasProperty(m.createProperty(Ns.BRIDGE + "hasStorageLocation"))).isFalse();
+            } finally {
+                store.endTransaction(true);
+            }
+            assertThat(write(() -> storageMigration.migrate())).isZero();
+        } finally {
+            removeReachable(object);
+        }
     }
 
     @Test
