@@ -1,6 +1,7 @@
 package info.oais.archive.manager.web;
 
 import java.util.List;
+import java.util.Map;
 
 import info.oais.archive.manager.service.ArchiveService;
 import org.springframework.stereotype.Controller;
@@ -23,11 +24,17 @@ public class ResourceController {
 
     private final ArchiveService archive;
     private final info.oais.archive.manager.service.format.DataObjectViewService views;
+    private final info.oais.archive.manager.service.PackageExportService exports;
+    private final info.oais.archive.manager.service.AipComponents components;
 
     public ResourceController(ArchiveService archive,
-                              info.oais.archive.manager.service.format.DataObjectViewService views) {
+                              info.oais.archive.manager.service.format.DataObjectViewService views,
+                              info.oais.archive.manager.service.PackageExportService exports,
+                              info.oais.archive.manager.service.AipComponents components) {
         this.archive = archive;
         this.views = views;
+        this.exports = exports;
+        this.components = components;
     }
 
     @GetMapping("/{id}")
@@ -40,6 +47,16 @@ public class ResourceController {
         model.addAttribute("attributes", archive.attributes(iri));
         model.addAttribute("outgoing", archive.outgoingLinks(iri));
         model.addAttribute("incoming", archive.incomingLinks(iri));
+        // What it can be written out as: an AIP as a BagIt bag, Representation Information (or a
+        // Data Object interpreted using some) as its data description.
+        boolean isPackage = exports.isPackage(iri);
+        model.addAttribute("isPackage", isPackage);
+        if (isPackage) {
+            List<info.oais.archive.manager.service.AipComponents.Part> parts = components.check(iri, Map.of(), null);
+            model.addAttribute("aipParts", parts);
+            model.addAttribute("aipComplete", info.oais.archive.manager.service.AipComponents.complete(parts));
+        }
+        model.addAttribute("hasDescription", exports.hasDescription(iri));
         // A Data Object whose bits have a storage location and that has Representation Information:
         // offer it to viewers (its manifest for TOPCAT/SPLAT, VOTable when it has a table view, FITS when
         // it has an image view). Both flags are always set, since the template combines them with "or",

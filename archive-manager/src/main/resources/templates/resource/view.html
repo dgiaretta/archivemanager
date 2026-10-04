@@ -15,6 +15,46 @@
         <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}">Edit &rarr;</a>
     </p>
 
+    <section class="editor-section" th:if="${isPackage or hasDescription}">
+        <h3>Write it out</h3>
+        <p th:if="${isPackage}">
+            <a class="button" th:href="@{/api/packages/{id}/bagit.zip(id=${id})}">Download as BagIt &rarr;</a>
+            <span class="muted">
+                This Archival Information Package as a BagIt bag (RFC 8493), zipped: <code>data/aip.ttl</code>
+                describes the AIP and everything it's made of, with its Data Objects' bits, each description as a
+                file, and the OAIS ontologies, all with SHA-256 checksums &mdash; complete, to hand to another
+                archive.
+            </span>
+        </p>
+        <th:block th:if="${isPackage}">
+            <p>
+                <strong th:text="${aipComplete} ? 'This AIP has every component OAIS requires.' : 'This AIP is missing components OAIS requires.'">Complete.</strong>
+                <span class="muted">The bag names each one in <code>oais-aip-components.txt</code> and says what's
+                missing in <code>bag-info.txt</code>. Add what's missing with the
+                <a th:href="@{/entities/{id}/edit(id=${id})}">editor</a>.</span>
+            </p>
+            <table class="listing">
+                <thead><tr><th>Component</th><th>Required</th><th>Status</th><th>Individuals</th></tr></thead>
+                <tbody>
+                <tr th:each="p : ${aipParts}">
+                    <td th:style="${'padding-left:' + (0.4 + 1.2 * p.depth()) + 'rem'}" th:text="${p.name()}">Content Information</td>
+                    <td th:text="${p.requirement()}">exactly one</td>
+                    <td><strong th:text="${p.status().text()}" th:style="${p.missing()} ? 'color:#c0392b' : ''">present</strong>
+                        <div class="muted" th:if="${p.note() != null}" th:text="${p.note()}">note</div></td>
+                    <td><code th:each="i : ${p.iris()}" th:text="${i}" style="display:block">iri</code></td>
+                </tr>
+                </tbody>
+            </table>
+        </th:block>
+        <p th:if="${hasDescription}">
+            <a class="button button-secondary" th:href="@{/api/descriptions/{id}/description.zip(id=${id})}">Download the data description &rarr;</a>
+            <span class="muted">
+                Its Representation Information, with all it needs, as a zip: <code>description.ttl</code> and each
+                structure description and view specification (DFDL, Kaitai Struct, DRB, ...) as a file.
+            </span>
+        </p>
+    </section>
+
     <section class="editor-section" th:if="${describedData != null}">
         <h3>Open the data</h3>
         <p class="muted">

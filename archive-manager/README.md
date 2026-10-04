@@ -941,6 +941,50 @@ wanted.
      Content Information gets the same properties for the new format. The
      old Data Object is left as it is. These terms are local extensions to
      the OAIS Information Model (`oais-im-local-extensions.ttl`).
+- **Writing out** (open, like browsing) -- what the archive holds, as files
+  to use without this application (`PackageExportService`):
+  - **A data description**: "Download the data description" on a Data
+    Object's page (or any Representation Information's),
+    `/api/descriptions/{id}/description.zip`. A zip of `description.ttl` --
+    the Representation Information and everything reachable from it through
+    OAIS properties, in Turtle -- each description and view specification as
+    a file of its own (`descriptions/`, named in the Turtle by an
+    `im:hasStorageLocation` relative to it), the OAIS ontologies, and a
+    README.
+  - **An AIP as a BagIt bag** (RFC 8493): "Download as BagIt" on an
+    Archival Information Package's page (or an AIP Version's),
+    `/api/packages/{id}/bagit.zip` -- the third OAIS preservation
+    technique, handing a complete AIP to another archive. The zip holds one
+    bag: `bagit.txt`, `bag-info.txt` (the AIP's IRI and description,
+    `Payload-Oxum`, and any Data Objects whose bits have no storage
+    location), `manifest-sha256.txt` and `tagmanifest-sha256.txt`, and the
+    payload: `data/aip.ttl` (the AIP and everything reachable from it
+    through OAIS properties -- Content Information, Data Objects,
+    Representation Information, PDI -- except where a Transformation came
+    from, an AIP Version's source AIP, and what a package was derived from
+    (e.g. its SIP), which are only referred to),
+    `data/objects/` (the Data Objects' bits, fetched from their storage
+    locations; the export fails rather than write an incomplete AIP if one
+    can't be fetched), `data/descriptions/` and `data/ontologies/`. Files
+    are named in `aip.ttl` by an `im:hasStorageLocation` relative to it,
+    beside the original location. `BagIt` writes the bag.
+
+    The bag identifies every component an AIP must have (`AipComponents`,
+    from the restrictions in `oais_im_schema-sh-v5.ttl`): exactly one
+    Content Information, with its Content Data Object, that Data Object's
+    bits and its Representation Information; exactly one PDI, with
+    Reference, Provenance, Context, Fixity and Access Rights Information;
+    exactly one Packaging Information (`im:delimitedBy`); and at least one
+    Package Description (`im:describedBy`). The tag file
+    `oais-aip-components.txt` lists each with whether it's present, the
+    individuals in `aip.ttl` that are it and the files in the bag that hold
+    it; `bag-info.txt` says `OAIS-AIP-Complete: yes` or `no`, with
+    `OAIS-AIP-Missing` naming what's missing. An incomplete AIP is still
+    written out, so it can be seen and completed. The bag *is* the AIP's
+    Packaging Information -- it binds the components together and says how
+    to extract them -- so an AIP with none of its own gets an
+    `im:PackagingInformation` in `aip.ttl` describing the bag (IRI: the
+    AIP's plus `#bagit-packaging`). The same checklist is on the AIP's page.
 - **SPARQL console** (`/sparql`) -- run arbitrary SELECT queries against the
   union of the data graph and the ontology graph. Try, for instance:
 

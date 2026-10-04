@@ -47,6 +47,11 @@
             <li>Add anything else &mdash; a specification document, a dictionary, other software &mdash;
                 with the <a th:href="@{/entities}">Entities</a> editor, linked to the Data Object's
                 Representation Information.</li>
+            <li>Write it out: <strong>Download the data description</strong>, on a Data Object's page or
+                any Representation Information's, gives its Representation Information with all it needs as
+                a zip &mdash; <code>description.ttl</code> in RDF, and each DFDL, Kaitai Struct or DRB
+                description and view specification as a file of its own &mdash; to use, keep or share
+                without this application.</li>
             <li>Check that it is enough: a Data Object whose bits have a storage location can be opened
                 from its page through its Representation Information alone, as a table, spectrum or image
                 in TOPCAT, SPLAT, DS9 or Aladin (see <a href="#viewers">below</a>).</li>
@@ -103,15 +108,29 @@
             <li>Check that it is complete by looking at it: an AIP's page lists everything linked to it,
                 <a th:href="@{/graph}">the graph</a> shows the whole package and what it points to, and the
                 <a th:href="@{/sparql}">SPARQL console</a> can find packages missing a part.</li>
-            <li>What can be handed over today: each Data Object's Representation Information manifest
-                (Turtle naming its bits and every description, from its page) and its bits from their
-                storage location; the OAIS ontology and its local extensions, from the
-                <a th:href="@{/}">home page</a>. An archive running this application can load Turtle with
+            <li>Hand it over: on the AIP's page, <strong>Download as BagIt</strong> writes it out as a
+                <a href="https://www.rfc-editor.org/rfc/rfc8493" target="_blank" rel="noopener">BagIt</a>
+                bag (RFC 8493, zipped), the packaging format archives and libraries use to move content
+                between them. <code>data/aip.ttl</code> describes the AIP and everything it's made of &mdash;
+                Content Information, all the Representation Information it needs, Preservation Description
+                Information &mdash; in RDF with the OAIS Information Model's terms; <code>data/objects/</code>
+                holds its Data Objects' bits, <code>data/descriptions/</code> each description as a file,
+                and <code>data/ontologies/</code> the OAIS ontology and its local extensions that define the
+                terms. In <code>aip.ttl</code> each file is named by an <code>im:hasStorageLocation</code>
+                relative to it, beside the original location. SHA-256 manifests let the receiving archive
+                check, with any BagIt tool, that every file arrived complete and unchanged.</li>
+            <li>The bag identifies every component an AIP must have &mdash; Content Information with its
+                Data Object, its bits and its Representation Information; Preservation Description
+                Information with Reference, Provenance, Context, Fixity and Access Rights Information;
+                Packaging Information; and a Package Description &mdash; in
+                <code>oais-aip-components.txt</code>: whether each is present, which individuals in
+                <code>aip.ttl</code> are it, and which files hold it. <code>bag-info.txt</code> says whether
+                the AIP is complete and names anything missing. The bag itself is the Packaging Information
+                (how the components are bound together and extracted), so an AIP without its own gets one
+                describing the bag. The same checklist is on the AIP's page, so you can add what's missing
+                before handing it over.</li>
+            <li>An archive running this application can load the AIP's description with
                 <code>/entities/import</code>.</li>
-            <li><strong>Not yet:</strong> there is no one-step export of a whole AIP &mdash; its
-                description, all its Representation Information and its bits &mdash; as a single package
-                for another archive. Until there is, handing over an AIP means gathering those parts as
-                above.</li>
         </ul>
     </section>
 
