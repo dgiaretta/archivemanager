@@ -31,6 +31,7 @@ import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.vocabulary.RDF;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -103,7 +104,7 @@ class ViewersTest {
     @Autowired
     private RepInfoGroupMigration migration;
     @Autowired
-    private info.oais.archive.manager.service.StorageLocationMigration storageMigration;
+    private info.oais.archive.manager.service.LocalExtensionsMigration localExtensionsMigration;
 
     @TempDir
     Path dir;
@@ -375,27 +376,53 @@ class ViewersTest {
     }
 
     @Test
-    void renamesTheOldBridgeStorageLocation() {
-        String object = write(() -> {
+    void renamesTheOldBridgeAndRicTermsOnOaisIndividuals() {
+        String[] made = write(() -> {
             String o = edit.createEntity(Ns.IM + "DigitalObject");
             edit.addRelationship(o, Ns.BRIDGE + "hasStorageLocation", "https://example.org/old.bin");
-            return o;
+            String ri = edit.createEntity(Ns.IM + "SemanticRepresentationInformation");
+            edit.addRelationship(o, Ns.IM + "interpretedUsing", ri);
+            edit.addLiteral(ri, Ns.BRIDGE + "structuralPath", "reading.temp");
+            edit.addLiteral(ri, Ns.BRIDGE + "scaleFactor", "0.1");
+            String kelvin = edit.createEntity(Ns.RICO + "UnitOfMeasurement");
+            edit.addRelationship(ri, Ns.RICO + "hasUnitOfMeasurement", kelvin);
+            String extent = edit.createEntity(Ns.RICO + "Extent");
+            String metres = edit.createEntity(Ns.RICO + "UnitOfMeasurement");
+            edit.addRelationship(extent, Ns.RICO + "hasUnitOfMeasurement", metres);
+            return new String[] {o, ri, kelvin, extent, metres};
         });
         try {
-            assertThat(write(() -> storageMigration.migrate())).isEqualTo(1);
+            assertThat(write(() -> localExtensionsMigration.migrate())).isEqualTo(5);
             store.beginTransaction(ReadWrite.READ);
             try {
                 Model m = store.dataModel();
-                Resource r = m.getResource(object);
-                assertThat(r.getPropertyResourceValue(m.createProperty(Ns.IM + "hasStorageLocation")).getURI())
+                Resource o = m.getResource(made[0]);
+                assertThat(o.getPropertyResourceValue(m.createProperty(Ns.IM + "hasStorageLocation")).getURI())
                         .isEqualTo("https://example.org/old.bin");
-                assertThat(r.hasProperty(m.createProperty(Ns.BRIDGE + "hasStorageLocation"))).isFalse();
+                assertThat(o.hasProperty(m.createProperty(Ns.BRIDGE + "hasStorageLocation"))).isFalse();
+                Resource ri = m.getResource(made[1]);
+                assertThat(ri.getProperty(m.createProperty(Ns.IM + "structuralPath")).getString()).isEqualTo("reading.temp");
+                assertThat(ri.getProperty(m.createProperty(Ns.IM + "scaleFactor")).getString()).isEqualTo("0.1");
+                assertThat(ri.getPropertyResourceValue(m.createProperty(Ns.IM + "hasUnitOfMeasurement")).getURI())
+                        .isEqualTo(made[2]);
+                assertThat(ri.listProperties().toList()).noneMatch(s -> s.getPredicate().getURI().startsWith(Ns.BRIDGE)
+                        || s.getPredicate().getURI().startsWith(Ns.RICO));
+                assertThat(m.getResource(made[2]).hasProperty(RDF.type, m.createResource(Ns.IM + "UnitOfMeasurement")))
+                        .isTrue();
+                assertThat(m.getResource(made[2]).hasProperty(RDF.type, m.createResource(Ns.RICO + "UnitOfMeasurement")))
+                        .isFalse();
+                // An Extent's unit is RiC-O's, not OAIS's, and is left alone.
+                assertThat(m.getResource(made[3]).getPropertyResourceValue(m.createProperty(Ns.RICO + "hasUnitOfMeasurement"))
+                        .getURI()).isEqualTo(made[4]);
+                assertThat(m.getResource(made[4]).hasProperty(RDF.type, m.createResource(Ns.RICO + "UnitOfMeasurement")))
+                        .isTrue();
             } finally {
                 store.endTransaction(true);
             }
-            assertThat(write(() -> storageMigration.migrate())).isZero();
+            assertThat(write(() -> localExtensionsMigration.migrate())).isZero();
         } finally {
-            removeReachable(object);
+            removeReachable(made[0]);
+            removeReachable(made[3]);
         }
     }
 

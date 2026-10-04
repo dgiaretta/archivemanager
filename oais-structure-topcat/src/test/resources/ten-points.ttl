@@ -2,7 +2,6 @@
 # descriptions. "dfdl-or-drb" has three alternatives -- one a Kaitai class
 # that isn't on the classpath, so it can't be used -- "kaitai" has one.
 @prefix im:     <http://ontology.oais.info/im/> .
-@prefix bridge: <https://oais.info/bridge#> .
 
 <#dfdl-or-drb> a im:DigitalObject ;
     im:hasStorageLocation <points.csv> ;

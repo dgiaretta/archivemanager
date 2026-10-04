@@ -7,10 +7,8 @@
 # locations resolve against this file's own location.
 
 @prefix im:     <http://ontology.oais.info/im/> .
-@prefix bridge: <https://oais.info/bridge#> .
 @prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
-@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
 
 <#bright-star-catalogue> a im:DigitalObject ;
     rdfs:label "Bright star catalogue" ;
@@ -50,36 +48,36 @@
     im:hasStorageLocation <bright-star-catalogue-table-view.xml> .
 
 <#bright-star-catalogue-element-1> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "star" ;
+    im:structuralPath "star" ;
     rdfs:label "Star" ;
     skos:definition "One star of the catalogue." .
 
 <#bright-star-catalogue-element-2> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "star.name" ;
+    im:structuralPath "star.name" ;
     rdfs:label "Star name" ;
     skos:definition "Common name, padded with spaces." .
 
 <#bright-star-catalogue-element-3> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "star.ra" ;
+    im:structuralPath "star.ra" ;
     rdfs:label "Right ascension" ;
     skos:definition "Right ascension, ICRS, epoch J2000." ;
-    rico:hasUnitOfMeasurement [ rdfs:label "deg" ] .
+    im:hasUnitOfMeasurement [ rdfs:label "deg" ] .
 
 <#bright-star-catalogue-element-4> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "star.dec" ;
+    im:structuralPath "star.dec" ;
     rdfs:label "Declination" ;
     skos:definition "Declination, ICRS, epoch J2000." ;
-    rico:hasUnitOfMeasurement [ rdfs:label "deg" ] .
+    im:hasUnitOfMeasurement [ rdfs:label "deg" ] .
 
 <#bright-star-catalogue-element-5> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "star.vmag" ;
+    im:structuralPath "star.vmag" ;
     rdfs:label "Visual magnitude" ;
     skos:definition "Apparent magnitude in the Johnson V band." ;
-    rico:hasUnitOfMeasurement [ rdfs:label "mag" ] .
+    im:hasUnitOfMeasurement [ rdfs:label "mag" ] .
 
 <#bright-star-catalogue-element-6> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "star.parallax" ;
+    im:structuralPath "star.parallax" ;
     rdfs:label "Parallax" ;
     skos:definition "Trigonometric parallax." ;
-    rico:hasUnitOfMeasurement [ rdfs:label "mas" ] .
+    im:hasUnitOfMeasurement [ rdfs:label "mas" ] .
 

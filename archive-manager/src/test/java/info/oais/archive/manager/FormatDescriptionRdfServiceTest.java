@@ -132,7 +132,7 @@ class FormatDescriptionRdfServiceTest {
                 List<Map<String, String>> units = q.select(store.dataModel(), Ns.PREFIXES + """
                         SELECT ?field ?unit ?unitLabel WHERE {
                           <%s> im:interpretedUsingRecurse ?field .
-                          ?field rico:hasUnitOfMeasurement ?unit .
+                          ?field im:hasUnitOfMeasurement ?unit .
                           ?unit rdfs:label ?unitLabel .
                         }
                         """.formatted(container));
@@ -188,13 +188,13 @@ class FormatDescriptionRdfServiceTest {
                           ?repInfo im:hasStructureRepresentationInformation ?structureRi ;
                                    im:hasSemanticRepresentationInformation ?container .
                           ?container im:interpretedUsingRecurse ?packetRi .
-                          ?packetRi bridge:structuralPath "packet" ; im:interpretedUsingRecurse ?bodyRi .
-                          ?bodyRi bridge:structuralPath "packet.body" ; im:interpretedUsingRecurse ?branchRi .
-                          ?branchRi bridge:structuralPath "packet.body.science" ; im:interpretedUsingRecurse ?tempRi .
-                          ?tempRi rdfs:label "Temperature" ; bridge:structuralPath "packet.body.science.temp" ;
-                                  bridge:scaleFactor ?scale ; bridge:addOffset ?offset ; bridge:fillValue ?fill ;
-                                  bridge:validMin ?min ; bridge:validMax ?max ; bridge:representsConcept ?concept ;
-                                  rico:hasUnitOfMeasurement ?unit .
+                          ?packetRi im:structuralPath "packet" ; im:interpretedUsingRecurse ?bodyRi .
+                          ?bodyRi im:structuralPath "packet.body" ; im:interpretedUsingRecurse ?branchRi .
+                          ?branchRi im:structuralPath "packet.body.science" ; im:interpretedUsingRecurse ?tempRi .
+                          ?tempRi rdfs:label "Temperature" ; im:structuralPath "packet.body.science.temp" ;
+                                  im:scaleFactor ?scale ; im:addOffset ?offset ; im:fillValue ?fill ;
+                                  im:validMin ?min ; im:validMax ?max ; im:representsConcept ?concept ;
+                                  im:hasUnitOfMeasurement ?unit .
                           ?unit skos:exactMatch ?unitMatch .
                         }
                         """.formatted(dataObject));
@@ -217,7 +217,7 @@ class FormatDescriptionRdfServiceTest {
                 List<Map<String, String>> codes = q.select(store.dataModel(), Ns.PREFIXES + """
                         SELECT ?kindRi ?scheme ?concept ?notation ?meaning WHERE {
                           <%s> im:interpretedUsingRecurse ?kindRi .
-                          ?kindRi bridge:structuralPath "packet.kind" ; bridge:hasCodeList ?scheme .
+                          ?kindRi im:structuralPath "packet.kind" ; im:hasCodeList ?scheme .
                           ?concept skos:inScheme ?scheme ; skos:notation ?notation ; skos:prefLabel ?meaning .
                         }
                         """.formatted(t.get("packetRi")));

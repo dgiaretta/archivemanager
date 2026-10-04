@@ -886,15 +886,17 @@ wanted.
     one Representation Information needing further Representation
     Information to interpret it (figure 4-10), reused here rather than
     inventing a new one. Each carries `rdfs:label` (the semantic name,
-    falling back to the element's name), `bridge:structuralPath` (e.g.
+    falling back to the element's name), `im:structuralPath` (e.g.
     `packet.body.science.temperature`), `skos:definition`, and
-    `rico:hasUnitOfMeasurement` to a `rico:UnitOfMeasurement` individual
+    `im:hasUnitOfMeasurement` to an `im:UnitOfMeasurement` individual
     shared across elements with the same unit string (with `skos:exactMatch`
     to the unit's vocabulary IRI, if given). The rest of the semantics use
-    data-element properties added to `oais-ric-bridge.ttl`:
-    `bridge:scaleFactor`, `bridge:addOffset`, `bridge:fillValue`,
-    `bridge:validMin`/`validMax`, `bridge:representsConcept`, and
-    `bridge:hasCodeList` to a `skos:ConceptScheme` whose `skos:Concept`s
+    the data-element properties in `oais-im-local-extensions.ttl` (all of
+    these are OAIS local extensions, so the Representation Information uses
+    nothing from RiC-O or the RiC bridge):
+    `im:scaleFactor`, `im:addOffset`, `im:fillValue`,
+    `im:validMin`/`validMax`, `im:representsConcept`, and
+    `im:hasCodeList` to a `skos:ConceptScheme` whose `skos:Concept`s
     pair each code (`skos:notation`) with its meaning (`skos:prefLabel`). The
     overall Semantic RI's `rdfs:comment` still carries a plain-text summary
     of every element, for a one-glance read without following the links.

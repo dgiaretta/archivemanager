@@ -27,9 +27,11 @@ import org.apache.jena.vocabulary.RDFS;
  * Data Objects' OAIS Representation Information, naming every file
  * explicitly -- the data itself and each description -- with
  * {@code im:hasStorageLocation}, relative to the manifest's own location
- * (or as absolute URLs). Manifests written before that term was in the OAIS
- * Information Model's local extensions say {@code bridge:hasStorageLocation}
- * instead, which is still read. It has the same shape the archive saves: a Data
+ * (or as absolute URLs). Every term is from the OAIS Information Model or its
+ * local extensions; manifests written before some were moved there say
+ * {@code bridge:hasStorageLocation}, {@code bridge:structuralPath},
+ * {@code bridge:representsConcept} and {@code rico:hasUnitOfMeasurement}
+ * instead, which are still read. It has the same shape the archive saves: a Data
  * Object is {@code im:interpretedUsing} Representation Information, whose
  * AND/OR groups ({@code im:hasGroupMember}) lead to
  * <ul>
@@ -41,8 +43,8 @@ import org.apache.jena.vocabulary.RDFS;
  *       {@code im:viewKind} ("table", "timeSeries", "vector"; "table" if not
  *       given);</li>
  *   <li>element semantics -- Semantic Representation Information with a
- *       {@code bridge:structuralPath}, its {@code rdfs:label},
- *       {@code skos:definition} and units ({@code rico:hasUnitOfMeasurement}
+ *       {@code im:structuralPath}, its {@code rdfs:label},
+ *       {@code skos:definition} and units ({@code im:hasUnitOfMeasurement}
  *       with an {@code rdfs:label}).</li>
  * </ul>
  * Everything else in the manifest (software Other Representation
@@ -52,9 +54,10 @@ import org.apache.jena.vocabulary.RDFS;
 public final class RepInfoManifest {
 
 	public static final String IM = "http://ontology.oais.info/im/";
-	public static final String BRIDGE = "https://oais.info/bridge#";
 	public static final String SKOS = "http://www.w3.org/2004/02/skos/core#";
-	public static final String RICO = "https://www.ica.org/standards/RiC/ontology#";
+	/** Namespaces some of the terms were in before the OAIS local extensions; still read, never written. */
+	private static final String BRIDGE = "https://oais.info/bridge#";
+	private static final String RICO = "https://www.ica.org/standards/RiC/ontology#";
 
 	private final List<DescribedData> dataObjects;
 
@@ -164,12 +167,14 @@ public final class RepInfoManifest {
 				String kind = literal(r, m.createProperty(IM + "viewKind"));
 				views.add(new ViewDescription(id(r), kind == null ? ViewDescription.TABLE : kind, location));
 			}
-			String path = literal(r, m.createProperty(BRIDGE + "structuralPath"));
+			Statement pathStatement = property(m, r, "structuralPath", BRIDGE);
+			String path = pathStatement == null || !pathStatement.getObject().isLiteral() ? null
+					: pathStatement.getObject().asLiteral().getLexicalForm();
 			if (path != null) {
-				Statement units = r.getProperty(m.createProperty(RICO + "hasUnitOfMeasurement"));
+				Statement units = property(m, r, "hasUnitOfMeasurement", RICO);
 				String unitLabel = units == null || !units.getObject().isResource() ? null
 						: literal(units.getObject().asResource(), RDFS.label);
-				Statement concept = r.getProperty(m.createProperty(BRIDGE + "representsConcept"));
+				Statement concept = property(m, r, "representsConcept", BRIDGE);
 				meanings.add(new ElementMeaning(path, literal(r, RDFS.label), literal(r, m.createProperty(SKOS + "definition")),
 						unitLabel, concept == null || !concept.getObject().isURIResource() ? null
 								: concept.getObject().asResource().getURI()));
@@ -215,8 +220,13 @@ public final class RepInfoManifest {
 
 	/** {@code r}'s {@code im:hasStorageLocation}, else its {@code bridge:hasStorageLocation} (the term's old name). */
 	private static Statement storage(Model m, Resource r) {
-		Statement s = r.getProperty(m.createProperty(IM + "hasStorageLocation"));
-		return s != null ? s : r.getProperty(m.createProperty(BRIDGE + "hasStorageLocation"));
+		return property(m, r, "hasStorageLocation", BRIDGE);
+	}
+
+	/** {@code r}'s {@code im:} property {@code name}, else the same-named one in {@code oldNamespace}, where it was. */
+	private static Statement property(Model m, Resource r, String name, String oldNamespace) {
+		Statement s = r.getProperty(m.createProperty(IM + name));
+		return s != null ? s : r.getProperty(m.createProperty(oldNamespace + name));
 	}
 
 	private static String literal(Resource r, Property p) {

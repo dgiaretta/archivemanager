@@ -1,10 +1,8 @@
 # One "point" record, described in DFDL and (equivalently) by the Kaitai
 # Struct class generated from point2d.ksy; the table view and what x means.
 @prefix im:     <http://ontology.oais.info/im/> .
-@prefix bridge: <https://oais.info/bridge#> .
 @prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
-@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
 
 <#point> a im:DigitalObject ;
     rdfs:label "A point" ;
@@ -35,7 +33,7 @@
     im:hasStorageLocation <point-table-view.xml> .
 
 <#x> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "point.x" ;
+    im:structuralPath "point.x" ;
     rdfs:label "X ordinate" ;
     skos:definition "Distance along the x axis." ;
-    rico:hasUnitOfMeasurement [ rdfs:label "m" ] .
+    im:hasUnitOfMeasurement [ rdfs:label "m" ] .

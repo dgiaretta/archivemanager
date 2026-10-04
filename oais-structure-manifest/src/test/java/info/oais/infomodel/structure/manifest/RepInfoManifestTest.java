@@ -20,9 +20,7 @@ class RepInfoManifestTest {
 
 	private static final String MANIFEST = """
 			@prefix im:     <http://ontology.oais.info/im/> .
-			@prefix bridge: <https://oais.info/bridge#> .
 			@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
-			@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
 
 			<#readings> a im:DigitalObject ;
 			    im:hasStorageLocation <data/readings-2026.bin> ;
@@ -48,8 +46,8 @@ class RepInfoManifestTest {
 			    im:interpretedUsingRecurse <#view> , <#temp> .
 			<#view> a im:ViewSpecification ; im:hasStorageLocation <views/station-table.xml> .
 			<#temp> a im:SemanticRepresentationInformation ;
-			    bridge:structuralPath "reading.temp" ; rdfs:label "Air temperature" ;
-			    rico:hasUnitOfMeasurement [ rdfs:label "K" ] .
+			    im:structuralPath "reading.temp" ; rdfs:label "Air temperature" ;
+			    im:hasUnitOfMeasurement [ rdfs:label "K" ] .
 
 			<#other> a im:DigitalObject ;
 			    im:hasStorageLocation <https://example.org/data/other.bin> ;
@@ -80,14 +78,22 @@ class RepInfoManifestTest {
 	}
 
 	@Test
-	void stillReadsTheOldBridgeStorageLocation() {
-		String old = MANIFEST.replace("im:hasStorageLocation", "bridge:hasStorageLocation");
+	void stillReadsTheOldBridgeAndRicNames() {
+		String old = """
+				@prefix bridge: <https://oais.info/bridge#> .
+				@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
+				""" + MANIFEST.replace("im:hasStorageLocation", "bridge:hasStorageLocation")
+				.replace("im:structuralPath", "bridge:structuralPath")
+				.replace("im:hasUnitOfMeasurement", "rico:hasUnitOfMeasurement");
 		RepInfoManifest m = RepInfoManifest.read(new ByteArrayInputStream(old.getBytes(StandardCharsets.UTF_8)),
 				URI.create("file:///x/manifest.ttl"));
 		DescribedData readings = m.select("readings");
 		assertEquals(URI.create("file:///x/data/readings-2026.bin"), readings.data());
 		assertEquals(URI.create("file:///x/views/station-table.xml"),
 				readings.view(ViewDescription.TABLE).orElseThrow().location());
+		ElementMeaning temp = readings.meaningOf("reading", "temp").orElseThrow();
+		assertEquals("Air temperature", temp.label());
+		assertEquals("K", temp.units());
 		assertTrue(RepInfoManifest.looksLikeManifest(old));
 	}
 

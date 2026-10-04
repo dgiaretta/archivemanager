@@ -33,10 +33,8 @@ public final class ManifestWriter {
 				# locations resolve against this file's own location.
 
 				@prefix im:     <http://ontology.oais.info/im/> .
-				@prefix bridge: <https://oais.info/bridge#> .
 				@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
 				@prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
-				@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
 
 				""");
 		for (DescribedData d : dataObjects) {
@@ -121,7 +119,7 @@ public final class ManifestWriter {
 		for (int i = 0; i < d.meanings().size(); i++) {
 			ElementMeaning e = d.meanings().get(i);
 			sb.append(iri(parts.get(d.views().size() + i))).append(" a im:SemanticRepresentationInformation ;\n");
-			sb.append("    bridge:structuralPath ").append(literal(e.path()));
+			sb.append("    im:structuralPath ").append(literal(e.path()));
 			if (e.label() != null) {
 				sb.append(" ;\n    rdfs:label ").append(literal(e.label()));
 			}
@@ -129,10 +127,10 @@ public final class ManifestWriter {
 				sb.append(" ;\n    skos:definition ").append(literal(e.definition()));
 			}
 			if (e.units() != null) {
-				sb.append(" ;\n    rico:hasUnitOfMeasurement [ rdfs:label ").append(literal(e.units())).append(" ]");
+				sb.append(" ;\n    im:hasUnitOfMeasurement [ rdfs:label ").append(literal(e.units())).append(" ]");
 			}
 			if (e.concept() != null) {
-				sb.append(" ;\n    bridge:representsConcept ").append(iri(URI.create(e.concept())));
+				sb.append(" ;\n    im:representsConcept ").append(iri(URI.create(e.concept())));
 			}
 			sb.append(" .\n\n");
 		}

@@ -327,9 +327,7 @@ manifest, or as a URL -- so files can have any names and live anywhere:
 
 ```turtle
 @prefix im:     <http://ontology.oais.info/im/> .
-@prefix bridge: <https://oais.info/bridge#> .
 @prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
 
 <#readings> a im:DigitalObject ;
     im:hasStorageLocation <readings-2026.bin> ;
@@ -359,9 +357,9 @@ manifest, or as a URL -- so files can have any names and live anywhere:
     im:hasStorageLocation <station-readings-table-view.xml> .
 
 <#temperature> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "reading.temperature" ;
+    im:structuralPath "reading.temperature" ;
     rdfs:label "Air temperature" ;
-    rico:hasUnitOfMeasurement [ rdfs:label "K" ] .
+    im:hasUnitOfMeasurement [ rdfs:label "K" ] .
 ```
 
 | In the manifest | Meaning |
@@ -369,7 +367,7 @@ manifest, or as a URL -- so files can have any names and live anywhere:
 | `im:hasStorageLocation` on the Data Object | Where its bits are. |
 | `im:specificationLanguage` | A structure description: `"DFDL"`, `"DRB SDF"` (each with its file), `"Kaitai Struct"` (with `im:generatedClassName`: an already-compiled class on the classpath -- see `KaitaiFormatSpecification`'s Javadoc for why a runtime `.ksy` path alone is not enough) or `"DRB"` (no file: DRB recognises the format from the data file's extension). The members of an OR group are equivalent: the first whose engine is available is used, in the order DFDL, DRB SDF, Kaitai Struct, DRB. |
 | `im:ViewSpecification` | How to view the decoded tree (`im:viewKind` `"table"`, the default): a `TableViewSpecification` file of rows and columns, whose columns can give `unit`, `description` and `ucd`. |
-| `bridge:structuralPath` | What an element means; a column without its own units or description takes them from here, matched by path. |
+| `im:structuralPath` | What an element means; a column without its own units or description takes them from here, matched by path. |
 
 archive-manager writes these manifests too: RepInfo Tools downloads one with the descriptions and a
 generated table view for a local data file, and the archive serves one for each Data Object whose bits
@@ -381,9 +379,10 @@ Everything else a manifest holds (software Other Representation Information, pro
 allowed and ignored. A manifest describing several Data Objects is opened with the one to use after
 a `#`, e.g. `station.ttl#readings`. The builder recognises a manifest by its content, never its name.
 The terms are local extensions to the OAIS Information Model (`oais-im-local-extensions.ttl` in
-archive-manager). `im:hasStorageLocation` was `bridge:hasStorageLocation` in the RiC bridge
-ontology; manifests that use the old name are still read, and the archive renames it in its data at
-startup.
+archive-manager), so a manifest uses nothing from RiC-O or the RiC bridge. `im:hasStorageLocation`,
+`im:structuralPath` and `im:representsConcept` were in the RiC bridge ontology (`bridge:`), and
+`im:hasUnitOfMeasurement` was RiC-O's `rico:hasUnitOfMeasurement`; manifests that use the old names
+are still read, and the archive renames them in its data at startup.
 
 **A worked example** is in `examples/topcat/`: a binary star catalogue with its manifest, DFDL
 and DRB SDF descriptions and table view (made with archive-manager's RepInfo Tools), and scripts
@@ -548,7 +547,7 @@ usable DFDL, DRB SDF or Kaitai Struct description), then viewed with an **image 
 ```
 
 `unit` and `description` are optional; without them the pixels' meaning comes from the manifest's
-element semantics for the pixel element (`bridge:structuralPath "row.pixel"`).
+element semantics for the pixel element (`im:structuralPath "row.pixel"`).
 
 None of the usual image viewers can be given a new reader the way TOPCAT can, so the decoded image is
 written as **FITS** (`FitsImageWriter`): one 2-D primary HDU, the pixels in the smallest FITS type that

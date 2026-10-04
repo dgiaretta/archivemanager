@@ -270,68 +270,32 @@ bridge:hasRiCDescription
 
 # The storage location of an object's bits, once bridge:hasStorageLocation,
 # is now im:hasStorageLocation, a local extension to the OAIS Information
-# Model in oais-im-local-extensions.ttl. It is still usable on a
-# rico:Instantiation as well as on an im:DataObject/im:DigitalObject.
+# Model in oais-im-local-extensions.ttl. It can also be used on a
+# rico:Instantiation, the counterpart of im:DataObject (section 1).
 
 # ============================================================
-# Semantics of data elements
+# Units of measurement
 # ============================================================
-# Used by RepInfo Tools when it saves a format description: every
-# element of the description (a field, record, choice or choice branch)
-# gets its own im:SemanticRepresentationInformation, nested to mirror
-# the description via im:interpretedUsingRecurse, with rdfs:label (the
-# semantic name), skos:definition and rico:hasUnitOfMeasurement. The
-# properties below carry what those can't: where the element sits in
-# the structure, how raw values become physical ones, which values mean
-# "no data", the valid range, coded values, and links to controlled
-# vocabularies. Names follow the CF metadata conventions
-# (scale_factor, add_offset, _FillValue, valid_min, valid_max) that
-# scientific data already uses. Kept in the bridge namespace because
-# none of this is part of the OAIS reference model itself.
+# The semantics of data elements -- structural path, units, scaling, fill
+# values, valid ranges, code lists, concepts -- are local extensions to the
+# OAIS Information Model (oais-im-local-extensions.ttl), not part of this
+# bridge: they were bridge:structuralPath, bridge:scaleFactor, ... here, and
+# the units were RiC-O's own rico:hasUnitOfMeasurement and
+# rico:UnitOfMeasurement, until moved so that OAIS Representation
+# Information depends on neither RiC-O nor this bridge. The archive renames
+# the old terms in its data at startup. Only the units have RiC-O
+# counterparts.
 
-bridge:structuralPath
-  a owl:DatatypeProperty ;
-  rdfs:label "structural path"@en ;
-  rdfs:range xsd:string ;
-  rdfs:comment "Which element of a format description a Semantic Representation Information is about, as its dotted path from the top of the file (e.g. packet.body.science.temp) -- the link between what a value means and where it sits in the bytes."@en .
+rico:UnitOfMeasurement
+  skos:closeMatch im:UnitOfMeasurement ;
+  bridge:mappingRationale "Both denote a unit in which a measured quantity is expressed. RiC-O uses rico:UnitOfMeasurement for the extent of a Record Resource or Instantiation (e.g. 'linear metres', 'pages'); im:UnitOfMeasurement is the unit of a data element's values in Semantic Representation Information (e.g. 'K', 'erg/cm2/s/Angstrom'). The same kind of thing applied to different subjects, so closeMatch rather than exactMatch."@en .
 
-bridge:scaleFactor
-  a owl:DatatypeProperty ;
-  rdfs:label "scale factor"@en ;
-  rdfs:range xsd:decimal ;
-  rdfs:comment "Physical value = raw value * scale factor + add offset (CF convention scale_factor; FITS BSCALE)."@en .
+im:UnitOfMeasurement
+  skos:closeMatch rico:UnitOfMeasurement .
 
-bridge:addOffset
-  a owl:DatatypeProperty ;
-  rdfs:label "add offset"@en ;
-  rdfs:range xsd:decimal ;
-  rdfs:comment "See bridge:scaleFactor (CF convention add_offset; FITS BZERO)."@en .
+rico:hasUnitOfMeasurement
+  skos:closeMatch im:hasUnitOfMeasurement ;
+  bridge:mappingRationale "Both link something measured to its unit: in RiC-O an Extent, in OAIS a data element's Semantic Representation Information. Same role, different domains, hence closeMatch."@en .
 
-bridge:fillValue
-  a owl:DatatypeProperty ;
-  rdfs:label "fill value"@en ;
-  rdfs:comment "The raw value that means 'no data' for this element (CF convention _FillValue)."@en .
-
-bridge:validMin
-  a owl:DatatypeProperty ;
-  rdfs:label "smallest valid value"@en ;
-  rdfs:range xsd:decimal ;
-  rdfs:comment "The smallest meaningful physical value of this element (CF convention valid_min)."@en .
-
-bridge:validMax
-  a owl:DatatypeProperty ;
-  rdfs:label "largest valid value"@en ;
-  rdfs:range xsd:decimal ;
-  rdfs:comment "The largest meaningful physical value of this element (CF convention valid_max)."@en .
-
-bridge:hasCodeList
-  a owl:ObjectProperty ;
-  rdfs:label "has code list"@en ;
-  rdfs:range skos:ConceptScheme ;
-  rdfs:comment "For a coded element: the skos:ConceptScheme of its codes, each a skos:Concept whose skos:notation is the raw value and skos:prefLabel its meaning."@en .
-
-bridge:representsConcept
-  a owl:ObjectProperty ;
-  rdfs:label "represents concept"@en ;
-  rdfs:subPropertyOf rdfs:seeAlso ;
-  rdfs:comment "The concept, in an external vocabulary or ontology, that this element's values represent."@en .
+im:hasUnitOfMeasurement
+  skos:closeMatch rico:hasUnitOfMeasurement .

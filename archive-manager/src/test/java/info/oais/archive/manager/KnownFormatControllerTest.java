@@ -150,8 +150,8 @@ class KnownFormatControllerTest {
                 assertThat(q.select(store.dataModel(), Ns.PREFIXES + """
                         SELECT ?label ?scale WHERE {
                           <%s> im:interpretedUsingRecurse ?sheet .
-                          ?sheet bridge:structuralPath "Readings" ; im:interpretedUsingRecurse ?column .
-                          ?column bridge:structuralPath "Readings!\\"Temp\\"" ; rdfs:label ?label ; bridge:scaleFactor ?scale .
+                          ?sheet im:structuralPath "Readings" ; im:interpretedUsingRecurse ?column .
+                          ?column im:structuralPath "Readings!\\"Temp\\"" ; rdfs:label ?label ; im:scaleFactor ?scale .
                         }""".formatted(rows.get(0).get("semantic"))))
                         .containsExactly(Map.of("label", "Air temperature", "scale", "0.1"));
             } finally {

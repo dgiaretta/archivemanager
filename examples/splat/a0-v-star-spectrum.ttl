@@ -7,10 +7,8 @@
 # locations resolve against this file's own location.
 
 @prefix im:     <http://ontology.oais.info/im/> .
-@prefix bridge: <https://oais.info/bridge#> .
 @prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
-@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
 
 <#a0-v-star-spectrum> a im:DigitalObject ;
     rdfs:label "A0 V star spectrum" ;
@@ -50,35 +48,35 @@
     im:hasStorageLocation <a0-v-star-spectrum-table-view.xml> .
 
 <#a0-v-star-spectrum-element-1> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "object" ;
+    im:structuralPath "object" ;
     rdfs:label "Object" ;
     skos:definition "Name of the object observed, padded with spaces." .
 
 <#a0-v-star-spectrum-element-2> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "n_points" ;
+    im:structuralPath "n_points" ;
     rdfs:label "Number of points" ;
     skos:definition "How many points the spectrum has." .
 
 <#a0-v-star-spectrum-element-3> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "point" ;
+    im:structuralPath "point" ;
     rdfs:label "Point" ;
     skos:definition "One point of the spectrum." .
 
 <#a0-v-star-spectrum-element-4> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "point.wavelength" ;
+    im:structuralPath "point.wavelength" ;
     rdfs:label "Wavelength" ;
     skos:definition "Wavelength in air." ;
-    rico:hasUnitOfMeasurement [ rdfs:label "Angstrom" ] .
+    im:hasUnitOfMeasurement [ rdfs:label "Angstrom" ] .
 
 <#a0-v-star-spectrum-element-5> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "point.flux" ;
+    im:structuralPath "point.flux" ;
     rdfs:label "Flux density" ;
     skos:definition "Flux density per unit wavelength." ;
-    rico:hasUnitOfMeasurement [ rdfs:label "erg/cm2/s/Angstrom" ] .
+    im:hasUnitOfMeasurement [ rdfs:label "erg/cm2/s/Angstrom" ] .
 
 <#a0-v-star-spectrum-element-6> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "point.error" ;
+    im:structuralPath "point.error" ;
     rdfs:label "Flux density error" ;
     skos:definition "One-sigma uncertainty of the flux density." ;
-    rico:hasUnitOfMeasurement [ rdfs:label "erg/cm2/s/Angstrom" ] .
+    im:hasUnitOfMeasurement [ rdfs:label "erg/cm2/s/Angstrom" ] .
 

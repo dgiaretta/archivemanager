@@ -52,14 +52,16 @@ import java.util.Map;
  * Representation Information to interpret it (figure 4-10), unrestricted in
  * cardinality unlike hasSemanticRepresentationInformation. Each carries
  * {@code rdfs:label} (the semantic name, falling back to the element's name),
- * {@code bridge:structuralPath} (where it sits, e.g. {@code packet.body.temp}),
- * {@code skos:definition}, and {@code rico:hasUnitOfMeasurement} to a shared
- * {@code rico:UnitOfMeasurement} individual (one per distinct unit string, with
+ * {@code im:structuralPath} (where it sits, e.g. {@code packet.body.temp}),
+ * {@code skos:definition}, and {@code im:hasUnitOfMeasurement} to a shared
+ * {@code im:UnitOfMeasurement} individual (one per distinct unit string, with
  * {@code skos:exactMatch} to a vocabulary term when one was given). The rest of
- * its semantics use the bridge ontology's data-element properties
- * ({@code oais-ric-bridge.ttl}): {@code bridge:scaleFactor}/{@code addOffset},
- * {@code bridge:fillValue}, {@code bridge:validMin}/{@code validMax},
- * {@code bridge:representsConcept}, and {@code bridge:hasCodeList} to a
+ * its semantics use the data-element properties of the OAIS Information
+ * Model's local extensions ({@code oais-im-local-extensions.ttl}), like the
+ * terms above, so nothing here depends on RiC-O or the RiC bridge:
+ * {@code im:scaleFactor}/{@code addOffset},
+ * {@code im:fillValue}, {@code im:validMin}/{@code validMax},
+ * {@code im:representsConcept}, and {@code im:hasCodeList} to a
  * {@code skos:ConceptScheme} whose concepts pair each code ({@code skos:notation})
  * with its meaning ({@code skos:prefLabel}). A logical-tree definition gets one
  * individual per row.
@@ -292,7 +294,7 @@ public class FormatDescriptionRdfService {
      * overall {@code semanticRi}: for a byte layout, one per element of the
      * description, nested to mirror it (a record's or choice's individual links
      * to its elements' via {@code im:interpretedUsingRecurse}); for a logical
-     * tree, one per row. Units are shared {@code rico:UnitOfMeasurement}
+     * tree, one per row. Units are shared {@code im:UnitOfMeasurement}
      * individuals, one per distinct unit string.
      */
     private void addFieldSemantics(FormatDefinition def, String semanticRi) {
@@ -338,24 +340,24 @@ public class FormatDescriptionRdfService {
                                       Map<String, String> unitsByLabel) {
         String ri = edit.createEntity(Ns.IM + "SemanticRepresentationInformation");
         edit.addLiteral(ri, Ns.RDFS + "label", s.semanticName() == null ? name : s.semanticName());
-        edit.addLiteral(ri, Ns.BRIDGE + "structuralPath", path);
+        edit.addLiteral(ri, Ns.IM + "structuralPath", path);
         edit.addLiteral(ri, Ns.SKOS + "definition", s.definition());
         addUnits(ri, s.units(), s.unitsUri(), unitsByLabel);
         if (s.conceptUri() != null) {
-            edit.addRelationship(ri, Ns.BRIDGE + "representsConcept", s.conceptUri().toString());
+            edit.addRelationship(ri, Ns.IM + "representsConcept", s.conceptUri().toString());
         }
         if (s.scale() != null) {
-            edit.addLiteral(ri, Ns.BRIDGE + "scaleFactor", s.scale().toPlainString());
+            edit.addLiteral(ri, Ns.IM + "scaleFactor", s.scale().toPlainString());
         }
         if (s.offset() != null) {
-            edit.addLiteral(ri, Ns.BRIDGE + "addOffset", s.offset().toPlainString());
+            edit.addLiteral(ri, Ns.IM + "addOffset", s.offset().toPlainString());
         }
-        edit.addLiteral(ri, Ns.BRIDGE + "fillValue", s.fillValue());
+        edit.addLiteral(ri, Ns.IM + "fillValue", s.fillValue());
         if (s.validMin() != null) {
-            edit.addLiteral(ri, Ns.BRIDGE + "validMin", s.validMin().toPlainString());
+            edit.addLiteral(ri, Ns.IM + "validMin", s.validMin().toPlainString());
         }
         if (s.validMax() != null) {
-            edit.addLiteral(ri, Ns.BRIDGE + "validMax", s.validMax().toPlainString());
+            edit.addLiteral(ri, Ns.IM + "validMax", s.validMax().toPlainString());
         }
         if (!s.codes().isEmpty()) {
             String scheme = edit.createEntity(Ns.SKOS + "ConceptScheme");
@@ -366,7 +368,7 @@ public class FormatDescriptionRdfService {
                 edit.addLiteral(concept, Ns.SKOS + "prefLabel", meaning);
                 edit.addRelationship(concept, Ns.SKOS + "inScheme", scheme);
             });
-            edit.addRelationship(ri, Ns.BRIDGE + "hasCodeList", scheme);
+            edit.addRelationship(ri, Ns.IM + "hasCodeList", scheme);
         }
         edit.addRelationship(parentRi, Ns.IM + "interpretedUsingRecurse", ri);
         return ri;
@@ -382,7 +384,7 @@ public class FormatDescriptionRdfService {
      * of the applications that read it (see {@link KnownFormat#software()}).
      * Each column's Semantic Representation Information is linked from its
      * sheet's, which is linked from the overall one, with
-     * {@code bridge:structuralPath} saying where it is, e.g.
+     * {@code im:structuralPath} saying where it is, e.g.
      * {@code Readings!"Air temperature"}.
      *
      * @param structureIri existing Structure Representation Information to use, or null for a new format profile
@@ -503,14 +505,14 @@ public class FormatDescriptionRdfService {
             return;
         }
         String unitIri = unitsByLabel.computeIfAbsent(units, u -> {
-            String iri = edit.createEntity(Ns.RICO + "UnitOfMeasurement");
+            String iri = edit.createEntity(Ns.IM + "UnitOfMeasurement");
             edit.addLiteral(iri, Ns.RDFS + "label", u);
             return iri;
         });
         if (unitsUri != null) {
             edit.addRelationship(unitIri, Ns.SKOS + "exactMatch", unitsUri.toString());
         }
-        edit.addRelationship(ri, Ns.RICO + "hasUnitOfMeasurement", unitIri);
+        edit.addRelationship(ri, Ns.IM + "hasUnitOfMeasurement", unitIri);
     }
 
     private String semanticSummary(FormatDefinition def) {

@@ -1,10 +1,8 @@
 # A 4 x 3 test image, decoded with DFDL or DRB SDF.
 
 @prefix im:     <http://ontology.oais.info/im/> .
-@prefix bridge: <https://oais.info/bridge#> .
 @prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix skos:   <http://www.w3.org/2004/02/skos/core#> .
-@prefix rico:   <https://www.ica.org/standards/RiC/ontology#> .
 
 <#tiny> a im:DigitalObject ;
     rdfs:label "Tiny image" ;
@@ -39,27 +37,27 @@
     im:hasStorageLocation <tiny-image-view.xml> .
 
 <#tiny-element-1> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "object" ;
+    im:structuralPath "object" ;
     rdfs:label "Object" ;
     skos:definition "Name of the field observed, padded with spaces." .
 
 <#tiny-element-2> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "width" ;
+    im:structuralPath "width" ;
     rdfs:label "Width" ;
     skos:definition "Number of pixels in each row." .
 
 <#tiny-element-3> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "height" ;
+    im:structuralPath "height" ;
     rdfs:label "Height" ;
     skos:definition "Number of rows." .
 
 <#tiny-element-4> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "row" ;
+    im:structuralPath "row" ;
     rdfs:label "Row" ;
     skos:definition "One row of the image, from the bottom of the field upwards." .
 
 <#tiny-element-5> a im:SemanticRepresentationInformation ;
-    bridge:structuralPath "row.pixel" ;
+    im:structuralPath "row.pixel" ;
     rdfs:label "Counts" ;
     skos:definition "Detector counts in one pixel, sky background included." ;
-    rico:hasUnitOfMeasurement [ rdfs:label "ADU" ] .
+    im:hasUnitOfMeasurement [ rdfs:label "ADU" ] .

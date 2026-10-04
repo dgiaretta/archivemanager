@@ -3,10 +3,14 @@
 #
 # Two kinds of thing are kept here rather than in the generated schema:
 #   - groups of Representation Information, format profiles, the terms for
-#     naming descriptions and view specifications as files, and where an
-#     object's bits are stored (im:hasStorageLocation, moved here from the
-#     RiC bridge, where it was bridge:hasStorageLocation), new here and
-#     marked oais:status "local-extension";
+#     naming descriptions and view specifications as files, where an
+#     object's bits are stored, and the semantics of data elements (units,
+#     scaling, fill values, valid ranges, code lists), new here and marked
+#     oais:status "local-extension". Some were in the RiC bridge
+#     (bridge:hasStorageLocation, bridge:structuralPath, ...) or RiC-O
+#     itself (rico:hasUnitOfMeasurement, rico:UnitOfMeasurement) until
+#     moved here, so that nothing here depends on RiC-O or the bridge to it;
+#     the archive renames the old terms in its data at startup;
 #   - Designated Community, Preservation Objective and Transformation
 #     Information Property, with the properties that relate them, moved here
 #     from the generated schema, keeping their identifiers but now marked
@@ -17,6 +21,8 @@
 
 @prefix owl: <http://www.w3.org/2002/07/owl#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix im: <http://ontology.oais.info/im/> .
 @prefix oais: <http://ontology.oais.info/meta/> .
 
@@ -145,7 +151,7 @@ im:hasStorageLocation
   rdfs:label "has storage location" ;
   oais:status "local-extension" ;
   rdfs:subPropertyOf rdfs:seeAlso ;
-  rdfs:comment "Points to the actual retrievable location of an object's bits (e.g. a Dropbox link, cloud storage URI) -- more specific and self-documenting than plain rdfs:seeAlso for this one purpose. Used on an im:DataObject/im:DigitalObject, on a description or view specification given as a file, or on a rico:Instantiation, so it has no declared domain. LOCAL EXTENSION -- OAIS treats where bits are kept, and how they are retrieved, as implementation-specific and out of scope for the reference model. Formerly bridge:hasStorageLocation in oais-ric-bridge.ttl; the archive converts that at startup, and Representation Information manifests using it are still read." .
+  rdfs:comment "Points to the actual retrievable location of an object's bits (e.g. a Dropbox link, cloud storage URI) -- more specific and self-documenting than plain rdfs:seeAlso for this one purpose. Used on an im:DataObject/im:DigitalObject and on a description or view specification given as a file, so it has no declared domain. LOCAL EXTENSION -- OAIS treats where bits are kept, and how they are retrieved, as implementation-specific and out of scope for the reference model." .
 
 im:specificationLanguage
   a owl:DatatypeProperty ;
@@ -182,6 +188,96 @@ im:viewKind
   rdfs:domain im:ViewSpecification ;
   rdfs:comment "What a view specification shows the data as: 'table', 'image', 'timeSeries' or 'vector'. LOCAL EXTENSION." .
 
+# ---- Semantics of data elements ----
+#
+# Used by RepInfo Tools when it saves a format description: every element of
+# the description (a field, record, choice or choice branch) gets its own
+# im:SemanticRepresentationInformation, nested to mirror the description via
+# im:interpretedUsingRecurse, with rdfs:label (the semantic name),
+# skos:definition and the properties below: where the element sits in the
+# structure, its units, how raw values become physical ones, which values
+# mean "no data", the valid range, coded values, and links to controlled
+# vocabularies. Names follow the CF metadata conventions (scale_factor,
+# add_offset, _FillValue, valid_min, valid_max) that scientific data already
+# uses.
+
+im:structuralPath
+  a owl:DatatypeProperty ;
+  rdfs:label "structural path" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:SemanticRepresentationInformation ;
+  rdfs:range xsd:string ;
+  rdfs:comment "Which element of a format description a Semantic Representation Information is about, as its dotted path from the top of the file (e.g. packet.body.science.temp) -- the link between what a value means and where it sits in the bytes. LOCAL EXTENSION." .
+
+im:UnitOfMeasurement
+  a owl:Class ;
+  rdfs:label "Unit of Measurement" ;
+  oais:status "local-extension" ;
+  rdfs:comment "Unit of Measurement: a unit in which the values of a data element are expressed, e.g. 'K' or 'erg/cm2/s/Angstrom', named by its rdfs:label and, where known, matched to a term in a units vocabulary with skos:exactMatch. LOCAL EXTENSION -- OAIS leaves the content of Semantic Representation Information to the Archive." .
+
+im:hasUnitOfMeasurement
+  a owl:ObjectProperty ;
+  rdfs:label "has unit of measurement" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:SemanticRepresentationInformation ;
+  rdfs:range im:UnitOfMeasurement ;
+  rdfs:comment "The unit in which a data element's physical values are expressed. LOCAL EXTENSION." .
+
+im:scaleFactor
+  a owl:DatatypeProperty ;
+  rdfs:label "scale factor" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:SemanticRepresentationInformation ;
+  rdfs:range xsd:decimal ;
+  rdfs:comment "Physical value = raw value * scale factor + add offset (CF convention scale_factor; FITS BSCALE). LOCAL EXTENSION." .
+
+im:addOffset
+  a owl:DatatypeProperty ;
+  rdfs:label "add offset" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:SemanticRepresentationInformation ;
+  rdfs:range xsd:decimal ;
+  rdfs:comment "See im:scaleFactor (CF convention add_offset; FITS BZERO). LOCAL EXTENSION." .
+
+im:fillValue
+  a owl:DatatypeProperty ;
+  rdfs:label "fill value" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:SemanticRepresentationInformation ;
+  rdfs:comment "The raw value that means 'no data' for this element (CF convention _FillValue). LOCAL EXTENSION." .
+
+im:validMin
+  a owl:DatatypeProperty ;
+  rdfs:label "smallest valid value" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:SemanticRepresentationInformation ;
+  rdfs:range xsd:decimal ;
+  rdfs:comment "The smallest meaningful physical value of this element (CF convention valid_min). LOCAL EXTENSION." .
+
+im:validMax
+  a owl:DatatypeProperty ;
+  rdfs:label "largest valid value" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:SemanticRepresentationInformation ;
+  rdfs:range xsd:decimal ;
+  rdfs:comment "The largest meaningful physical value of this element (CF convention valid_max). LOCAL EXTENSION." .
+
+im:hasCodeList
+  a owl:ObjectProperty ;
+  rdfs:label "has code list" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:SemanticRepresentationInformation ;
+  rdfs:range skos:ConceptScheme ;
+  rdfs:comment "For a coded element: the skos:ConceptScheme of its codes, each a skos:Concept whose skos:notation is the raw value and skos:prefLabel its meaning. LOCAL EXTENSION." .
+
+im:representsConcept
+  a owl:ObjectProperty ;
+  rdfs:label "represents concept" ;
+  oais:status "local-extension" ;
+  rdfs:subPropertyOf rdfs:seeAlso ;
+  rdfs:domain im:SemanticRepresentationInformation ;
+  rdfs:comment "The concept, in an external vocabulary or ontology, that this element's values represent. LOCAL EXTENSION." .
+
 # ---- Designated Community, Preservation Objectives and Transformation ----
 # ---- Information Properties, and the Agent who defines or identifies  ----
 # ---- them (moved from oais_im_schema-sh-v5.ttl)                        ----
@@ -196,7 +292,7 @@ im:viewKind
   oais:identifier "c-0029" ;
   oais:status "local-extension" ;
   oais:edition "CCSDS 650.0-M-3 (Issue 3, December 2024)" ;
-  rdfs:comment "Agent: A person, organization, or automated system capable of performing an action such as defining a Designated Community or Preservation Objective, or identifying a Transformation Information Property. LOCAL EXTENSION -- the OAIS Information Model does not itself model who performs such actions; that belongs to the Producer/Management/Consumer roles of the Functional Model, out of scope for the Information-Model-only schema. See oais-ric-bridge.ttl for its correspondence to rico:Agent, which already models the full Person/Group/CorporateBody/Family/Position/Mechanism hierarchy." .
+  rdfs:comment "Agent: A person, organization, or automated system capable of performing an action such as defining a Designated Community or Preservation Objective, or identifying a Transformation Information Property. LOCAL EXTENSION -- the OAIS Information Model does not itself model who performs such actions; that belongs to the Producer/Management/Consumer roles of the Functional Model, out of scope for the Information-Model-only schema." .
 
 <http://ontology.oais.info/im/DesignatedCommunity>
   a owl:Class ;

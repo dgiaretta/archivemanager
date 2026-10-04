@@ -48,7 +48,7 @@ import java.util.stream.Stream;
  * {@code im:interpretedUsing} through its AND/OR groups to the structure
  * descriptions ({@code im:specificationLanguage}, {@code im:specificationText}),
  * view specifications ({@code im:ViewSpecification}) and element semantics
- * ({@code bridge:structuralPath}); its bits are at its
+ * ({@code im:structuralPath}); its bits are at its
  * {@code im:hasStorageLocation}.
  */
 @Service
@@ -235,10 +235,10 @@ public class DataObjectViewService {
                 views.add(new ViewDescription(r.getURI(), kind == null ? ViewDescription.TABLE : kind,
                         specificationUrl.apply(r.getURI())));
             }
-            String path = literal(r, m.createProperty(Ns.BRIDGE + "structuralPath"));
+            String path = literal(r, m.createProperty(Ns.IM + "structuralPath"));
             if (path != null) {
-                Statement units = r.getProperty(m.createProperty(Ns.RICO + "hasUnitOfMeasurement"));
-                Statement concept = r.getProperty(m.createProperty(Ns.BRIDGE + "representsConcept"));
+                Statement units = r.getProperty(m.createProperty(Ns.IM + "hasUnitOfMeasurement"));
+                Statement concept = r.getProperty(m.createProperty(Ns.IM + "representsConcept"));
                 meanings.add(new ElementMeaning(path, literal(r, m.createProperty(Ns.RDFS + "label")),
                         literal(r, m.createProperty(Ns.SKOS + "definition")),
                         units == null || !units.getObject().isResource() ? null

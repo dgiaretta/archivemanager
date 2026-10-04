@@ -1,6 +1,5 @@
 # The same point, described only by the generated Kaitai Struct class.
 @prefix im:     <http://ontology.oais.info/im/> .
-@prefix bridge: <https://oais.info/bridge#> .
 
 <#point> a im:DigitalObject ;
     im:hasStorageLocation <point.bin> ;

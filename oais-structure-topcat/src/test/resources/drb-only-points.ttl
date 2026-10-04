@@ -1,6 +1,5 @@
 # The ten points, described only by a DRB SDF schema.
 @prefix im:     <http://ontology.oais.info/im/> .
-@prefix bridge: <https://oais.info/bridge#> .
 
 <#points> a im:DigitalObject ;
     im:hasStorageLocation <points.csv> ;
