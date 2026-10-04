@@ -331,6 +331,18 @@ class ViewersTest {
                     assertThat(data.getShort() + 32768).isEqualTo(expected);
                 }
             }
+
+            // The archive's own viewer shows it in the page, from its pixels.
+            mockMvc.perform(get("/resource/{id}", id))
+                    .andExpect(content().string(containsString("See the image here")))
+                    .andExpect(content().string(containsString("/js/image-viewer.js")))
+                    .andExpect(content().string(containsString("data-pixels=\"/api/data-objects/" + id
+                            + "/pixels.json\"")));
+            mockMvc.perform(get("/api/data-objects/{id}/pixels.json", id)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.width").value(4)).andExpect(jsonPath("$.height").value(3))
+                    .andExpect(jsonPath("$.unit").value("ADU"))
+                    .andExpect(jsonPath("$.pixels[0][1]").value(1.0))
+                    .andExpect(jsonPath("$.pixels[2][0]").value(65535.0));
         } finally {
             server.stop(0);
             removeReachable(dataObject);

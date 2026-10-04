@@ -49,6 +49,13 @@ archive:
   # Where the archive keeps bits it makes itself, e.g. a transformed Data
   # Object's, served at /api/bits/{id}/{name}. Env: ARCHIVE_BITS_LOCATION.
   bits-location: data/bits
+  # Launching TOPCAT and SPLAT with OpenWebStart ("Launch TOPCAT" on a Data Object's page): the
+  # archive serves the applications' jars. topcat-jar is TOPCAT's single jar (topcat-full.jar);
+  # splat-home is the folder SPLAT-VO's installer made (with lib/splat/splat.jar). Either is
+  # offered only if it's there. Env: ARCHIVE_LAUNCH_TOPCAT_JAR, ARCHIVE_LAUNCH_SPLAT_HOME.
+  launch:
+    topcat-jar: ../topcat-full.jar
+    splat-home: ""
   # Python interpreter with drb-python installed (`pip install drb`), used by
   # RepInfo Tools to test a generated drb-python driver against a sample file.
   # Empty means: try python3, then python. Env: ARCHIVE_DRB_PYTHON_EXECUTABLE.

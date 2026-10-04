@@ -33,6 +33,8 @@ import java.nio.charset.StandardCharsets;
  *   <li>{@code /api/data-objects/{id}/fits} -- an image, decoded on the server
  *       and viewed with its image view, as FITS, which SAOImage DS9, Aladin
  *       and Fiji/ImageJ open;</li>
+ *   <li>{@code /api/data-objects/{id}/pixels.json} -- an image's pixels, for
+ *       the archive's own image viewer in the browser;</li>
  *   <li>{@code /api/bits/{id}/{name}} -- bits in the archive's own
  *       {@link BitStore}, e.g. a transformed Data Object's.</li>
  * </ul>
@@ -113,6 +115,43 @@ public class DataObjectExportController {
                         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"specification" + s.extension() + "\"")
                         .body(s.text()))
                 .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    /**
+     * An image's pixels, decoded through its Representation Information, for
+     * the archive's own viewer in the browser: its size, units and meaning, and
+     * its rows, first row first; a missing or non-finite value is null.
+     */
+    @GetMapping("/api/data-objects/{id}/pixels.json")
+    public ResponseEntity<?> pixels(@PathVariable String id) {
+        try {
+            info.oais.infomodel.structure.image.DecodedImage image = views.image(archive.decodeId(id));
+            java.util.List<java.util.List<Double>> rows = new java.util.ArrayList<>(image.height());
+            for (Number[] row : image.pixels()) {
+                java.util.List<Double> values = new java.util.ArrayList<>(row.length);
+                for (Number n : row) {
+                    values.add(n == null || !Double.isFinite(n.doubleValue()) ? null : n.doubleValue());
+                }
+                rows.add(values);
+            }
+            java.util.Map<String, Object> body = new java.util.LinkedHashMap<>();
+            body.put("name", image.name());
+            body.put("width", image.width());
+            body.put("height", image.height());
+            body.put("unit", image.unit());
+            body.put("description", image.description());
+            body.put("pixels", rows);
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(body);
+        } catch (IOException | RuntimeException e) {
+            return ResponseEntity.unprocessableEntity().contentType(MediaType.TEXT_PLAIN)
+                    .body("Couldn't decode this Data Object as an image: " + e.getMessage());
+        }
+    }
+
+    /** The same as {@link #votable}, at an address ending .vot, for applications that go by the extension (SPLAT). */
+    @GetMapping("/api/data-objects/{id}/data.vot")
+    public ResponseEntity<byte[]> votableFile(@PathVariable String id) {
+        return votable(id);
     }
 
     @GetMapping("/api/data-objects/{id}/votable")

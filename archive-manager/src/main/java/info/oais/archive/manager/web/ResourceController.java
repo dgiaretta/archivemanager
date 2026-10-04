@@ -26,15 +26,18 @@ public class ResourceController {
     private final info.oais.archive.manager.service.format.DataObjectViewService views;
     private final info.oais.archive.manager.service.PackageExportService exports;
     private final info.oais.archive.manager.service.AipComponents components;
+    private final info.oais.archive.manager.service.LaunchService launch;
 
     public ResourceController(ArchiveService archive,
                               info.oais.archive.manager.service.format.DataObjectViewService views,
                               info.oais.archive.manager.service.PackageExportService exports,
-                              info.oais.archive.manager.service.AipComponents components) {
+                              info.oais.archive.manager.service.AipComponents components,
+                              info.oais.archive.manager.service.LaunchService launch) {
         this.archive = archive;
         this.views = views;
         this.exports = exports;
         this.components = components;
+        this.launch = launch;
     }
 
     @GetMapping("/{id}")
@@ -67,6 +70,7 @@ public class ResourceController {
             model.addAttribute("describedData", d);
             List<info.oais.archive.manager.service.format.DataObjectViewService.Viewer> viewers = views.viewers(iri);
             model.addAttribute("viewers", viewers);
+            model.addAttribute("launches", LaunchController.available(launch, viewers));
             model.addAttribute("tableViewable", viewers.stream().anyMatch(v ->
                     v.format().equals(info.oais.archive.manager.service.format.DataObjectViewService.VOTABLE)));
             model.addAttribute("imageViewable", viewers.stream().anyMatch(v ->

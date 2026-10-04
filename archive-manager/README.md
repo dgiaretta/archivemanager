@@ -950,6 +950,34 @@ wanted.
      Content Information gets the same properties for the new format. The
      old Data Object is left as it is. These terms are local extensions to
      the OAIS Information Model (`oais-im-local-extensions.ttl`).
+- **Viewing data without installing a viewer** (a Data Object's page) --
+  two options beside "View with ..." (SAMP), for those who'd rather not
+  download, start and connect TOPCAT or SPLAT themselves:
+  - **"Launch TOPCAT" / "Launch SPLAT"** (`/launch/{id}/topcat.jnlp`,
+    `/launch/{id}/splat.jnlp`, `LaunchService`): a JNLP file for
+    [OpenWebStart](https://openwebstart.com/), the open-source successor to
+    Java Web Start (removed from Java in version 11), which the viewer
+    installs once. It starts the application with the data loaded, as
+    VOTable (`/api/data-objects/{id}/votable`, or `.../data.vot` for SPLAT,
+    which goes by the extension), from jars the archive serves under
+    `/launch/files/`: TOPCAT's single jar (`archive.launch.topcat-jar`,
+    default `../topcat-full.jar`), and, for SPLAT, every jar under a SPLAT-VO
+    installation's `lib` folder (`archive.launch.splat-home`), with the
+    native libraries in each of `lib`'s subfolders packed into a jar per
+    platform (`/launch/files/splat-native/{os}-{arch}.jar`) for JNLP's
+    `<nativelib>`. Each is offered only if it's configured and found, for a
+    Data Object offered to that application. The jars aren't signed, so
+    OpenWebStart asks the viewer to allow them the first time. SPLAT's own
+    `splat.etc.dir` settings aren't passed, so it starts with its defaults.
+  - **"See the image here"**: the archive's own image viewer, in the page
+    (`static/js/image-viewer.js`), for any Data Object with an image view.
+    The pixels are decoded on the server once
+    (`/api/data-objects/{id}/pixels.json`); stretch (linear, square root,
+    logarithmic, asinh), display limits, colour map, zoom and panning are
+    done in the browser, with each pixel's value and units under the
+    cursor. Aladin Lite isn't used because it places images on the sky, and
+    refuses one whose FITS has no sky coordinates (WCS) -- which the archive's
+    images don't, since Representation Information can't yet describe them.
 - **Transformation with another application** (the same page, "Or
   transform it with another application") -- when another program does the
   Transformation: download the Data Object's bits

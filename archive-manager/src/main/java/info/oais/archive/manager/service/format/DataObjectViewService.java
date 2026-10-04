@@ -303,6 +303,18 @@ public class DataObjectViewService {
         });
     }
 
+    /**
+     * {@code dataObject}'s image: its bits decoded and viewed with its image
+     * view, as {@link #writeFits} does, for showing in the browser.
+     *
+     * @throws IOException if it can't be viewed as an image, or fetching or decoding fails
+     */
+    public DecodedImage image(String dataObject) throws IOException {
+        List<DecodedImage> result = new ArrayList<>(1);
+        withLocalCopy(dataObject, (remote, local) -> result.add(OaisStructureImage.open(local)));
+        return result.get(0);
+    }
+
     /** Work on a Data Object's decoded bits. */
     public interface DecodedWork<T> {
         T run(DescribedData data, StructureNode decoded) throws IOException;

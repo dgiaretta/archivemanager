@@ -86,6 +86,68 @@
             Fiji/ImageJ doesn't use SAMP: open the FITS link's file in it, or give it the link's address with
             File &rsaquo; Import &rsaquo; URL. The FITS header carries the pixels' units and meaning.
         </p>
+        <th:block th:if="${launches != null and !launches.isEmpty()}">
+            <p>
+                <a class="button" th:if="${launches.contains('topcat')}" th:href="@{/launch/{id}/topcat.jnlp(id=${id})}">Launch TOPCAT &rarr;</a>
+                <a class="button" th:if="${launches.contains('splat')}" th:href="@{/launch/{id}/splat.jnlp(id=${id})}">Launch SPLAT &rarr;</a>
+            </p>
+            <p class="muted">
+                No TOPCAT or SPLAT on your computer? "Launch" starts the application with this data already loaded,
+                downloaded from the archive, with nothing to install or connect &mdash; once you have
+                <a href="https://openwebstart.com/" target="_blank" rel="noopener">OpenWebStart</a> (free, installed once;
+                it opens the <code>.jnlp</code> file the link downloads). The first time, it asks you to allow the
+                application to run.
+            </p>
+        </th:block>
+        <div th:if="${imageViewable}" class="image-viewer" th:attr="data-pixels=@{/api/data-objects/{id}/pixels.json(id=${id})}">
+            <h3>See the image here</h3>
+            <p><button type="button" data-image-show>Show the image</button>
+                <span class="muted">decoded on the server through its Representation Information; large images take a while</span></p>
+            <div data-image-panel hidden>
+                <div class="image-controls">
+                    <label>Stretch
+                        <select data-image-stretch>
+                            <option value="linear">linear</option>
+                            <option value="sqrt">square root</option>
+                            <option value="log">logarithmic</option>
+                            <option value="asinh">asinh</option>
+                        </select>
+                    </label>
+                    <label>Limits
+                        <select data-image-limits>
+                            <option value="100">min to max</option>
+                            <option value="99.5" selected>99.5%</option>
+                            <option value="99">99%</option>
+                            <option value="95">95%</option>
+                        </select>
+                    </label>
+                    <label>Colours
+                        <select data-image-colours>
+                            <option value="grey">grey</option>
+                            <option value="heat">heat</option>
+                            <option value="cool">cool</option>
+                            <option value="rainbow">rainbow</option>
+                        </select>
+                    </label>
+                    <label>Zoom
+                        <select data-image-zoom>
+                            <option value="fit">fit</option>
+                            <option value="1">1&times;</option>
+                            <option value="2">2&times;</option>
+                            <option value="4">4&times;</option>
+                            <option value="8">8&times;</option>
+                        </select>
+                    </label>
+                    <label><input type="checkbox" data-image-flip checked/> First row at the bottom</label>
+                </div>
+                <canvas data-image-canvas width="512" height="512"></canvas>
+                <p class="muted" data-image-readout>Point at the image to see a pixel's value.</p>
+            </div>
+            <p class="muted">
+                Drag to pan, or use the mouse wheel to zoom. "First row at the bottom" follows the astronomical
+                convention, as DS9 and Aladin show FITS images.
+            </p>
+        </div>
         <p class="muted" th:unless="${tableViewable or imageViewable}">
             It has no DFDL or DRB SDF description with a table or image view to decode it by on the server;
             saving its description again from RepInfo Tools adds one.
@@ -143,5 +205,6 @@
 </main>
 <div th:replace="~{fragments :: footer}"></div>
 <script th:if="${tableViewable or imageViewable}" th:src="@{/js/samp-send.js}"></script>
+<script th:if="${imageViewable}" th:src="@{/js/image-viewer.js}"></script>
 </body>
 </html>
