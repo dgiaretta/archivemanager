@@ -3,6 +3,7 @@ package info.oais.archive.manager;
 import info.oais.archive.manager.rdf.Ns;
 import info.oais.archive.manager.rdf.RdfStore;
 import info.oais.archive.manager.security.EditAuthInterceptor;
+import info.oais.archive.manager.service.AipComponents;
 import info.oais.archive.manager.service.ArchiveService;
 import info.oais.archive.manager.service.BitStore;
 import info.oais.archive.manager.service.EditService;
@@ -57,6 +58,8 @@ class TransformControllerTest {
     private BitStore bits;
     @Autowired
     private DataObjectViewService views;
+    @Autowired
+    private AipComponents components;
 
     @Test
     void transformsAStarCatalogueIntoPositionsAndRecordsIt() throws Exception {
@@ -124,6 +127,24 @@ class TransformControllerTest {
                         .startsWith("SHA-256: ");
                 assertThat(object(m.getResource(object(pdi, "hasProvenanceInformation")), "recordsTransformation"))
                         .isEqualTo(transformation);
+
+                // Reference, Context and Access Rights Information are copies of the source AIP's.
+                for (String kind : List.of("Reference", "Context", "AccessRights")) {
+                    String copy = object(pdi, "has" + kind + "Information");
+                    assertThat(copy).isNotNull().isNotEqualTo(made.get("source" + kind));
+                    assertThat(comments(m.getResource(copy))).contains("Source " + kind + ".")
+                            .anyMatch(c -> c.startsWith("Carried over from ") && c.contains(made.get("source" + kind)));
+                }
+                assertThat(comments(m.getResource(object(pdi, "hasReferenceInformation"))))
+                        .contains("Identifier of this AIP Version's Content Data Object: " + result.getURI());
+                assertThat(comments(m.getResource(object(pdi, "hasContextInformation"))))
+                        .anyMatch(c -> c.startsWith("Made by a Transformation from Test bright stars"));
+                Resource description = m.getResource(object(aip, "describedBy"));
+                assertThat(object(description, "derivedFrom")).isEqualTo(aip.getURI());
+                assertThat(literal(description, Ns.RDFS + "comment")).contains("an AIP Version made by a Transformation "
+                        + "of Test bright stars").contains("into Test star positions, on ")
+                        .contains("The source package is described as: The bright star catalogue.");
+                assertThat(AipComponents.complete(components.check(aip.getURI(), Map.of(), null))).isTrue();
                 assertThat(content.listProperties(m.createProperty(Ns.IM + "hasTransformationInformationProperty"))
                         .toList()).hasSize(2);
 
@@ -186,6 +207,18 @@ class TransformControllerTest {
         edit.addRelationship(content, Ns.IM + "hasDataObject", source);
         String aip = edit.createEntity(Ns.IM + "ArchivalInformationPackage");
         edit.addRelationship(aip, Ns.IM + "hasContentInformation", content);
+        String pdi = edit.createEntity(Ns.IM + "PreservationDescriptionInformation");
+        edit.addRelationship(aip, Ns.IM + "hasPreservationDescriptiveInformation", pdi);
+        Map<String, String> made = new java.util.HashMap<>();
+        for (String kind : List.of("Reference", "Context", "AccessRights")) {
+            String part = edit.createEntity(Ns.IM + kind + "Information");
+            edit.addLiteral(part, Ns.RDFS + "comment", "Source " + kind + ".");
+            edit.addRelationship(pdi, Ns.IM + "has" + kind + "Information", part);
+            made.put("source" + kind, part);
+        }
+        String description = edit.createEntity(Ns.IM + "PackageDescription");
+        edit.addLiteral(description, Ns.RDFS + "comment", "The bright star catalogue.");
+        edit.addRelationship(aip, Ns.IM + "describedBy", description);
 
         String target = edit.createEntity(Ns.IM + "DigitalObject");
         edit.addLiteral(target, Ns.RDFS + "label", "Test positions");
@@ -193,8 +226,9 @@ class TransformControllerTest {
         String targetTop = repInfo(target, TransformFixtures.POSITIONS, "Test star positions");
         meaning(targetTop, "star.ra_rad", "Right ascension", "rad");
         meaning(targetTop, "star.dec", "Declination", "deg");
-        return Map.of("source", source, "sourceContent", content, "sourceAip", aip, "decMeaning", decMeaning,
-                "targetRepInfo", targetTop);
+        made.putAll(Map.of("source", source, "sourceContent", content, "sourceAip", aip, "decMeaning", decMeaning,
+                "targetRepInfo", targetTop));
+        return made;
     }
 
     private String repInfo(String dataObject, String dfdl, String label) {
@@ -248,6 +282,11 @@ class TransformControllerTest {
     private static String object(Resource r, String imProperty) {
         Statement s = r.getProperty(r.getModel().createProperty(Ns.IM + imProperty));
         return s == null ? null : s.getObject().asResource().getURI();
+    }
+
+    private static List<String> comments(Resource r) {
+        return r.listProperties(r.getModel().createProperty(Ns.RDFS + "comment")).toList().stream()
+                .map(Statement::getString).toList();
     }
 
     private static String literal(Resource r, String property) {

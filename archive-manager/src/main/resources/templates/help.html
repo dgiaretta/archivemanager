@@ -86,8 +86,11 @@
             <li><strong>Transform</strong>: the new file is kept in the archive, and recorded as a new Data
                 Object in an AIP Version (linked to the original AIP), with Fixity Information (its
                 SHA-256 digest) and Provenance Information recording the Transformation &mdash; what it
-                started from, the mapping it followed, when, and each check. The original is left as it
-                is.</li>
+                started from, the mapping it followed, when, and each check. The original AIP's Reference,
+                Context and Access Rights Information are carried over as copies (the Reference Information
+                also naming the new Data Object), and a new Package Description says what the AIP Version
+                is and how it was made, so the AIP Version has every component an AIP needs whenever the
+                original did. The original is left as it is.</li>
         </ul>
 
         <h3>3. Hand over complete AIPs to another archive</h3>
@@ -119,6 +122,11 @@
                 terms. In <code>aip.ttl</code> each file is named by an <code>im:hasStorageLocation</code>
                 relative to it, beside the original location. SHA-256 manifests let the receiving archive
                 check, with any BagIt tool, that every file arrived complete and unchanged.</li>
+            <li>For large data, or bits already kept where the receiving archive can fetch them,
+                <strong>BagIt, referring to the bits</strong> leaves the Data Objects' bits out of the bag
+                and lists them in <code>fetch.txt</code>, BagIt's way of referring to files: the URL to
+                fetch each from (its storage location) and where it goes in the bag. The manifest still has
+                each file's checksum, so the bag is complete, and checks out, once they're fetched.</li>
             <li>The bag identifies every component an AIP must have &mdash; Content Information with its
                 Data Object, its bits and its Representation Information; Preservation Description
                 Information with Reference, Provenance, Context, Fixity and Access Rights Information;

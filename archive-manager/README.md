@@ -931,8 +931,17 @@ wanted.
      (`archive.bits-location`, served at `/api/bits/{id}/{name}`) and
      records a new `im:DigitalObject` interpreted using the new format's
      Representation Information, in new Content Information and an
-     `im:AIPVersion` (with `im:hasSourceAIP` to the old AIP, if any), whose
-     PDI has Fixity Information (SHA-256) and Provenance Information that
+     `im:AIPVersion` (with `im:hasSourceAIP` to the old AIP, if any), with
+     a new Package Description (`im:describedBy`, `im:derivedFrom` the AIP
+     Version) saying what it is and how it was made, and carrying over the
+     source package's description. Its PDI has copies of the source AIP's
+     Reference, Context and Access Rights Information (new individuals, each
+     noting where it was carried over from, so editing one AIP's never
+     changes the other's); the Reference Information also names the new
+     Content Data Object, and the Context Information says it was made from
+     the old one -- each is created with just that if the source has none,
+     except Access Rights Information, which can't be made up. The PDI also
+     has Fixity Information (SHA-256) and Provenance Information that
      `im:recordsTransformation` an `im:Transformation` (or
      `im:NonReversibleTransformation`): its source and result, the mapping
      it followed (`im:TransformationMapping`, as text), when, and one
@@ -968,6 +977,15 @@ wanted.
     can't be fetched), `data/descriptions/` and `data/ontologies/`. Files
     are named in `aip.ttl` by an `im:hasStorageLocation` relative to it,
     beside the original location. `BagIt` writes the bag.
+
+    "BagIt, referring to the bits" (`?bits=refer`) leaves the Data Objects'
+    bits out and lists them in `fetch.txt` (RFC 8493 section 2.2.3) -- the
+    URL to fetch each from (its storage location), its length, and its path
+    in the bag -- for large data, or bits already kept where the receiver
+    can fetch them. They are still in `manifest-sha256.txt` and
+    `Payload-Oxum` (the RFC requires it), so the archive still reads each
+    once for its digest; the bag is complete, and validates, once the
+    receiver has fetched them (e.g. `bagit.py` fetches and validates).
 
     The bag identifies every component an AIP must have (`AipComponents`,
     from the restrictions in `oais_im_schema-sh-v5.ttl`): exactly one

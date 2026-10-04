@@ -171,9 +171,13 @@ public class PackageExportService {
      * {@code aip.ttl} describing the bag, which is what binds its components
      * together.
      *
-     * @throws IOException if a Data Object's bits can't be fetched: an AIP without its bits isn't complete
+     * @param referToBits whether to refer to the Data Objects' bits in {@code fetch.txt}, by their storage
+     *                    locations, rather than include them: for large data, or bits already kept where the
+     *                    receiver can fetch them. They are still read once, for the manifest's digests.
+     * @throws IOException if a Data Object's bits can't be fetched: an AIP without its bits isn't complete,
+     *                     and a bag can't refer to a file without its digest
      */
-    public Export bag(String aipIri) throws IOException {
+    public Export bag(String aipIri, boolean referToBits) throws IOException {
         Model m = store.dataModel();
         Set<Resource> included = reachable(m, List.of(m.getResource(aipIri)));
         String name = fileName(archive.label(aipIri));
@@ -184,6 +188,7 @@ public class PackageExportService {
 
         Property storage = m.createProperty(Ns.IM + "hasStorageLocation");
         Set<String> used = new HashSet<>();
+        List<BagIt.Fetched> fetchedFiles = new ArrayList<>();
         Path work = java.nio.file.Files.createTempDirectory("aip-bag-");
         try {
             for (Resource r : included) {
@@ -203,9 +208,16 @@ public class PackageExportService {
                                 + location + ", so the AIP can't be written out complete: " + e.getMessage(), e);
                     }
                     String file = unique("objects/" + lastSegment(location, archive.label(r.getURI())), used);
-                    payload.add(file, java.nio.file.Files.readAllBytes(fetched));
+                    byte[] bytes = java.nio.file.Files.readAllBytes(fetched);
+                    if (referToBits) {
+                        fetchedFiles.add(new BagIt.Fetched(location.toASCIIString(), "data/" + file, bytes.length,
+                                BitStore.sha256(bytes)));
+                    } else {
+                        payload.add(file, bytes);
+                    }
                     out.add(r, storage, out.createResource(RELATIVE + file));
-                    filesByIri.putIfAbsent(r.getURI(), "data/" + file);
+                    filesByIri.putIfAbsent(r.getURI(), "data/" + file + (referToBits
+                            ? " (to fetch from " + location + ", as fetch.txt says)" : ""));
                 }
             }
         } finally {
@@ -224,7 +236,9 @@ public class PackageExportService {
                     + "(data/aip.ttl), the Data Objects' bits (data/objects/), the descriptions (data/descriptions/) "
                     + "and the ontologies defining the terms (data/ontologies/), each file named here by an "
                     + "im:hasStorageLocation relative to data/aip.ttl; manifest-sha256.txt gives every payload "
-                    + "file's SHA-256 digest; " + COMPONENTS_FILE + " names each component of the AIP.");
+                    + "file's SHA-256 digest; " + COMPONENTS_FILE + " names each component of the AIP."
+                    + (fetchedFiles.isEmpty() ? "" : " The Data Objects' bits are referred to rather than included: "
+                    + "fetch.txt gives the URL to fetch each from, and where it goes in the bag."));
             p.addProperty(out.createProperty(Ns.IM + "identifies"), out.getResource(aipIri));
             out.add(out.getResource(aipIri), out.createProperty(Ns.IM + "delimitedBy"), p);
         }
@@ -237,15 +251,17 @@ public class PackageExportService {
         info.put("External-Description", "OAIS Archival Information Package: " + archive.label(aipIri)
                 + ". data/aip.ttl describes it in RDF (Turtle) with the OAIS Information Model's terms, defined in "
                 + "data/ontologies/; each file's place in it is the im:hasStorageLocation relative to data/aip.ttl. "
-                + COMPONENTS_FILE + " names each of its components.");
+                + COMPONENTS_FILE + " names each of its components."
+                + (fetchedFiles.isEmpty() ? "" : " The Data Objects' bits are listed in fetch.txt, to be fetched "
+                + "into the bag before it is complete."));
         info.put("OAIS-AIP-Complete", AipComponents.complete(parts) ? "yes" : "no");
         if (!AipComponents.complete(parts)) {
             info.put("OAIS-AIP-Missing", AipComponents.missing(parts));
         }
         info.put("Bag-Software-Agent", "archive-manager (OAIS)");
         info.put("Bagging-Date", LocalDate.now().toString());
-        return new Export(name + ".zip", BagIt.write(name, payload.entries(), info, Map.of(COMPONENTS_FILE,
-                AipComponents.text(aipIri, parts).getBytes(StandardCharsets.UTF_8))));
+        return new Export(name + ".zip", BagIt.write(name, payload.entries(), fetchedFiles, info,
+                Map.of(COMPONENTS_FILE, AipComponents.text(aipIri, parts).getBytes(StandardCharsets.UTF_8))));
     }
 
     private static boolean isDataObject(Model m, Resource r) {

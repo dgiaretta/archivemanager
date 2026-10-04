@@ -19,11 +19,14 @@
         <h3>Write it out</h3>
         <p th:if="${isPackage}">
             <a class="button" th:href="@{/api/packages/{id}/bagit.zip(id=${id})}">Download as BagIt &rarr;</a>
+            <a class="button button-secondary" th:href="@{/api/packages/{id}/bagit.zip(id=${id},bits='refer')}">BagIt, referring to the bits &rarr;</a>
             <span class="muted">
                 This Archival Information Package as a BagIt bag (RFC 8493), zipped: <code>data/aip.ttl</code>
                 describes the AIP and everything it's made of, with its Data Objects' bits, each description as a
                 file, and the OAIS ontologies, all with SHA-256 checksums &mdash; complete, to hand to another
-                archive.
+                archive. Or refer to the Data Objects' bits rather than include them: <code>fetch.txt</code> gives
+                the URL to fetch each from (its storage location), for large data or bits kept where the receiver
+                can fetch them; the manifest still has their checksums, so the bag is complete once they're fetched.
             </span>
         </p>
         <th:block th:if="${isPackage}">

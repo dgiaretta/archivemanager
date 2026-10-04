@@ -457,11 +457,16 @@ public class TransformationService {
         edit.addType(aip, Ns.IM + "AIPVersion");
         edit.addLiteral(aip, Ns.RDFS + "label", "AIP: " + name);
         edit.addRelationship(aip, Ns.IM + "hasContentInformation", content);
-        for (String sourceAip : column(Ns.PREFIXES + """
+        List<String> sourceAips = column(Ns.PREFIXES + """
                 SELECT DISTINCT ?aip WHERE { ?aip im:hasContentInformation ?ci . ?ci im:hasDataObject <%s> }
-                """.formatted(dataObject), "aip")) {
+                ORDER BY ?aip
+                """.formatted(dataObject), "aip");
+        for (String sourceAip : sourceAips) {
             edit.addRelationship(aip, Ns.IM + "hasSourceAIP", sourceAip);
         }
+        String sourceAip = sourceAips.isEmpty() ? null : sourceAips.get(0);
+        String sourcePdi = sourceAip == null ? null
+                : firstObject(m, sourceAip, Ns.IM + "hasPreservationDescriptiveInformation");
 
         String pdi = edit.createEntity(Ns.IM + "PreservationDescriptionInformation");
         edit.addLiteral(pdi, Ns.RDFS + "label", "PDI: " + name);
@@ -470,6 +475,47 @@ public class TransformationService {
         edit.addLiteral(fixity, Ns.RDFS + "label", "Fixity: " + name);
         edit.addLiteral(fixity, Ns.RDFS + "comment", "SHA-256: " + stored.sha256() + " (" + stored.size() + " bytes)");
         edit.addRelationship(pdi, Ns.IM + "hasFixityInformation", fixity);
+
+        // Reference, Context and Access Rights Information carry over from the source AIP: copies, so
+        // editing one AIP's never changes the other's.
+        String sourceName = sourceAip == null ? null : archive.label(sourceAip);
+        String reference = carryOver(m, sourcePdi, "ReferenceInformation", sourceName);
+        if (reference == null) {
+            reference = edit.createEntity(Ns.IM + "ReferenceInformation");
+            edit.addLiteral(reference, Ns.RDFS + "label", "Reference: " + name);
+        }
+        edit.addLiteral(reference, Ns.RDFS + "comment", "Identifier of this AIP Version's Content Data Object: "
+                + newObject);
+        edit.addRelationship(pdi, Ns.IM + "hasReferenceInformation", reference);
+        String context = carryOver(m, sourcePdi, "ContextInformation", sourceName);
+        if (context == null) {
+            context = edit.createEntity(Ns.IM + "ContextInformation");
+            edit.addLiteral(context, Ns.RDFS + "label", "Context: " + name);
+        }
+        edit.addLiteral(context, Ns.RDFS + "comment", "Made by a Transformation from " + trial.sourceLabel()
+                + " (" + dataObject + ")" + (sourceAip == null ? "" : ", in " + sourceName) + ".");
+        edit.addRelationship(pdi, Ns.IM + "hasContextInformation", context);
+        String accessRights = carryOver(m, sourcePdi, "AccessRightsInformation", sourceName);
+        if (accessRights != null) {
+            edit.addRelationship(pdi, Ns.IM + "hasAccessRightsInformation", accessRights);
+        }
+
+        String packageDescription = edit.createEntity(Ns.IM + "PackageDescription");
+        edit.addLiteral(packageDescription, Ns.RDFS + "label", "Package Description: " + name);
+        StringBuilder description = new StringBuilder(name + ": an AIP Version made by a Transformation of "
+                + trial.sourceLabel() + (sourceAip == null ? "" : " (in " + sourceName + ")") + " into "
+                + target.label().replaceFirst(" \\(as used by .*\\)$", "") + ", on "
+                + OffsetDateTime.now(ZoneOffset.UTC).toLocalDate() + ".");
+        if (sourceAip != null) {
+            for (String sourceDescription : column(Ns.PREFIXES + """
+                    SELECT ?text WHERE { <%s> im:describedBy ?d . ?d rdfs:comment ?text } ORDER BY ?text
+                    """.formatted(sourceAip), "text")) {
+                description.append(" The source package is described as: ").append(sourceDescription);
+            }
+        }
+        edit.addLiteral(packageDescription, Ns.RDFS + "comment", description.toString());
+        edit.addRelationship(packageDescription, Ns.IM + "derivedFrom", aip);
+        edit.addRelationship(aip, Ns.IM + "describedBy", packageDescription);
 
         String mappingIri = edit.createEntity(Ns.IM + "TransformationMapping");
         edit.addLiteral(mappingIri, Ns.RDFS + "label", "Mapping to " + name);
@@ -536,6 +582,30 @@ public class TransformationService {
             edit.addRelationship(transformation, Ns.IM + "hasPropertyCheck", checkIri);
         }
         return transformation;
+    }
+
+    /**
+     * A copy of the source PDI's {@code kind} of Information -- every
+     * statement about it, under a new IRI, noting where it came from -- or
+     * null if there's no source PDI or it has none.
+     */
+    private String carryOver(Model m, String sourcePdi, String kind, String sourceName) {
+        if (sourcePdi == null) {
+            return null;
+        }
+        String original = firstObject(m, sourcePdi, Ns.IM + "has" + kind);
+        if (original == null) {
+            return null;
+        }
+        String copy = edit.createEntity(Ns.IM + kind);
+        Resource source = m.getResource(original);
+        Resource target = m.getResource(copy);
+        for (Statement s : source.listProperties().toList()) {
+            m.add(target, s.getPredicate(), s.getObject());
+        }
+        edit.addLiteral(copy, Ns.RDFS + "comment", "Carried over from " + sourceName + " (" + original
+                + ") by the Transformation that made this AIP Version.");
+        return copy;
     }
 
     /** A new Transformation Information Property: the values of the element {@code meaning} is about. */

@@ -39,6 +39,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 class PackageExportTest {
 
+    private static final String COMPONENTS = "oais-aip-components.txt";
+
     @Autowired
     private MockMvc mockMvc;
     @Autowired
@@ -123,6 +125,26 @@ class PackageExportTest {
                     .getProperty(described.createProperty(Ns.IM + "hasStorageLocation")).getObject().asResource()
                     .getURI().substring("file:///d/".length());
             assertThat(text(description, describedDfdl)).isEqualTo(TransformFixtures.STARS);
+
+            // Referring to the bits: fetch.txt says where to fetch them from; the manifest still has their digest.
+            Map<String, byte[]> referring = unzip(mockMvc.perform(get("/api/packages/"
+                    + archive.encodeId(made.get("aip")) + "/bagit.zip").param("bits", "refer"))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
+            assertThat(referring).doesNotContainKey(root + "data/objects/stars.bin");
+            assertThat(text(referring, root + "fetch.txt")).isEqualTo("http://localhost" + stored.path() + " "
+                    + catalogue.length + " data/objects/stars.bin\n");
+            Map<String, String> referringManifest = manifest(text(referring, root + "manifest-sha256.txt"));
+            assertThat(referringManifest).containsEntry("data/objects/stars.bin", BitStore.sha256(catalogue));
+            long referringOctets = catalogue.length + referring.entrySet().stream()
+                    .filter(e -> e.getKey().startsWith(root + "data/")).mapToLong(e -> e.getValue().length).sum();
+            assertThat(text(referring, root + "bag-info.txt")).contains("Payload-Oxum: " + referringOctets + "."
+                    + payload.size());
+            assertThat(text(referring, root + "tagmanifest-sha256.txt")).contains("  fetch.txt\n");
+            assertThat(text(referring, root + COMPONENTS)).contains("file: data/objects/stars.bin (to fetch from "
+                    + "http://localhost" + stored.path() + ", as fetch.txt says)");
+            referring.put(root + "data/objects/stars.bin", catalogue); // as a receiver fetches it
+            referringManifest.forEach((path, digest) ->
+                    assertThat(BitStore.sha256(referring.get(root + path))).as(path).isEqualTo(digest));
 
             // The bag names every component an AIP must have, and what this one lacks.
             String components = text(bag, root + "oais-aip-components.txt");
