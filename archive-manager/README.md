@@ -152,6 +152,40 @@ For deployment, keep the password set in the runtime environment or the
 server's config, since the app must have the actual value available when it
 starts.
 
+### Behind a reverse proxy (HTTPS)
+
+The archive itself speaks plain HTTP. On a network you don't trust, put a
+reverse proxy in front of it to provide HTTPS -- otherwise the edit password,
+the session cookie, the data, and OpenWebStart launch files all travel
+unencrypted. For example, with [Caddy](https://caddyserver.com/), which gets
+and renews a Let's Encrypt certificate itself:
+
+```
+archive.example.org {
+    reverse_proxy 127.0.0.1:9090
+}
+```
+
+or nginx, with a certificate from Let's Encrypt's `certbot`:
+
+```
+location / {
+    proxy_pass http://127.0.0.1:9090;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $host;
+    proxy_set_header X-Forwarded-Port $server_port;
+    client_max_body_size 512m;
+}
+```
+
+Keep port 9090 closed to the outside. `server.forward-headers-strategy: native`
+(set in `application.yml`) makes every link the archive writes -- launch files,
+manifests, VOTable and storage locations -- use the address the proxy was
+reached at, from its `X-Forwarded-*` headers; Tomcat trusts those only from a
+proxy on the same machine or a private network address. Used directly, without
+a proxy, it changes nothing (`ForwardedHeadersTest`).
+
 ## National Archives of Maldives: Catalogue and Accession Register
 
 Built directly from NAM's own policy documents (Preservation Policy and
@@ -966,8 +1000,19 @@ wanted.
     native libraries in each of `lib`'s subfolders packed into a jar per
     platform (`/launch/files/splat-native/{os}-{arch}.jar`) for JNLP's
     `<nativelib>`. Each is offered only if it's configured and found, for a
-    Data Object offered to that application. The jars aren't signed, so
-    OpenWebStart asks the viewer to allow them the first time. SPLAT's own
+    Data Object offered to that application. The jars are served signed
+    (`JarSigning`) with the archive's own self-signed certificate: made on
+    first use with the JDK's `keytool` (RSA 3072, ten years, code signing)
+    and kept in `archive.launch.signing-location` (default `data/launch/`:
+    `signing.p12`, its password in `signing.password`); each jar is signed
+    once with the JDK's `jdk.security.jarsigner` API, with
+    `Permissions: all-permissions` and `Application-Name` added to its
+    manifest as OpenWebStart expects, and the signed copy kept in `signed/`
+    until the original changes. TOPCAT's jar is signed in the background at
+    startup. OpenWebStart asks the viewer to trust the certificate once
+    (`/launch/certificate.cer` downloads it, e.g. to check its fingerprint);
+    a certificate from a recognised authority would avoid even that. Under a
+    JRE without `keytool` the jars are served unsigned. SPLAT's own
     `splat.etc.dir` settings aren't passed, so it starts with its defaults.
   - **"See the image here"**: the archive's own image viewer, in the page
     (`static/js/image-viewer.js`), for any Data Object with an image view.

@@ -25,7 +25,9 @@ import java.util.List;
  *   <li>{@code /launch/{id}/topcat.jnlp}, {@code /launch/{id}/splat.jnlp} --
  *       launch TOPCAT or SPLAT with a Data Object's data, as VOTable;</li>
  *   <li>{@code /launch/files/...} -- the applications' jars, and SPLAT's
- *       native libraries packed per platform, which the JNLP files name.</li>
+ *       native libraries packed per platform, which the JNLP files name, all
+ *       signed with the archive's self-signed certificate;</li>
+ *   <li>{@code /launch/certificate.cer} -- that certificate.</li>
  * </ul>
  */
 @RestController
@@ -37,11 +39,28 @@ public class LaunchController {
     private final LaunchService launch;
     private final ArchiveService archive;
     private final DataObjectViewService views;
+    private final info.oais.archive.manager.service.JarSigning signing;
 
-    public LaunchController(LaunchService launch, ArchiveService archive, DataObjectViewService views) {
+    public LaunchController(LaunchService launch, ArchiveService archive, DataObjectViewService views,
+                            info.oais.archive.manager.service.JarSigning signing) {
         this.launch = launch;
         this.archive = archive;
         this.views = views;
+        this.signing = signing;
+    }
+
+    /** The self-signed certificate the launched applications' jars are signed with, to check or trust it. */
+    @GetMapping("/launch/certificate.cer")
+    public ResponseEntity<byte[]> certificate() {
+        return signing.certificate().map(c -> {
+            try {
+                return ResponseEntity.ok().contentType(MediaType.parseMediaType("application/pkix-cert"))
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"archive-launch.cer\"")
+                        .body(c.getEncoded());
+            } catch (java.security.cert.CertificateEncodingException e) {
+                throw new IllegalStateException(e);
+            }
+        }).orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/launch/{id}/topcat.jnlp")
@@ -65,7 +84,7 @@ public class LaunchController {
     }
 
     @GetMapping("/launch/files/topcat-full.jar")
-    public ResponseEntity<Resource> topcatJar() {
+    public ResponseEntity<Resource> topcatJar() throws IOException {
         return launch.topcatJarFile().map(f -> ResponseEntity.ok().contentType(JAR)
                 .<Resource>body(new FileSystemResource(f))).orElseGet(() -> ResponseEntity.notFound().build());
     }

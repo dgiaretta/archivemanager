@@ -69,6 +69,7 @@ class LaunchTest {
     static void installed(DynamicPropertyRegistry registry) {
         registry.add("archive.launch.topcat-jar", () -> INSTALLED.resolve("topcat-full.jar").toString());
         registry.add("archive.launch.splat-home", () -> INSTALLED.resolve("splat-vo").toString());
+        registry.add("archive.launch.signing-location", () -> INSTALLED.resolve("signing").toString());
     }
 
     private static void jar(Path file, String mainClass) throws IOException {
@@ -117,7 +118,14 @@ class LaunchTest {
             assertThat(texts(topcat, "argument")).containsExactly("-f", "votable",
                     "http://localhost/api/data-objects/" + id + "/votable");
             assertThat(topcat.getElementsByTagName("all-permissions").getLength()).isEqualTo(1);
-            mockMvc.perform(get("/launch/files/topcat-full.jar")).andExpect(status().isOk());
+            // Every jar is signed with the archive's own certificate, which can be downloaded.
+            java.security.cert.Certificate certificate = java.security.cert.CertificateFactory.getInstance("X.509")
+                    .generateCertificate(new ByteArrayInputStream(mockMvc.perform(get("/launch/certificate.cer"))
+                            .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray()));
+            assertThat(((java.security.cert.X509Certificate) certificate).getSubjectX500Principal().getName())
+                    .contains("OAIS Archive Manager (self-signed)");
+            assertSignedBy(certificate, mockMvc.perform(get("/launch/files/topcat-full.jar"))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
 
             Document splat = xml(mockMvc.perform(get("/launch/{id}/splat.jnlp", id)).andExpect(status().isOk())
                     .andReturn().getResponse().getContentAsString());
@@ -131,11 +139,13 @@ class LaunchTest {
             assertThat(attributes(splat, "nativelib", "href")).containsExactlyInAnyOrder(
                     "files/splat-native/linux-amd64.jar", "files/splat-native/windows-amd64.jar");
 
-            mockMvc.perform(get("/launch/files/splat/lib/jniast/jniast.jar")).andExpect(status().isOk());
+            assertSignedBy(certificate, mockMvc.perform(get("/launch/files/splat/lib/jniast/jniast.jar"))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());
             mockMvc.perform(get("/launch/files/splat/lib/amd64/README.txt")).andExpect(status().isNotFound());
             byte[] windows = mockMvc.perform(get("/launch/files/splat-native/windows-amd64.jar"))
                     .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
-            assertThat(entries(windows)).containsExactly("jniast.dll");
+            assertThat(entries(windows)).contains("jniast.dll");
+            assertSignedBy(certificate, windows);
             mockMvc.perform(get("/launch/files/splat-native/plan9-amd64.jar")).andExpect(status().isNotFound());
 
             // Something that isn't a table can't be launched in TOPCAT.
@@ -202,6 +212,27 @@ class LaunchTest {
             found.add(nodes.item(i).getTextContent());
         }
         return found;
+    }
+
+    /**
+     * Checks {@code jar} is signed by {@code certificate}: every file in it
+     * verifies against its signature, and its manifest asks for
+     * {@code all-permissions}, as OpenWebStart expects of a signed application.
+     */
+    private static void assertSignedBy(java.security.cert.Certificate certificate, byte[] jar) throws IOException {
+        try (java.util.jar.JarInputStream in = new java.util.jar.JarInputStream(new ByteArrayInputStream(jar), true)) {
+            assertThat(in.getManifest().getMainAttributes().getValue("Permissions")).isEqualTo("all-permissions");
+            int files = 0;
+            for (java.util.jar.JarEntry e; (e = in.getNextJarEntry()) != null; ) {
+                in.readAllBytes(); // verifies the entry against its digest
+                if (e.isDirectory() || e.getName().toUpperCase().startsWith("META-INF/")) {
+                    continue;
+                }
+                files++;
+                assertThat(e.getCertificates()).as(e.getName()).isNotNull().contains(certificate);
+            }
+            assertThat(files).isPositive();
+        }
     }
 
     private static List<String> entries(byte[] zip) throws IOException {

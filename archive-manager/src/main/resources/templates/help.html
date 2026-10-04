@@ -366,8 +366,10 @@
                 downloaded from the archive. It needs <a href="https://openwebstart.com/" target="_blank"
                 rel="noopener">OpenWebStart</a>, a free launcher installed once (the successor to Java Web Start,
                 which current Java no longer has): the link downloads a <code>.jnlp</code> file, which OpenWebStart
-                opens. The first time, OpenWebStart asks you to allow the application to run. It's offered when the
-                archive has been given the application to serve.</li>
+                opens. The application is signed with the archive's own self-signed
+                <a th:href="@{/launch/certificate.cer}">certificate</a>: the first time, OpenWebStart shows the
+                publisher and asks whether to trust it &mdash; choose to always trust it, and later launches go
+                straight through. It's offered when the archive has been given the application to serve.</li>
             <li><strong>"See the image here"</strong>, for an image: the archive's own viewer, in the page, with
                 nothing to install. Choose the contrast stretch (linear, square root, logarithmic, asinh), the
                 display limits, the colours and the zoom; drag to pan, use the mouse wheel to zoom, and point at a

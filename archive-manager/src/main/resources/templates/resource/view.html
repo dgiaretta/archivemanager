@@ -95,8 +95,9 @@
                 No TOPCAT or SPLAT on your computer? "Launch" starts the application with this data already loaded,
                 downloaded from the archive, with nothing to install or connect &mdash; once you have
                 <a href="https://openwebstart.com/" target="_blank" rel="noopener">OpenWebStart</a> (free, installed once;
-                it opens the <code>.jnlp</code> file the link downloads). The first time, it asks you to allow the
-                application to run.
+                it opens the <code>.jnlp</code> file the link downloads). The application is signed with this archive's
+                own <a th:href="@{/launch/certificate.cer}">self-signed certificate</a>: the first time, OpenWebStart
+                asks whether to trust it; choose to always trust this publisher, and later launches won't ask.
             </p>
         </th:block>
         <div th:if="${imageViewable}" class="image-viewer" th:attr="data-pixels=@{/api/data-objects/{id}/pixels.json(id=${id})}">

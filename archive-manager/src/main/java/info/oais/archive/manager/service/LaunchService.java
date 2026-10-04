@@ -35,9 +35,10 @@ import java.util.zip.ZipOutputStream;
  *       folder, and the native libraries in each of {@code lib}'s
  *       subfolders, packed into a jar per platform as JNLP needs.</li>
  * </ul>
- * Either is offered only when it's configured and found. Neither
- * application's jars are signed, so OpenWebStart asks the viewer to allow
- * them the first time.
+ * Either is offered only when it's configured and found. The jars are
+ * served signed with the archive's own self-signed certificate
+ * ({@link JarSigning}), so OpenWebStart asks the viewer to trust the archive
+ * once, rather than warning about each unsigned application.
  */
 @Service
 public class LaunchService {
@@ -47,9 +48,11 @@ public class LaunchService {
     private final Path topcatJar;
     private final Path splatHome;
     private final String splatMainClass;
+    private final JarSigning signing;
 
     public LaunchService(@Value("${archive.launch.topcat-jar:}") String topcatJar,
-                         @Value("${archive.launch.splat-home:}") String splatHome) {
+                         @Value("${archive.launch.splat-home:}") String splatHome, JarSigning signing) {
+        this.signing = signing;
         this.topcatJar = existing(topcatJar, false);
         Path home = existing(splatHome, true);
         String mainClass = null;
@@ -159,8 +162,29 @@ public class LaunchService {
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;");
     }
 
-    public Optional<Path> topcatJarFile() {
-        return Optional.ofNullable(topcatJar);
+    /** TOPCAT's jar, signed. */
+    public Optional<Path> topcatJarFile() throws IOException {
+        return topcatJar == null ? Optional.empty() : Optional.of(signing.signed(topcatJar, "topcat-full.jar"));
+    }
+
+    /**
+     * Signs TOPCAT's jar in the background once the archive has started, so
+     * the first launch needn't wait while 60-odd megabytes are signed.
+     */
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    public void signInAdvance() {
+        if (topcatJar == null) {
+            return;
+        }
+        Thread t = new Thread(() -> {
+            try {
+                topcatJarFile();
+            } catch (IOException | RuntimeException e) {
+                log.warn("Couldn't sign TOPCAT's jar in advance: {}", e.getMessage());
+            }
+        }, "sign-topcat-jar");
+        t.setDaemon(true);
+        t.start();
     }
 
     /** SPLAT's jars, relative to its installation, {@code lib/splat/splat.jar} first. */
@@ -178,9 +202,11 @@ public class LaunchService {
         return jars;
     }
 
-    /** One of SPLAT's jars, if {@code relative} names one. */
+    /** One of SPLAT's jars, signed, if {@code relative} names one. */
     public Optional<Path> splatFile(String relative) throws IOException {
-        return splatJars().contains(relative) ? Optional.of(splatHome.resolve(relative)) : Optional.empty();
+        return splatJars().contains(relative)
+                ? Optional.of(signing.signed(splatHome.resolve(relative), "splat-" + relative.replace('/', '-')))
+                : Optional.empty();
     }
 
     /**
@@ -243,7 +269,7 @@ public class LaunchService {
                         zip.closeEntry();
                     }
                 }
-                return Optional.of(bytes.toByteArray());
+                return Optional.of(signing.signed(bytes.toByteArray(), "splat-native-" + key + ".jar"));
             }
         }
         return Optional.empty();

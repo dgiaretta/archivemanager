@@ -1,5 +1,11 @@
 server:
   port: 9090
+  # Behind a reverse proxy (e.g. nginx or Caddy providing HTTPS), use the address the proxy says it
+  # was reached at -- X-Forwarded-Proto, -Host and -Port -- for every link the archive writes:
+  # OpenWebStart launch files, Representation Information manifests, VOTable and storage locations.
+  # Tomcat trusts these headers only from a proxy on this machine or a private network address, so
+  # a client can't use them to change the links. Used directly, without a proxy, it changes nothing.
+  forward-headers-strategy: native
   error:
     include-stacktrace: always
     include-message: always
@@ -56,6 +62,10 @@ archive:
   launch:
     topcat-jar: ../topcat-full.jar
     splat-home: ""
+    # The jars are signed with the archive's own self-signed certificate, made on first use with the
+    # JDK's keytool and kept here (signing.p12, its password in signing.password, signed copies in
+    # signed/). Viewers trust it once in OpenWebStart. Env: ARCHIVE_LAUNCH_SIGNING_LOCATION.
+    signing-location: data/launch
   # Python interpreter with drb-python installed (`pip install drb`), used by
   # RepInfo Tools to test a generated drb-python driver against a sample file.
   # Empty means: try python3, then python. Env: ARCHIVE_DRB_PYTHON_EXECUTABLE.
