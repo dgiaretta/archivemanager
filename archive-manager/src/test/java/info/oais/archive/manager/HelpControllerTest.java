@@ -39,6 +39,23 @@ class HelpControllerTest {
     }
 
     @Test
+    void helpPageStartsWithWhatTheApplicationIsAndFollowsTheLifeOfTheInformation() throws Exception {
+        String page = mockMvc.perform(get("/help")).andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString();
+        int about = page.indexOf("What this application is");
+        int working = page.indexOf("id=\"working\"");
+        int aip = page.indexOf("The components of an OAIS Archival Information Package");
+        int preservation = page.indexOf("id=\"preservation\"");
+        int viewing = page.indexOf("id=\"viewing\"");
+        org.assertj.core.api.Assertions.assertThat(about).isPositive().isLessThan(working);
+        org.assertj.core.api.Assertions.assertThat(working).isLessThan(aip);
+        org.assertj.core.api.Assertions.assertThat(aip).isLessThan(preservation);
+        org.assertj.core.api.Assertions.assertThat(preservation).isLessThan(viewing);
+        org.assertj.core.api.Assertions.assertThat(page).contains("prototype", "Records in Contexts",
+                "Why astronomical applications?", "other applications could be used in their place");
+    }
+
+    @Test
     void rendersEachBundledReadmeAsHtml() throws Exception {
         mockMvc.perform(get("/help/engines/dfdl"))
                 .andExpect(status().isOk())
