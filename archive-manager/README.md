@@ -950,6 +950,28 @@ wanted.
      Content Information gets the same properties for the new format. The
      old Data Object is left as it is. These terms are local extensions to
      the OAIS Information Model (`oais-im-local-extensions.ttl`).
+- **Transformation with another application** (the same page, "Or
+  transform it with another application") -- when another program does the
+  Transformation: download the Data Object's bits
+  (`/api/data-objects/{id}/bits`, fetched from its storage location) and its
+  data description, transform them there, then upload the result
+  (`POST /transform/{id}/external`) with a form saying what was done: the
+  application, its version and where to find it; who did it and on which
+  day; the method (steps, settings, commands); the Representation
+  Information the result is interpreted using (any in the archive, or none
+  yet -- the AIP is then incomplete until it's added); whether it is shown
+  reversible, and why; and, for each Transformation Information Property,
+  the outcome and how it was checked. Where the form says which element of
+  the new format a property's values went to and the archive can decode both
+  the old and new data, the archive checks the values itself
+  (`TransformationService.checkExternal`) and records its own result;
+  otherwise it records what was reported, by whom. It is recorded like a
+  mapped Transformation -- bits in the bit store, new Data Object, Content
+  Information, AIP Version with carried-over PDI, Fixity and a Package
+  Description -- with the person and the application as `im:Agent`s
+  (`im:performedBy`), the method as the Transformation's `rdfs:comment`, and
+  `im:performedAt` as an `xsd:date`. Uploads can be up to 512 MB
+  (`spring.servlet.multipart.max-file-size`).
 - **Writing out** (open, like browsing) -- what the archive holds, as files
   to use without this application (`PackageExportService`):
   - **A data description**: "Download the data description" on a Data

@@ -126,6 +126,25 @@ public class TransformationService {
         return found.values().stream().sorted(java.util.Comparator.comparing(t -> t.label().toLowerCase())).toList();
     }
 
+    /**
+     * Representation Information that data made outside the archive can be
+     * interpreted using: whatever some Data Object in the archive is
+     * interpreted using, whatever its descriptions are in.
+     */
+    public record RepInfoChoice(String iri, String label) {
+    }
+
+    public List<RepInfoChoice> representationInformation() {
+        Map<String, RepInfoChoice> found = new LinkedHashMap<>();
+        for (Map<String, String> row : q.select(store.dataModel(), Ns.PREFIXES + """
+                SELECT ?top ?do WHERE { ?do im:interpretedUsing ?top } ORDER BY ?top ?do
+                """)) {
+            found.putIfAbsent(row.get("top"), new RepInfoChoice(row.get("top"),
+                    archive.label(row.get("top")) + " (as used by " + archive.label(row.get("do")) + ")"));
+        }
+        return found.values().stream().sorted(java.util.Comparator.comparing(c -> c.label().toLowerCase())).toList();
+    }
+
     public Optional<Target> target(String iri) {
         return targets().stream().filter(t -> t.iri().equals(iri)).findFirst();
     }
@@ -415,11 +434,11 @@ public class TransformationService {
     }
 
     /**
-     * Records a Transformation: stores the new data, and creates the new Data
-     * Object, its Content Information and AIP Version, Fixity and Provenance
-     * Information, the Transformation with its mapping and checks, and the
-     * Transformation Information Properties checked, where they didn't exist.
-     * Needs a write transaction.
+     * Records a Transformation by mapping: stores the new data, and creates
+     * the new Data Object, its Content Information and AIP Version (see
+     * {@link #recordVersion}), the Transformation with the mapping it
+     * followed and its checks, and the Transformation Information Properties
+     * checked, where they didn't exist. Needs a write transaction.
      *
      * @param archiveAddress the archive's address, under which the new data is served
      * @return the Transformation's IRI
@@ -427,26 +446,213 @@ public class TransformationService {
     public String record(String dataObject, Target target, TransformationMapping mapping, Trial trial,
                          Map<String, BigDecimal> properties, String archiveAddress) throws IOException {
         String sourceLabel = archive.label(dataObject);
-        String name = sourceLabel + " as " + target.label().replaceFirst(" \\(as used by .*\\)$", "");
-        BitStore.StoredBits stored = bits.store(trial.written(),
-                fileName(sourceLabel) + (target.extension() == null ? ".bin" : target.extension()));
+        String format = formatName(target);
+        Version version = new Version(dataObject, sourceLabel, target.iri(), format, sourceLabel + " as " + format,
+                OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.SECONDS).toString(), XSDDatatype.XSDdateTime,
+                trial.reversible(), trial.reversible()
+                ? "Shown reversible: every value of the old data is in the new data, unchanged."
+                : "Not shown reversible: " + String.join("; ", trial.lost()) + ".",
+                "Made from " + sourceLabel + " by " + (trial.reversible() ? "a" : "a non-reversible")
+                        + " Transformation, following the mapping recorded with it; " + summary(trial.checks()),
+                trial.checks(), properties);
+        return recordVersion(version, trial.written(),
+                fileName(sourceLabel) + (target.extension() == null ? ".bin" : target.extension()), archiveAddress,
+                (transformation, name) -> {
+                    String mappingIri = edit.createEntity(Ns.IM + "TransformationMapping");
+                    edit.addLiteral(mappingIri, Ns.RDFS + "label", "Mapping to " + name);
+                    edit.addLiteral(mappingIri, Ns.IM + "specificationLanguage", MAPPING_LANGUAGE);
+                    edit.addLiteral(mappingIri, Ns.IM + "specificationText", mapping.text());
+                    edit.addRelationship(transformation, Ns.IM + "followedMapping", mappingIri);
+                });
+    }
+
+    private static String formatName(Target target) {
+        return target.label().replaceFirst(" \\(as used by .*\\)$", "");
+    }
+
+    /**
+     * A Transformation done outside the archive, by another application, as
+     * the person who did it describes it when uploading the result.
+     *
+     * @param application        the application's name, e.g. "Astropy"
+     * @param applicationVersion its version, or blank
+     * @param applicationUrl     where it can be found, or blank
+     * @param performedBy        who did the Transformation
+     * @param performedOn        the day it was done
+     * @param method             what was done: the steps, settings or commands
+     * @param targetRepInfo      the Representation Information the new data is interpreted using, or null if
+     *                           the archive has none for it yet
+     * @param reversible         whether the person shows it reversible
+     * @param reversibility      why it is, or isn't, reversible
+     * @param properties         what's known about each Transformation Information Property
+     */
+    public record ExternalTransformation(String application, String applicationVersion, String applicationUrl,
+                                         String performedBy, java.time.LocalDate performedOn, String method,
+                                         String targetRepInfo, boolean reversible, String reversibility,
+                                         List<ExternalCheck> properties) {
+
+        public String applicationName() {
+            return applicationVersion == null || applicationVersion.isBlank() ? application
+                    : application + " " + applicationVersion;
+        }
+    }
+
+    /**
+     * What's known about one Transformation Information Property of a
+     * Transformation done outside the archive.
+     *
+     * @param sourcePath the element of the old format whose values it is
+     * @param targetPath the element of the new format they went to, if known: then the archive checks them
+     *                   itself, when it can decode both
+     * @param declared   the outcome the person reports, used when the archive can't check
+     * @param evidence   how the person checked it
+     * @param tolerance  for the archive's own check: the largest physical difference allowed, or null
+     */
+    public record ExternalCheck(String sourcePath, String targetPath, PropertyCheck.Outcome declared,
+                                String evidence, BigDecimal tolerance) {
+    }
+
+    /**
+     * The checks of the Transformation Information Properties of a
+     * Transformation done outside the archive: the archive's own, decoding
+     * the old and new data with their Representation Information, where it
+     * knows where the values went and can decode both; else what the person
+     * reported.
+     *
+     * @param file the new data
+     */
+    public List<PropertyCheck> checkExternal(String dataObject, ExternalTransformation t, Path file) {
+        Map<String, Meaning> sourceMeanings = meanings(dataObject);
+        Map<String, Meaning> targetMeanings = t.targetRepInfo() == null ? Map.of() : meanings(t.targetRepInfo());
+        List<ExternalCheck> automatic = t.properties().stream()
+                .filter(c -> c.targetPath() != null && t.targetRepInfo() != null).toList();
+        Map<String, PropertyCheck> checked = new LinkedHashMap<>();
+        String couldNot = null;
+        if (!automatic.isEmpty()) {
+            TransformationMapping correspondences = new TransformationMapping(automatic.stream()
+                    .map(c -> (TransformationMapping.Rule) new TransformationMapping.Copy(c.targetPath(),
+                            c.sourcePath(), null, null)).toList());
+            try {
+                views.decode(dataObject, (data, source) -> views.decodeWith(t.targetRepInfo(), file,
+                        (newData, written) -> {
+                            SchemaElement outline = fromTree(written, 1);
+                            for (ExternalCheck c : automatic) {
+                                PropertyCheck check = PropertyCheck.check(c.sourcePath(), c.tolerance(),
+                                        correspondences, source, written, outline, sourceMeanings, targetMeanings);
+                                checked.put(c.sourcePath(), new PropertyCheck(check.sourcePath(), check.targetPath(),
+                                        check.label(), check.outcome(), check.compared(), check.detail()
+                                        + " Checked by the archive, decoding the old and new data with their "
+                                        + "Representation Information."));
+                            }
+                            return null;
+                        }));
+            } catch (IOException | RuntimeException e) {
+                couldNot = e.getMessage();
+            }
+        }
+        List<PropertyCheck> checks = new ArrayList<>();
+        for (ExternalCheck c : t.properties()) {
+            PropertyCheck check = checked.get(c.sourcePath());
+            if (check == null) {
+                String label = sourceMeanings.getOrDefault(c.sourcePath(), new Meaning(null, null, null, null, null))
+                        .describe(c.sourcePath());
+                String detail = "Reported by " + t.performedBy() + ": "
+                        + (c.evidence() == null || c.evidence().isBlank() ? "no evidence given." : c.evidence());
+                if (c.targetPath() != null && couldNot != null) {
+                    detail += " (The archive couldn't check it itself: " + couldNot + ")";
+                }
+                check = new PropertyCheck(c.sourcePath(), c.targetPath(), label, c.declared(), 0, detail);
+            }
+            checks.add(check);
+        }
+        return checks;
+    }
+
+    /**
+     * Records a Transformation done outside the archive: stores the uploaded
+     * data, and creates the new Data Object, its Content Information and AIP
+     * Version (see {@link #recordVersion}), and the Transformation with who did
+     * it, with which application, when and how, and its checks. Needs a write
+     * transaction.
+     *
+     * @param fileName the uploaded file's name
+     * @return the Transformation's IRI
+     */
+    public String recordExternal(String dataObject, ExternalTransformation t, byte[] written, String fileName,
+                                 List<PropertyCheck> checks, String archiveAddress) throws IOException {
+        String sourceLabel = archive.label(dataObject);
+        String format = t.targetRepInfo() == null ? "a format the archive has no Representation Information for yet"
+                : archive.label(t.targetRepInfo());
+        String name = sourceLabel + " transformed with " + t.applicationName();
+        Map<String, BigDecimal> tolerances = new LinkedHashMap<>();
+        t.properties().forEach(c -> tolerances.put(c.sourcePath(), c.tolerance()));
+        Version version = new Version(dataObject, sourceLabel, t.targetRepInfo(), format, name,
+                t.performedOn().toString(), XSDDatatype.XSDdate, t.reversible(),
+                (t.reversible() ? "Shown reversible" : "Not shown reversible")
+                        + (t.reversibility() == null || t.reversibility().isBlank() ? "." : ": " + t.reversibility()),
+                "Made from " + sourceLabel + " by " + (t.reversible() ? "a" : "a non-reversible")
+                        + " Transformation done outside the archive with " + t.applicationName() + " by "
+                        + t.performedBy() + " on " + t.performedOn() + ": " + t.method() + " " + summary(checks),
+                checks, tolerances);
+        return recordVersion(version, written, fileName, archiveAddress, (transformation, ignored) -> {
+            edit.addLiteral(transformation, Ns.RDFS + "comment", "Method: " + t.method());
+            String person = edit.createEntity(Ns.IM + "Agent");
+            edit.addLiteral(person, Ns.RDFS + "label", t.performedBy());
+            edit.addLiteral(person, Ns.RDFS + "comment", "Performed a Transformation, outside the archive.");
+            edit.addRelationship(transformation, Ns.IM + "performedBy", person);
+            String software = edit.createEntity(Ns.IM + "Agent");
+            edit.addLiteral(software, Ns.RDFS + "label", t.applicationName());
+            edit.addLiteral(software, Ns.RDFS + "comment", "Software application (an automated system) used for a "
+                    + "Transformation.");
+            if (t.applicationUrl() != null && !t.applicationUrl().isBlank()) {
+                edit.addRelationship(software, Ns.RDFS + "seeAlso", t.applicationUrl().strip());
+            }
+            edit.addRelationship(transformation, Ns.IM + "performedBy", software);
+        });
+    }
+
+    /** What both ways of transforming record about a Transformation and its result. */
+    private record Version(String source, String sourceLabel, String targetRepInfo, String formatName, String name,
+                           String when, XSDDatatype whenType, boolean reversible, String reversibility,
+                           String provenance, List<PropertyCheck> checks, Map<String, BigDecimal> tolerances) {
+    }
+
+    /** The rest of a Transformation's record, which depends on how it was done. */
+    private interface Details {
+        void add(String transformation, String name);
+    }
+
+    /**
+     * Stores the new data in the archive's {@link BitStore}, and records it:
+     * the new Data Object (interpreted using the new format's Representation
+     * Information), its Content Information, and an AIP Version of the source
+     * AIP, if any, with a Package Description and Preservation Description
+     * Information -- Fixity Information, Reference, Context and Access Rights
+     * Information carried over from the source AIP, and Provenance Information
+     * recording the Transformation, with its checks. The stored data is removed
+     * if recording fails.
+     */
+    private String recordVersion(Version v, byte[] written, String fileName, String archiveAddress, Details details)
+            throws IOException {
+        BitStore.StoredBits stored = bits.store(written, fileName);
         try {
-            return recordEntities(dataObject, target, mapping, trial, properties, name,
-                    archiveAddress.replaceAll("/+$", "") + stored.path(), stored);
+            return recordEntities(v, archiveAddress.replaceAll("/+$", "") + stored.path(), stored, details);
         } catch (RuntimeException e) {
             bits.delete(stored);
             throw e;
         }
     }
 
-    private String recordEntities(String dataObject, Target target, TransformationMapping mapping, Trial trial,
-                                  Map<String, BigDecimal> properties, String name, String location,
-                                  BitStore.StoredBits stored) {
+    private String recordEntities(Version v, String location, BitStore.StoredBits stored, Details details) {
         Model m = store.dataModel();
+        String dataObject = v.source();
+        String name = v.name();
         String newObject = edit.createEntity(Ns.IM + "DigitalObject");
         edit.addLiteral(newObject, Ns.RDFS + "label", name);
         edit.addRelationship(newObject, Ns.IM + "hasStorageLocation", location);
-        edit.addRelationship(newObject, Ns.IM + "interpretedUsing", target.iri());
+        if (v.targetRepInfo() != null) {
+            edit.addRelationship(newObject, Ns.IM + "interpretedUsing", v.targetRepInfo());
+        }
 
         String content = edit.createEntity(Ns.IM + "ContentInformation");
         edit.addType(content, Ns.IM + "InformationObject");
@@ -492,7 +698,7 @@ public class TransformationService {
             context = edit.createEntity(Ns.IM + "ContextInformation");
             edit.addLiteral(context, Ns.RDFS + "label", "Context: " + name);
         }
-        edit.addLiteral(context, Ns.RDFS + "comment", "Made by a Transformation from " + trial.sourceLabel()
+        edit.addLiteral(context, Ns.RDFS + "comment", "Made by a Transformation from " + v.sourceLabel()
                 + " (" + dataObject + ")" + (sourceAip == null ? "" : ", in " + sourceName) + ".");
         edit.addRelationship(pdi, Ns.IM + "hasContextInformation", context);
         String accessRights = carryOver(m, sourcePdi, "AccessRightsInformation", sourceName);
@@ -503,9 +709,8 @@ public class TransformationService {
         String packageDescription = edit.createEntity(Ns.IM + "PackageDescription");
         edit.addLiteral(packageDescription, Ns.RDFS + "label", "Package Description: " + name);
         StringBuilder description = new StringBuilder(name + ": an AIP Version made by a Transformation of "
-                + trial.sourceLabel() + (sourceAip == null ? "" : " (in " + sourceName + ")") + " into "
-                + target.label().replaceFirst(" \\(as used by .*\\)$", "") + ", on "
-                + OffsetDateTime.now(ZoneOffset.UTC).toLocalDate() + ".");
+                + v.sourceLabel() + (sourceAip == null ? "" : " (in " + sourceName + ")") + " into "
+                + v.formatName() + ", on " + v.when().substring(0, 10) + ".");
         if (sourceAip != null) {
             for (String sourceDescription : column(Ns.PREFIXES + """
                     SELECT ?text WHERE { <%s> im:describedBy ?d . ?d rdfs:comment ?text } ORDER BY ?text
@@ -517,43 +722,33 @@ public class TransformationService {
         edit.addRelationship(packageDescription, Ns.IM + "derivedFrom", aip);
         edit.addRelationship(aip, Ns.IM + "describedBy", packageDescription);
 
-        String mappingIri = edit.createEntity(Ns.IM + "TransformationMapping");
-        edit.addLiteral(mappingIri, Ns.RDFS + "label", "Mapping to " + name);
-        edit.addLiteral(mappingIri, Ns.IM + "specificationLanguage", MAPPING_LANGUAGE);
-        edit.addLiteral(mappingIri, Ns.IM + "specificationText", mapping.text());
-
         String transformation = edit.createEntity(Ns.IM + "Transformation");
-        if (!trial.reversible()) {
+        if (!v.reversible()) {
             edit.addType(transformation, Ns.IM + "NonReversibleTransformation");
         }
-        edit.addLiteral(transformation, Ns.RDFS + "label", "Transformation of " + trial.sourceLabel() + " to "
-                + name);
+        edit.addLiteral(transformation, Ns.RDFS + "label", "Transformation of " + v.sourceLabel() + " to " + name);
         edit.addRelationship(transformation, Ns.IM + "transformationSource", dataObject);
         edit.addRelationship(transformation, Ns.IM + "transformationResult", newObject);
-        edit.addRelationship(transformation, Ns.IM + "followedMapping", mappingIri);
-        m.getResource(transformation).addLiteral(m.createProperty(Ns.IM + "performedAt"), m.createTypedLiteral(
-                OffsetDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.SECONDS).toString(), XSDDatatype.XSDdateTime));
-        edit.addLiteral(transformation, Ns.RDFS + "comment", trial.reversible()
-                ? "Shown reversible: every value of the old data is in the new data, unchanged."
-                : "Not shown reversible: " + String.join("; ", trial.lost()) + ".");
+        m.getResource(transformation).addLiteral(m.createProperty(Ns.IM + "performedAt"),
+                m.createTypedLiteral(v.when(), v.whenType()));
+        edit.addLiteral(transformation, Ns.RDFS + "comment", v.reversibility());
+        details.add(transformation, name);
 
         String provenance = edit.createEntity(Ns.IM + "ProvenanceInformation");
         edit.addLiteral(provenance, Ns.RDFS + "label", "Provenance: " + name);
-        edit.addLiteral(provenance, Ns.RDFS + "comment", "Made from " + trial.sourceLabel() + " by "
-                + (trial.reversible() ? "a" : "a non-reversible") + " Transformation, following the mapping "
-                + "recorded with it; " + summary(trial.checks()));
+        edit.addLiteral(provenance, Ns.RDFS + "comment", v.provenance());
         edit.addRelationship(provenance, Ns.IM + "recordsTransformation", transformation);
         edit.addRelationship(pdi, Ns.IM + "hasProvenanceInformation", provenance);
 
         Map<String, Meaning> sourceMeanings = meanings(dataObject);
-        Map<String, Meaning> targetMeanings = meanings(target.iri());
+        Map<String, Meaning> targetMeanings = v.targetRepInfo() == null ? Map.of() : meanings(v.targetRepInfo());
         Map<String, String> existing = new LinkedHashMap<>();
         informationProperties(dataObject).forEach(p -> existing.putIfAbsent(p.path(), p.iri()));
         List<String> sourceContent = column(Ns.PREFIXES + """
                 SELECT DISTINCT ?ci WHERE { ?ci im:hasDataObject <%s> }
                 """.formatted(dataObject), "ci");
         String sourceRepInfo = firstObject(m, dataObject, Ns.IM + "interpretedUsing");
-        for (PropertyCheck check : trial.checks()) {
+        for (PropertyCheck check : v.checks()) {
             String property = existing.get(check.sourcePath());
             if (property == null) {
                 property = informationProperty(check.label(), sourceMeanings.get(check.sourcePath()), sourceRepInfo);
@@ -561,9 +756,9 @@ public class TransformationService {
                     edit.addRelationship(ci, Ns.IM + "hasTransformationInformationProperty", property);
                 }
             }
-            if (check.targetPath() != null) {
+            if (check.targetPath() != null && v.targetRepInfo() != null) {
                 String carried = informationProperty(check.label(), targetMeanings.get(check.targetPath()),
-                        target.iri());
+                        v.targetRepInfo());
                 edit.addRelationship(content, Ns.IM + "hasTransformationInformationProperty", carried);
             }
             String checkIri = edit.createEntity(Ns.IM + "TransformationInformationPropertyCheck");
@@ -574,9 +769,9 @@ public class TransformationService {
             if (check.targetPath() != null) {
                 edit.addLiteral(checkIri, Ns.IM + "targetPath", check.targetPath());
             }
-            if (properties.get(check.sourcePath()) != null) {
-                edit.addLiteral(checkIri, Ns.RDFS + "comment",
-                        "Tolerance: " + properties.get(check.sourcePath()).toPlainString());
+            BigDecimal tolerance = v.tolerances().get(check.sourcePath());
+            if (tolerance != null) {
+                edit.addLiteral(checkIri, Ns.RDFS + "comment", "Tolerance: " + tolerance.toPlainString());
             }
             edit.addRelationship(checkIri, Ns.IM + "checksProperty", property);
             edit.addRelationship(transformation, Ns.IM + "hasPropertyCheck", checkIri);

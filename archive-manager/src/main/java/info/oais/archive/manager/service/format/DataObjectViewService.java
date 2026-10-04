@@ -196,13 +196,25 @@ public class DataObjectViewService {
         if (storage == null || !storage.getObject().isURIResource() || !data.hasProperty(interpretedUsing)) {
             return Optional.empty();
         }
-        Set<Resource> reached = new LinkedHashSet<>();
-        Deque<Resource> todo = new ArrayDeque<>();
+        List<Resource> roots = new ArrayList<>();
         data.listProperties(interpretedUsing).forEachRemaining(s -> {
             if (s.getObject().isResource()) {
-                todo.push(s.getObject().asResource());
+                roots.add(s.getObject().asResource());
             }
         });
+        String label = literal(data, m.createProperty(Ns.RDFS + "label"));
+        String name = label != null ? label : dataObject.substring(dataObject.lastIndexOf('/') + 1);
+        return Optional.of(describe(dataObject, name, URI.create(storage.getObject().asResource().getURI()), roots,
+                specificationUrl));
+    }
+
+    /** The data at {@code data} as the Representation Information {@code roots} (and what they lead to) describe it. */
+    private DescribedData describe(String iri, String name, URI data, List<Resource> roots,
+                                   Function<String, URI> specificationUrl) {
+        Model m = store.dataModel();
+        Set<Resource> reached = new LinkedHashSet<>();
+        Deque<Resource> todo = new ArrayDeque<>();
+        roots.forEach(todo::push);
         List<Property> followed = Stream.of("hasGroupMember", "hasStructureRepresentationInformation",
                 "hasSemanticRepresentationInformation", "hasOtherRepresentationInformation", "interpretedUsingRecurse")
                 .map(p -> m.createProperty(Ns.IM + p)).toList();
@@ -251,10 +263,7 @@ public class DataObjectViewService {
         }
         structures.sort(Comparator.comparing(StructureDescription::iri));
         views.sort(Comparator.comparing(ViewDescription::iri));
-        String label = literal(data, m.createProperty(Ns.RDFS + "label"));
-        String name = label != null ? label : dataObject.substring(dataObject.lastIndexOf('/') + 1);
-        return Optional.of(new DescribedData(dataObject, name, URI.create(storage.getObject().asResource().getURI()),
-                structures, views, meanings));
+        return new DescribedData(iri, name, data, structures, views, meanings);
     }
 
     /** The Representation Information manifest (Turtle) for {@code data}. */
@@ -319,6 +328,49 @@ public class DataObjectViewService {
             }
         });
         return result.get(0);
+    }
+
+    /**
+     * Fetches {@code dataObject}'s bits from its storage location into a new
+     * file in {@code directory}.
+     *
+     * @throws IOException if it has no storage location, or fetching fails
+     */
+    public Path fetchBits(String dataObject, Path directory) throws IOException {
+        Model m = store.dataModel();
+        Statement storage = m.getResource(dataObject).getProperty(m.createProperty(Ns.IM + "hasStorageLocation"));
+        if (storage == null || !storage.getObject().isURIResource()) {
+            throw new IOException("This Data Object has no storage location for its bits");
+        }
+        return fetcher.fetch(URI.create(storage.getObject().asResource().getURI()), directory);
+    }
+
+    /**
+     * Decodes the file {@code data} with the first usable structure
+     * description of the Representation Information {@code repInfo} (and
+     * what it leads to), and runs {@code work} on the result -- e.g. to check
+     * data made outside the archive before it becomes a Data Object.
+     *
+     * @throws IOException if the Representation Information has no structure description usable here, or
+     *                     decoding fails
+     */
+    public <T> T decodeWith(String repInfo, Path data, DecodedWork<T> work) throws IOException {
+        Path dir = Files.createTempDirectory("archive-decode-");
+        List<Path> temporary = new ArrayList<>();
+        try {
+            DescribedData remote = describe(repInfo, data.getFileName().toString(), data.toUri(),
+                    List.of(store.dataModel().getResource(repInfo)), URI::create);
+            DescribedData local = new DescribedData(remote.iri(), remote.name(), data.toUri(),
+                    remote.structures().stream().map(s -> new StructureDescription(s.iri(), s.language(),
+                            localCopy(s.iri(), dir), s.generatedClassName())).toList(),
+                    List.of(), remote.meanings());
+            return work.run(remote, RepInfoDecoder.decode(local, temporary));
+        } finally {
+            RepInfoDecoder.deleteAll(temporary);
+            try (Stream<Path> files = Files.walk(dir)) {
+                files.sorted(Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+            }
+        }
     }
 
     private interface LocalWork {

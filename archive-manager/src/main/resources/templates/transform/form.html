@@ -7,7 +7,8 @@
     <p class="breadcrumb"><a th:href="@{/resource/{id}(id=${id})}" th:text="'← ' + ${title}">&larr; Data Object</a></p>
     <h1>Transform <span th:text="${title}">Data Object</span></h1>
     <p class="muted">
-        A Transformation rewrites this Data Object in another format: it is decoded with its own
+        A Transformation rewrites this Data Object in another format &mdash; here, by mapping it to a format
+        described in the archive, or <a href="#external">with another application</a>. Here, it is decoded with its own
         Representation Information, each element of the new format is made from its elements as you say
         below, and the result is written with the new format's DFDL description. The new data is then
         decoded again with that description to check each Transformation Information Property. Doing it
@@ -146,6 +147,110 @@
             <button type="submit" class="button-secondary" th:formaction="@{/transform/{id}(id=${id})}">Transform</button>
         </p>
     </form>
+
+    <section class="editor-section" id="external">
+        <h2>Or transform it with another application</h2>
+        <p class="muted">
+            If another application does the Transformation &mdash; a format converter, a script, a mission's own
+            software &mdash; download the data and its description, transform it there, then upload the result here
+            and say what was done. That record becomes the new AIP Version's Provenance Information, so whoever reads
+            it later knows how the data came to be.
+        </p>
+        <p>
+            <a class="button" th:href="@{/api/data-objects/{id}/bits(id=${id})}">1. Download the data &rarr;</a>
+            <a class="button button-secondary" th:href="@{/api/descriptions/{id}/description.zip(id=${id})}">Download its data description &rarr;</a>
+        </p>
+        <p class="notice error" th:if="${externalError != null}" th:text="${externalError}">Problem.</p>
+        <form th:action="@{/transform/{id}/external(id=${id})}" method="post" enctype="multipart/form-data" class="form transform-external">
+            <h3>2. Upload the result and say what was done</h3>
+            <label>
+                The transformed file
+                <input type="file" name="file" required/>
+            </label>
+            <div class="form-row">
+                <label>
+                    Application used
+                    <input type="text" name="application" th:value="${ext['application']}" required placeholder="e.g. Astropy"/>
+                </label>
+                <label>
+                    Its version
+                    <input type="text" name="applicationVersion" th:value="${ext['applicationVersion']}" placeholder="e.g. 6.1.0"/>
+                </label>
+            </div>
+            <label>
+                Where the application can be found (optional)
+                <input type="url" name="applicationUrl" th:value="${ext['applicationUrl']}" placeholder="https://"/>
+            </label>
+            <div class="form-row">
+                <label>
+                    Done by
+                    <input type="text" name="performedBy" th:value="${ext['performedBy']}" required/>
+                </label>
+                <label>
+                    On
+                    <input type="date" name="performedOn" th:value="${ext['performedOn'] != null ? ext['performedOn'] : today}"/>
+                </label>
+            </div>
+            <label>
+                What was done &mdash; the steps, settings or commands, so it could be done again
+                <textarea name="method" rows="5" required th:text="${ext['method']}"></textarea>
+            </label>
+            <label>
+                What the new data is interpreted using
+                <select name="repInfo">
+                    <option value="">Nothing in the archive yet &mdash; I'll add its Representation Information afterwards</option>
+                    <option th:each="c : ${repInfoChoices}" th:value="${c.iri()}" th:text="${c.label()}"
+                            th:selected="${c.iri() == ext['repInfo']}">Representation Information</option>
+                </select>
+            </label>
+            <p class="muted">
+                Without Representation Information the new data can't be understood, and its AIP is incomplete: describe
+                its format first in RepInfo Tools if it isn't in the archive yet.
+            </p>
+            <label>
+                <input type="checkbox" name="reversible" th:checked="${ext['reversible'] == 'on'}"/>
+                It is shown to be reversible: the original can be recreated exactly from the result
+            </label>
+            <label>
+                Why it is, or isn't, reversible
+                <input type="text" name="reversibility" th:value="${ext['reversibility']}"
+                       placeholder="e.g. converted back and compared byte for byte; values rounded to 4 decimal places"/>
+            </label>
+
+            <h3>Transformation Information Properties</h3>
+            <p class="muted">
+                For each value that must survive, record the outcome and how you checked it. If you give where the
+                values are in the new format (a path such as <code>star.ra</code>) and the new data's Representation
+                Information can decode it, the archive checks them itself, decoding both the old and the new data,
+                and records that instead.
+            </p>
+            <table class="listing">
+                <thead>
+                <tr><th>Record</th><th>Values of</th><th>In the new format at</th><th>Outcome</th><th>How it was checked</th><th>Tolerance</th></tr>
+                </thead>
+                <tbody>
+                <tr th:each="s : ${externalRows}">
+                    <td><input type="checkbox" th:name="${'ext.tip.' + s.path()}" th:checked="${ext.isEmpty() or ext['ext.tip.' + s.path()] == 'on'}"/></td>
+                    <td th:text="${s.display()}">star.ra</td>
+                    <td><input type="text" size="12" th:name="${'ext.target.' + s.path()}" th:value="${ext['ext.target.' + s.path()]}"/></td>
+                    <td>
+                        <select th:name="${'ext.outcome.' + s.path()}">
+                            <option th:each="o : ${ {'preserved', 'changed', 'not checked'} }" th:value="${o}" th:text="${o}"
+                                    th:selected="${o == (ext['ext.outcome.' + s.path()] != null ? ext['ext.outcome.' + s.path()] : 'not checked')}">preserved</option>
+                        </select>
+                    </td>
+                    <td><input type="text" size="24" th:name="${'ext.evidence.' + s.path()}" th:value="${ext['ext.evidence.' + s.path()]}"/></td>
+                    <td><input type="text" size="8" th:name="${'ext.tol.' + s.path()}" th:value="${ext['ext.tol.' + s.path()]}"/></td>
+                </tr>
+                </tbody>
+            </table>
+            <p class="muted" th:if="${externalRows.isEmpty()}">
+                The archive can't list this Data Object's values, so no Transformation Information Properties can be
+                recorded here.
+            </p>
+            <button type="submit">Record the Transformation</button>
+        </form>
+    </section>
 
     <section class="editor-section" th:if="${trial != null}">
         <h2>Trying it</h2>

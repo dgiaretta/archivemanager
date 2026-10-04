@@ -177,22 +177,116 @@ class TransformControllerTest {
                     .listProperties(store.dataModel().createProperty(Ns.IM + "hasTransformationInformationProperty"))
                     .toList())).hasSize(3);
         } finally {
-            write(() -> {
-                Model m = store.dataModel();
-                for (Resource r : m.listSubjects().toList()) {
-                    if (!before.contains(r)) {
-                        for (Statement s : m.listStatements(r, m.createProperty(Ns.IM + "hasStorageLocation"),
-                                (RDFNode) null).toList()) {
-                            bits.file(URI.create(s.getObject().asResource().getURI())).ifPresent(this::deleteStored);
-                        }
-                        m.removeAll(r, null, null);
-                        m.removeAll(null, null, r);
-                    }
-                }
-                return null;
-            });
+            cleanUp(before);
             bits.delete(sourceBits);
         }
+    }
+
+    @Test
+    void recordsATransformationDoneWithAnotherApplication() throws Exception {
+        Set<Resource> before = read(() -> new HashSet<>(store.dataModel().listSubjects().toList()));
+        BitStore.StoredBits sourceBits = bits.store(TransformFixtures.catalogue(), "stars.bin");
+        try {
+            Map<String, String> made = write(() -> catalogueAndTarget("http://localhost" + sourceBits.path()));
+            String id = archive.encodeId(made.get("source"));
+            MockHttpSession session = new MockHttpSession();
+            session.setAttribute(EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
+
+            mockMvc.perform(get("/transform/" + id).session(session))
+                    .andExpect(content().string(containsString("Or transform it with another application")));
+            assertThat(mockMvc.perform(get("/api/data-objects/" + id + "/bits")).andExpect(status().isOk())
+                    .andReturn().getResponse().getContentAsByteArray()).isEqualTo(TransformFixtures.catalogue());
+
+            // What the other application made: the catalogue as positions, right ascension in radians.
+            java.io.ByteArrayOutputStream positions = new java.io.ByteArrayOutputStream();
+            try (java.io.DataOutputStream out = new java.io.DataOutputStream(positions)) {
+                out.writeInt(TransformFixtures.CATALOGUE.length);
+                for (Object[] star : TransformFixtures.CATALOGUE) {
+                    out.write(String.format("%-12s", star[0]).getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+                    out.writeDouble(Math.toRadians((Double) star[1]));
+                    out.writeFloat(((Double) star[2]).floatValue());
+                }
+            }
+            org.springframework.mock.web.MockMultipartFile file = new org.springframework.mock.web.MockMultipartFile(
+                    "file", "positions.pos", "application/octet-stream", positions.toByteArray());
+
+            mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                            .multipart("/transform/" + id + "/external").file(file).session(session)
+                            .param("application", "Astropy").param("performedBy", "A. Archivist"))
+                    .andExpect(status().isOk()).andExpect(content().string(containsString("Say what was done.")));
+
+            String location = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                            .multipart("/transform/" + id + "/external").file(file).session(session)
+                            .param("application", "Astropy").param("applicationVersion", "6.1")
+                            .param("applicationUrl", "https://www.astropy.org/")
+                            .param("performedBy", "A. Archivist").param("performedOn", "2026-09-30")
+                            .param("method", "Read with astropy.table, converted ra to radians, wrote positions.")
+                            .param("repInfo", made.get("targetRepInfo"))
+                            .param("reversibility", "magnitudes left out")
+                            .param("ext.tip.star.dec", "on").param("ext.target.star.dec", "star.dec")
+                            .param("ext.outcome.star.dec", "changed")
+                            .param("ext.tip.star.vmag", "on").param("ext.outcome.star.vmag", "changed")
+                            .param("ext.evidence.star.vmag", "magnitudes are not in the new format"))
+                    .andExpect(redirectedUrlPattern("/resource/*")).andReturn().getResponse().getRedirectedUrl();
+            String transformation = archive.decodeId(location.substring("/resource/".length()));
+
+            read(() -> {
+                Model m = store.dataModel();
+                Resource t = m.getResource(transformation);
+                assertThat(types(t)).contains("Transformation", "NonReversibleTransformation");
+                assertThat(t.getProperty(m.createProperty(Ns.IM + "performedAt")).getLiteral().getLexicalForm())
+                        .isEqualTo("2026-09-30");
+                assertThat(comments(t)).contains("Method: Read with astropy.table, converted ra to radians, wrote "
+                        + "positions.", "Not shown reversible: magnitudes left out");
+                assertThat(t.listProperties(m.createProperty(Ns.IM + "performedBy")).toList().stream()
+                        .map(st -> literal(st.getObject().asResource(), Ns.RDFS + "label")))
+                        .containsExactlyInAnyOrder("A. Archivist", "Astropy 6.1");
+                Map<String, Resource> checks = t.listProperties(m.createProperty(Ns.IM + "hasPropertyCheck")).toList()
+                        .stream().map(st -> st.getObject().asResource()).collect(Collectors.toMap(
+                                c -> literal(c, Ns.IM + "sourcePath"), c -> c));
+                // The archive checked the declination itself, whatever was reported...
+                assertThat(literal(checks.get("star.dec"), Ns.IM + "checkOutcome")).isEqualTo("preserved");
+                assertThat(comments(checks.get("star.dec"))).anyMatch(c -> c.contains("Checked by the archive"));
+                // ...and recorded what was reported for the magnitudes, which it couldn't check.
+                assertThat(literal(checks.get("star.vmag"), Ns.IM + "checkOutcome")).isEqualTo("changed");
+                assertThat(comments(checks.get("star.vmag")))
+                        .contains("Reported by A. Archivist: magnitudes are not in the new format");
+
+                Resource result = m.getResource(object(t, "transformationResult"));
+                assertThat(object(result, "interpretedUsing")).isEqualTo(made.get("targetRepInfo"));
+                assertThat(object(result, "hasStorageLocation")).endsWith("/positions.pos");
+                Resource content = m.listSubjectsWithProperty(m.createProperty(Ns.IM + "hasDataObject"), result)
+                        .next();
+                Resource aip = m.listSubjectsWithProperty(m.createProperty(Ns.IM + "hasContentInformation"), content)
+                        .next();
+                Resource pdi = m.getResource(object(aip, "hasPreservationDescriptiveInformation"));
+                assertThat(literal(m.getResource(object(pdi, "hasProvenanceInformation")), Ns.RDFS + "comment"))
+                        .contains("done outside the archive with Astropy 6.1 by A. Archivist on 2026-09-30");
+                assertThat(AipComponents.complete(components.check(aip.getURI(), Map.of(), null))).isTrue();
+                return null;
+            });
+        } finally {
+            cleanUp(before);
+            bits.delete(sourceBits);
+        }
+    }
+
+    /** Removes everything made since {@code before}, and the bits stored for it. */
+    private void cleanUp(Set<Resource> before) {
+        write(() -> {
+            Model m = store.dataModel();
+            for (Resource r : m.listSubjects().toList()) {
+                if (!before.contains(r)) {
+                    for (Statement s : m.listStatements(r, m.createProperty(Ns.IM + "hasStorageLocation"),
+                            (RDFNode) null).toList()) {
+                        bits.file(URI.create(s.getObject().asResource().getURI())).ifPresent(this::deleteStored);
+                    }
+                    m.removeAll(r, null, null);
+                    m.removeAll(null, null, r);
+                }
+            }
+            return null;
+        });
     }
 
     /** The source catalogue, with what two of its elements mean, in an AIP; and a Data Object in the target format. */

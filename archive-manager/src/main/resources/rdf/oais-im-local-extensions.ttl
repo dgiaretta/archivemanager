@@ -294,7 +294,7 @@ im:Transformation
   a owl:Class ;
   rdfs:label "Transformation" ;
   oais:status "local-extension" ;
-  rdfs:comment "Transformation: a Digital Migration in which the Content Information or Preservation Description Information of an Archival Information Package is changed, e.g. its Data Object rewritten in another format. Records the Data Object it started from (im:transformationSource), the one it made (im:transformationResult), the mapping it followed (im:followedMapping), when (im:performedAt), and its checks of Transformation Information Properties (im:hasPropertyCheck). LOCAL EXTENSION -- OAIS defines Transformation but the Information Model has no class for one." .
+  rdfs:comment "Transformation: a Digital Migration in which the Content Information or Preservation Description Information of an Archival Information Package is changed, e.g. its Data Object rewritten in another format. Records the Data Object it started from (im:transformationSource), the one it made (im:transformationResult), the mapping it followed (im:followedMapping) or, if it was done outside the archive, who and what did it (im:performedBy) and how (rdfs:comment), when (im:performedAt), and its checks of Transformation Information Properties (im:hasPropertyCheck). LOCAL EXTENSION -- OAIS defines Transformation but the Information Model has no class for one." .
 
 im:NonReversibleTransformation
   a owl:Class ;
@@ -324,8 +324,15 @@ im:performedAt
   rdfs:label "performed at" ;
   oais:status "local-extension" ;
   rdfs:domain im:Transformation ;
-  rdfs:range xsd:dateTime ;
-  rdfs:comment "When a Transformation was done. LOCAL EXTENSION." .
+  rdfs:comment "When a Transformation was done: an xsd:dateTime, or an xsd:date when only the day is known (e.g. one done outside the archive). LOCAL EXTENSION." .
+
+im:performedBy
+  a owl:ObjectProperty ;
+  rdfs:label "performed by" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:Transformation ;
+  rdfs:range im:Agent ;
+  rdfs:comment "Who or what did a Transformation done outside the archive: the person, and the software application (an automated system), each an im:Agent. LOCAL EXTENSION." .
 
 im:TransformationMapping
   a owl:Class ;

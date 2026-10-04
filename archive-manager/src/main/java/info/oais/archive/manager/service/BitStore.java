@@ -101,7 +101,8 @@ public class BitStore {
         Files.deleteIfExists(dir);
     }
 
-    static String safeName(String name) {
+    /** {@code name} as a file name: letters, digits, dots, dashes and underscores only. */
+    public static String safeName(String name) {
         String safe = name == null ? "" : name.strip().replaceAll("[^A-Za-z0-9._-]+", "-").replaceAll("^[-.]+|-+$", "");
         return safe.isEmpty() ? "data.bin" : safe;
     }

@@ -30,8 +30,9 @@ spring:
       # metadata, no digital objects themselves -- those go to Eternal
       # separately, see README) can comfortably run to several thousand
       # rows; Spring Boot's own default (1MB) is too small for that.
-      max-file-size: 25MB
-      max-request-size: 25MB
+      # Also the largest transformed file that can be uploaded (Transform with another application).
+      max-file-size: 512MB
+      max-request-size: 512MB
 
 logging:
   level:

@@ -1,6 +1,8 @@
 package info.oais.archive.manager.web;
 
 import info.oais.archive.manager.service.ArchiveService;
+import info.oais.archive.manager.service.BitStore;
+import info.oais.archive.manager.service.transform.PropertyCheck;
 import info.oais.archive.manager.service.transform.PropertyCheck.Meaning;
 import info.oais.archive.manager.service.transform.TransformationException;
 import info.oais.archive.manager.service.transform.TransformationMapping;
@@ -19,9 +21,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.LocalDate;
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -97,6 +103,96 @@ public class TransformController {
         }
     }
 
+    /**
+     * Records a Transformation done with another application: the uploaded
+     * result, and the form saying what was done -- the application, who did
+     * it and when, how, what the result is interpreted using, whether it is
+     * reversible, and each Transformation Information Property's outcome.
+     */
+    @PostMapping("/{id}/external")
+    public String external(@PathVariable String id, @RequestParam("file") MultipartFile file,
+                           @RequestParam Map<String, String> form, Model model) {
+        String dataObject = archive.decodeId(id);
+        model.addAttribute("ext", form);
+        Path dir = null;
+        try {
+            prepare(id, dataObject, null, null, model);
+            TransformationService.ExternalTransformation t = externalFrom(form);
+            if (file.isEmpty()) {
+                throw new TransformationException("Choose the transformed file to upload.");
+            }
+            String fileName = BitStore.safeName(file.getOriginalFilename());
+            dir = Files.createTempDirectory("transform-upload-");
+            Path uploaded = dir.resolve(fileName);
+            byte[] bytes = file.getBytes();
+            Files.write(uploaded, bytes);
+            List<PropertyCheck> checks = transformations.checkExternal(dataObject, t, uploaded);
+            String transformation = transformations.recordExternal(dataObject, t, bytes, fileName, checks,
+                    ServletUriComponentsBuilder.fromCurrentContextPath().toUriString());
+            return "redirect:/resource/" + archive.encodeId(transformation);
+        } catch (IOException | RuntimeException e) {
+            model.addAttribute("externalError", message(e));
+            return "transform/form";
+        } finally {
+            if (dir != null) {
+                try (var files = Files.walk(dir)) {
+                    files.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+                } catch (IOException ignored) {
+                    // a temporary folder; the system cleans it up eventually
+                }
+            }
+        }
+    }
+
+    /** The external Transformation the form describes; throws saying what's missing. */
+    private TransformationService.ExternalTransformation externalFrom(Map<String, String> form) {
+        String application = required(form, "application", "the application used");
+        String performedBy = required(form, "performedBy", "who did the Transformation");
+        String method = required(form, "method", "what was done");
+        LocalDate performedOn;
+        try {
+            String day = field(form, "performedOn");
+            performedOn = day.isEmpty() ? LocalDate.now() : LocalDate.parse(day);
+        } catch (java.time.format.DateTimeParseException e) {
+            throw new IllegalArgumentException("The date isn't a date: " + form.get("performedOn"));
+        }
+        String repInfo = field(form, "repInfo");
+        if (!repInfo.isEmpty() && transformations.representationInformation().stream()
+                .noneMatch(c -> c.iri().equals(repInfo))) {
+            throw new IllegalArgumentException("That Representation Information isn't in the archive.");
+        }
+        List<TransformationService.ExternalCheck> checks = new java.util.ArrayList<>();
+        for (String key : form.keySet()) {
+            if (!key.startsWith("ext.tip.") || !"on".equals(form.get(key))) {
+                continue;
+            }
+            String path = key.substring("ext.tip.".length());
+            String target = field(form, "ext.target." + path);
+            String outcome = field(form, "ext.outcome." + path);
+            String tolerance = field(form, "ext.tol." + path);
+            checks.add(new TransformationService.ExternalCheck(path, target.isEmpty() ? null : target,
+                    java.util.Arrays.stream(PropertyCheck.Outcome.values()).filter(o -> o.text().equals(outcome))
+                            .findFirst().orElse(PropertyCheck.Outcome.NOT_CHECKED),
+                    field(form, "ext.evidence." + path), tolerance.isEmpty() ? null : decimal(tolerance, path)));
+        }
+        return new TransformationService.ExternalTransformation(application, field(form, "applicationVersion"),
+                field(form, "applicationUrl"), performedBy, performedOn, method, repInfo.isEmpty() ? null : repInfo,
+                "on".equals(form.get("reversible")), field(form, "reversibility"), checks);
+    }
+
+    private static String required(Map<String, String> form, String name, String what) {
+        String value = field(form, name);
+        if (value.isEmpty()) {
+            throw new IllegalArgumentException("Say " + what + ".");
+        }
+        return value;
+    }
+
+    private static String field(Map<String, String> form, String name) {
+        String value = form.get(name);
+        return value == null ? "" : value.strip();
+    }
+
     /** The data the last "Try it" made, to look at before transforming. */
     @GetMapping("/{id}/trial")
     public ResponseEntity<byte[]> trial(@PathVariable String id, HttpSession session) {
@@ -128,6 +224,20 @@ public class TransformController {
         model.addAttribute("transformable", transformations.transformable(dataObject));
         List<Target> targets = transformations.targets();
         model.addAttribute("targets", targets);
+        // For a Transformation done with another application: what the result can be interpreted using, and
+        // the old format's values, any of which can be a Transformation Information Property to record.
+        model.addAttribute("repInfoChoices", transformations.representationInformation());
+        model.addAttribute("today", LocalDate.now().toString());
+        if (!model.containsAttribute("ext")) {
+            model.addAttribute("ext", Map.of());
+        }
+        try {
+            model.addAttribute("externalRows", TransformationForm.sourceElements(
+                    transformations.sourceStructure(dataObject), transformations.meanings(dataObject)).stream()
+                    .filter(TransformationForm.SourceElement::value).toList());
+        } catch (IOException | RuntimeException e) {
+            model.addAttribute("externalRows", List.of());
+        }
         if (targetIri == null || targetIri.isBlank()) {
             return null;
         }

@@ -53,6 +53,38 @@ public class DataObjectExportController {
         this.bits = bits;
     }
 
+    /** A Data Object's bits, fetched from its storage location: e.g. to transform with another application. */
+    @GetMapping("/api/data-objects/{id}/bits")
+    public ResponseEntity<byte[]> dataObjectBits(@PathVariable String id) {
+        String iri = archive.decodeId(id);
+        java.nio.file.Path dir = null;
+        try {
+            dir = java.nio.file.Files.createTempDirectory("archive-bits-");
+            byte[] bytes = java.nio.file.Files.readAllBytes(views.fetchBits(iri, dir));
+            return ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + bitsFileName(iri) + "\"")
+                    .body(bytes);
+        } catch (IOException | RuntimeException e) {
+            return ResponseEntity.unprocessableEntity().contentType(MediaType.TEXT_PLAIN)
+                    .body(("Couldn't fetch this Data Object's bits: " + e.getMessage()).getBytes(StandardCharsets.UTF_8));
+        } finally {
+            if (dir != null) {
+                try (var files = java.nio.file.Files.walk(dir)) {
+                    files.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
+                } catch (IOException ignored) {
+                    // a temporary folder; the system cleans it up eventually
+                }
+            }
+        }
+    }
+
+    /** The file name of {@code dataObject}'s bits: its storage location's, else its label's. */
+    private String bitsFileName(String dataObject) {
+        String fromLocation = views.describe(dataObject, URI::create).map(d -> d.data().getPath())
+                .map(path -> path.substring(path.lastIndexOf('/') + 1)).orElse("");
+        return fromLocation.isBlank() ? fileName(archive.label(dataObject)) + ".bin" : BitStore.safeName(fromLocation);
+    }
+
     @GetMapping("/api/bits/{id}/{name}")
     public ResponseEntity<Resource> bits(@PathVariable String id, @PathVariable String name) {
         return bits.file(id, name)
