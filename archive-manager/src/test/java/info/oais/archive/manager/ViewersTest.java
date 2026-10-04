@@ -389,10 +389,12 @@ class ViewersTest {
             String extent = edit.createEntity(Ns.RICO + "Extent");
             String metres = edit.createEntity(Ns.RICO + "UnitOfMeasurement");
             edit.addRelationship(extent, Ns.RICO + "hasUnitOfMeasurement", metres);
-            return new String[] {o, ri, kelvin, extent, metres};
+            String orphan = edit.createEntity(Ns.RICO + "UnitOfMeasurement");
+            edit.addLiteral(orphan, Ns.RDFS + "label", "K");
+            return new String[] {o, ri, kelvin, extent, metres, orphan};
         });
         try {
-            assertThat(write(() -> localExtensionsMigration.migrate())).isEqualTo(5);
+            assertThat(write(() -> localExtensionsMigration.migrate())).isEqualTo(6);
             store.beginTransaction(ReadWrite.READ);
             try {
                 Model m = store.dataModel();
@@ -411,6 +413,11 @@ class ViewersTest {
                         .isTrue();
                 assertThat(m.getResource(made[2]).hasProperty(RDF.type, m.createResource(Ns.RICO + "UnitOfMeasurement")))
                         .isFalse();
+                // A unit nothing uses any more was RepInfo Tools', so it is OAIS's too.
+                assertThat(m.getResource(made[5]).hasProperty(RDF.type, m.createResource(Ns.IM + "UnitOfMeasurement")))
+                        .isTrue();
+                assertThat(m.getResource(made[5]).hasProperty(RDF.type, m.createResource(Ns.RICO + "UnitOfMeasurement")))
+                        .isFalse();
                 // An Extent's unit is RiC-O's, not OAIS's, and is left alone.
                 assertThat(m.getResource(made[3]).getPropertyResourceValue(m.createProperty(Ns.RICO + "hasUnitOfMeasurement"))
                         .getURI()).isEqualTo(made[4]);
@@ -423,6 +430,7 @@ class ViewersTest {
         } finally {
             removeReachable(made[0]);
             removeReachable(made[3]);
+            removeReachable(made[5]);
         }
     }
 

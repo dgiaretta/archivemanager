@@ -15,9 +15,7 @@ import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Renames terms that moved into the OAIS Information Model's local extensions
@@ -31,10 +29,11 @@ import java.util.Set;
  *       {@code bridge:representsConcept} become the same-named {@code im:}
  *       properties, wherever they are used;</li>
  *   <li>{@code rico:hasUnitOfMeasurement} becomes {@code im:hasUnitOfMeasurement}
- *       on OAIS individuals (anything with an {@code im:} type), and the units
- *       it points to become {@code im:UnitOfMeasurement}s. On RiC-O
- *       individuals (an Extent's unit) it is left alone, and a unit still
- *       used there keeps its {@code rico:UnitOfMeasurement} type as well.</li>
+ *       on OAIS individuals (anything with an {@code im:} type), and is left
+ *       alone on RiC-O ones (an Extent's unit). A {@code rico:UnitOfMeasurement}
+ *       becomes an {@code im:UnitOfMeasurement} unless RiC-O still uses it --
+ *       including a unit nothing uses any more, since RepInfo Tools made all
+ *       of this archive's units; one used by both keeps both types.</li>
  * </ul>
  * Runs once at startup, and finds nothing to do after that.
  */
@@ -85,16 +84,17 @@ public class LocalExtensionsMigration {
         Property ricUnit = m.createProperty(Ns.RICO + "hasUnitOfMeasurement");
         List<Statement> onOais = m.listStatements(null, ricUnit, (RDFNode) null).filterKeep(s -> isOais(s.getSubject()))
                 .toList();
-        renamed += rename(m, onOais, m.createProperty(Ns.IM + "hasUnitOfMeasurement"));
-        Set<Resource> units = new LinkedHashSet<>();
-        onOais.stream().filter(s -> s.getObject().isResource()).forEach(s -> units.add(s.getObject().asResource()));
+        Property imUnit = m.createProperty(Ns.IM + "hasUnitOfMeasurement");
+        renamed += rename(m, onOais, imUnit);
         Resource ricUnitClass = m.createResource(Ns.RICO + "UnitOfMeasurement");
-        for (Resource unit : units) {
-            if (unit.hasProperty(RDF.type, ricUnitClass)) {
-                unit.addProperty(RDF.type, m.createResource(Ns.IM + "UnitOfMeasurement"));
-                if (!m.contains(null, ricUnit, unit)) {
-                    m.remove(unit, RDF.type, ricUnitClass);
-                }
+        Resource imUnitClass = m.createResource(Ns.IM + "UnitOfMeasurement");
+        for (Resource unit : m.listSubjectsWithProperty(RDF.type, ricUnitClass).toList()) {
+            boolean usedByRic = m.contains(null, ricUnit, unit);
+            if (!usedByRic) {
+                m.remove(unit, RDF.type, ricUnitClass);
+            }
+            if (!usedByRic || m.contains(null, imUnit, unit)) {
+                unit.addProperty(RDF.type, imUnitClass);
                 renamed++;
             }
         }
