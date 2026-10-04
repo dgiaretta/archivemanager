@@ -12,6 +12,109 @@
         what's summarised here.
     </p>
 
+    <section class="editor-section" id="preservation">
+        <h2>Preserving digital information: the three OAIS techniques</h2>
+        <p>
+            Keeping the bits safe isn't enough. Software, hardware and what people know all change, so
+            information has to stay <em>independently understandable</em> to its Designated Community
+            &mdash; the people who must be able to use it &mdash; in the ways its Preservation Objectives
+            set out. OAIS (CCSDS 650.0-M-3) names three fundamental ways of achieving that. Each is
+            described below, with how to do it in this application. Editing needs the
+            <a th:href="@{/login}">edit password</a>.
+        </p>
+
+        <h3>1. Add Representation Information</h3>
+        <p>
+            Keep the Data Object exactly as it is, and add the Representation Information needed to
+            understand it: its <em>structure</em> (how the bits make numbers, text, records and arrays),
+            its <em>semantics</em> (what each value means, in what units), and <em>other</em>
+            Representation Information such as the software that reads it. Representation Information
+            needs its own Representation Information in turn, until what's left is something the
+            Designated Community already understands. This is the technique to use first: nothing about
+            the data changes, so nothing can be lost.
+        </p>
+        <ul>
+            <li>In <a th:href="@{/repinfo-tools}">RepInfo Tools</a>, describe a binary or
+                self-describing format as a tree of fields, records and choices, give each element its
+                meaning (name, definition, units, code list, scale and offset, fill value, valid range),
+                and test the generated DFDL, Kaitai Struct and DRB descriptions against a sample file.
+                Saving to the archive adds Structure Representation Information (one or several
+                equivalent descriptions, any one of which will do) and Semantic Representation
+                Information for every element, attached to a Data Object.</li>
+            <li>For a format that is already defined and read by existing software (a spreadsheet,
+                delimited text), describe only what each column means; it's saved with a format profile
+                and the software that reads it.</li>
+            <li>Add anything else &mdash; a specification document, a dictionary, other software &mdash;
+                with the <a th:href="@{/entities}">Entities</a> editor, linked to the Data Object's
+                Representation Information.</li>
+            <li>Check that it is enough: a Data Object whose bits have a storage location can be opened
+                from its page through its Representation Information alone, as a table, spectrum or image
+                in TOPCAT, SPLAT, DS9 or Aladin (see <a href="#viewers">below</a>).</li>
+        </ul>
+
+        <h3>2. Transformation</h3>
+        <p>
+            When adding Representation Information isn't enough, or a format is becoming obsolete, rewrite
+            the Data Object in another format. This changes the Content Information, so it has to be
+            checked and recorded: decide which values must survive (its <em>Transformation Information
+            Properties</em>), check them after the Transformation, and add Provenance Information saying
+            what was done. The result is an <em>AIP Version</em>, a candidate to replace the original.
+            A Transformation that can't be shown to be reversible is a <em>Non-Reversible
+            Transformation</em>, where those checks are the evidence that nothing that matters was lost.
+        </p>
+        <ul>
+            <li>Open the Data Object's page and choose <strong>Transform&hellip;</strong>. It needs a
+                storage location for its bits and a DFDL, DRB SDF or Kaitai Struct description to decode
+                them.</li>
+            <li>Choose the new format: any format with a DFDL description in the archive. Describe a new
+                one in RepInfo Tools first if needed.</li>
+            <li>Say what makes each element of the new format: repeated once per occurrence of an element
+                of the old format, copied (with an optional scale and offset, e.g. degrees to radians),
+                counted, or a constant. A first guess matches elements by name and meaning; the mapping
+                can also be edited as text.</li>
+            <li>Choose the Transformation Information Properties to check, with a tolerance if the values
+                may change slightly (e.g. stored with less precision).</li>
+            <li><strong>Try it</strong>: the new data is written with the new format's description,
+                decoded again with that same description, and each property's values are compared with
+                the original's. You see whether each was preserved, whether the Transformation is
+                reversible, and can download the new file. Nothing is saved.</li>
+            <li><strong>Transform</strong>: the new file is kept in the archive, and recorded as a new Data
+                Object in an AIP Version (linked to the original AIP), with Fixity Information (its
+                SHA-256 digest) and Provenance Information recording the Transformation &mdash; what it
+                started from, the mapping it followed, when, and each check. The original is left as it
+                is.</li>
+        </ul>
+
+        <h3>3. Hand over complete AIPs to another archive</h3>
+        <p>
+            If this archive can no longer look after some information, another archive can take
+            responsibility for it. That only works if each Archival Information Package is complete: its
+            Content Information (the Data Object with all the Representation Information needed to
+            understand it) and its Preservation Description Information (Provenance, Context, Reference,
+            Fixity and Access Rights Information), so the receiving archive can carry on without asking
+            anything.
+        </p>
+        <ul>
+            <li>Build the AIP with the <a th:href="@{/entities}">Entities</a> editor, as described in
+                <a href="#editing">section 5</a>: attach the Content Information and each kind of
+                Preservation Description Information, the Designated Community and Preservation
+                Objectives, and any Transformation Information Properties. Transformations create
+                their AIP Versions this way automatically.</li>
+            <li>Check that it is complete by looking at it: an AIP's page lists everything linked to it,
+                <a th:href="@{/graph}">the graph</a> shows the whole package and what it points to, and the
+                <a th:href="@{/sparql}">SPARQL console</a> can find packages missing a part.</li>
+            <li>What can be handed over today: each Data Object's Representation Information manifest
+                (Turtle naming its bits and every description, from its page) and its bits from their
+                storage location; the OAIS ontology and its local extensions, from the
+                <a th:href="@{/}">home page</a>. An archive running this application can load Turtle with
+                <code>/entities/import</code>.</li>
+            <li><strong>Not yet:</strong> there is no one-step export of a whole AIP &mdash; its
+                description, all its Representation Information and its bits &mdash; as a single package
+                for another archive. Until there is, handing over an AIP means gathering those parts as
+                above.</li>
+        </ul>
+    </section>
+
     <section class="editor-section">
         <h2>1. Browse, no login needed</h2>
         <p>
@@ -130,7 +233,7 @@
         </p>
     </section>
 
-    <section class="editor-section">
+    <section class="editor-section" id="editing">
         <h2>5. Log in to create or edit anything</h2>
         <p>
             Everything above is read-only and needs no account. <a th:href="@{/login}">Log in</a>
@@ -218,6 +321,16 @@
                 bits have a storage location can be opened straight from its page: its manifest by URL,
                 its data as a VOTable or, for an image, as FITS, or sent to TOPCAT, SPLAT, DS9 or
                 Aladin on your computer with "View with &hellip;".</li>
+            <li><strong>Transform a Data Object</strong> into another format, the second of OAIS's
+                three ways of preserving digital information: "Transform&hellip;" on its page. Choose a
+                format with a DFDL description in the archive, say what makes each of its elements
+                (repeated once per occurrence of an element of the old format, copied with an optional
+                scale and offset, counted, or a constant &mdash; a first guess matches names), and choose
+                the Transformation Information Properties to check. "Try it" writes the new data,
+                decodes it again with its own description and checks each property's values; nothing
+                is saved. "Transform" keeps the new data in the archive and records it as a new Data
+                Object in an AIP Version, with Fixity Information and Provenance Information recording
+                the Transformation: what it started from, the mapping it followed, and its checks.</li>
         </ul>
     </section>
 

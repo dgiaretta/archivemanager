@@ -29,6 +29,16 @@ class HelpControllerTest {
     }
 
     @Test
+    void helpPageExplainsTheThreePreservationTechniques() throws Exception {
+        mockMvc.perform(get("/help"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(allOf(containsString("id=\"preservation\""),
+                        containsString("1. Add Representation Information"), containsString("2. Transformation"),
+                        containsString("3. Hand over complete AIPs to another archive"),
+                        containsString("href=\"#editing\""), containsString("id=\"editing\""))));
+    }
+
+    @Test
     void rendersEachBundledReadmeAsHtml() throws Exception {
         mockMvc.perform(get("/help/engines/dfdl"))
                 .andExpect(status().isOk())

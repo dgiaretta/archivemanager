@@ -901,6 +901,46 @@ wanted.
     overall Semantic RI's `rdfs:comment` still carries a plain-text summary
     of every element, for a one-glance read without following the links.
     See `FormatDescriptionRdfServiceTest` for the exact shape this produces.
+- **Transformation** (`/transform/{id}`, admin-gated; "Transform..." on a
+  Data Object's page) -- the second of OAIS's three ways of preserving
+  digital information (adding Representation Information, Transformation,
+  handing complete AIPs to another archive). A Data Object whose bits have a
+  storage location is rewritten in another format that has a DFDL
+  description in the archive (any Data Object's Representation Information
+  with one):
+  1. It's decoded with its own Representation Information (DFDL, DRB SDF or
+     Kaitai Struct).
+  2. Each element of the new format -- read from its DFDL schema
+     (`DfdlSchemaOutline`) -- is made by a rule of a *Transformation
+     Mapping*: repeated once per occurrence of an old element
+     (`for star in catalogue.entry`), copied with an optional scale and
+     offset (`star.ra_rad = catalogue.entry.ra * 0.0174532925`), counted
+     (`n = count(catalogue.entry)`), or a constant. The page fills in a
+     first guess by matching names and meanings; the mapping can also be
+     edited as text.
+  3. The result is encoded with the new format's DFDL description
+     (Daffodil's unparser, `DfdlStructureRepInfo.encode`), then decoded
+     again with it, and each chosen Transformation Information Property --
+     the values of an element of the old format -- is checked against the
+     new data: physical values (each side's `im:scaleFactor`/`im:addOffset`
+     applied) within a tolerance, given or else what the types carry; values
+     whose units differ aren't compared. It counts as reversible only if
+     every value of the old data is in the new, unchanged.
+  4. "Try it" shows all this and offers the new data to download; nothing
+     is saved. "Transform" keeps the new bits in the archive's own bit store
+     (`archive.bits-location`, served at `/api/bits/{id}/{name}`) and
+     records a new `im:DigitalObject` interpreted using the new format's
+     Representation Information, in new Content Information and an
+     `im:AIPVersion` (with `im:hasSourceAIP` to the old AIP, if any), whose
+     PDI has Fixity Information (SHA-256) and Provenance Information that
+     `im:recordsTransformation` an `im:Transformation` (or
+     `im:NonReversibleTransformation`): its source and result, the mapping
+     it followed (`im:TransformationMapping`, as text), when, and one
+     `im:TransformationInformationPropertyCheck` per property. Properties
+     the old Information Object didn't have are added to it, and the new
+     Content Information gets the same properties for the new format. The
+     old Data Object is left as it is. These terms are local extensions to
+     the OAIS Information Model (`oais-im-local-extensions.ttl`).
 - **SPARQL console** (`/sparql`) -- run arbitrary SELECT queries against the
   union of the data graph and the ontology graph. Try, for instance:
 
@@ -992,6 +1032,15 @@ It holds two named graphs inside that one TDB2 database:
 - **The data graph** -- the archive's actual instance data. Seeded from
   `sample-data.ttl` only the very first time it's found empty; left alone on
   every later startup, so your edits persist across restarts.
+
+Bits the archive makes itself -- a transformed Data Object's -- are kept as
+plain files in `archive.bits-location` (default `data/bits/`), one folder per
+file, never changed once written, and served at `/api/bits/{id}/{name}`. That
+address is the Data Object's `im:hasStorageLocation`; when the archive itself
+needs the bits (to decode them), it reads them from that folder, whatever host
+the address names, so moving the archive to another address doesn't break
+that -- though viewers given the old address would need the new one. Every
+other Data Object's bits stay wherever their storage location says.
 
 **Transactions.** TDB2 requires every read or write to happen inside an
 explicit transaction -- there's no auto-commit fallback. Rather than have

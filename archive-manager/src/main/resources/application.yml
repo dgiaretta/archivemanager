@@ -45,6 +45,9 @@ logging:
 # a single file.
 archive:
   tdb-location: data/tdb2
+  # Where the archive keeps bits it makes itself, e.g. a transformed Data
+  # Object's, served at /api/bits/{id}/{name}. Env: ARCHIVE_BITS_LOCATION.
+  bits-location: data/bits
   # Python interpreter with drb-python installed (`pip install drb`), used by
   # RepInfo Tools to test a generated drb-python driver against a sample file.
   # Empty means: try python3, then python. Env: ARCHIVE_DRB_PYTHON_EXECUTABLE.

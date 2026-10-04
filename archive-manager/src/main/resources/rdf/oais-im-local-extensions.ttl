@@ -278,6 +278,135 @@ im:representsConcept
   rdfs:domain im:SemanticRepresentationInformation ;
   rdfs:comment "The concept, in an external vocabulary or ontology, that this element's values represent. LOCAL EXTENSION." .
 
+# ---- Transformations ----
+#
+# OAIS names three ways of preserving digital information: adding
+# Representation Information, Transformation (a Digital Migration that changes
+# the Content Information or PDI, checked against Transformation Information
+# Properties, with Provenance Information added), and handing complete AIPs to
+# another archive. The Information Model has classes for the second's result
+# but not for the Transformation itself, so these record one: what it started
+# from and made, how (the mapping it followed), when, and how each
+# Transformation Information Property fared. The new Data Object goes in an
+# AIP Version, whose Provenance Information records the Transformation.
+
+im:Transformation
+  a owl:Class ;
+  rdfs:label "Transformation" ;
+  oais:status "local-extension" ;
+  rdfs:comment "Transformation: a Digital Migration in which the Content Information or Preservation Description Information of an Archival Information Package is changed, e.g. its Data Object rewritten in another format. Records the Data Object it started from (im:transformationSource), the one it made (im:transformationResult), the mapping it followed (im:followedMapping), when (im:performedAt), and its checks of Transformation Information Properties (im:hasPropertyCheck). LOCAL EXTENSION -- OAIS defines Transformation but the Information Model has no class for one." .
+
+im:NonReversibleTransformation
+  a owl:Class ;
+  rdfs:label "Non-Reversible Transformation" ;
+  oais:status "local-extension" ;
+  rdfs:subClassOf im:Transformation ;
+  rdfs:comment "Non-Reversible Transformation: a Transformation that can't be shown to be reversible, e.g. because some values weren't carried over, or were scaled or rounded. Checks of Transformation Information Properties are the evidence that what matters was kept. LOCAL EXTENSION." .
+
+im:transformationSource
+  a owl:ObjectProperty ;
+  rdfs:label "transformation source" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:Transformation ;
+  rdfs:range im:DataObject ;
+  rdfs:comment "The Data Object a Transformation started from, which it leaves unchanged. LOCAL EXTENSION." .
+
+im:transformationResult
+  a owl:ObjectProperty ;
+  rdfs:label "transformation result" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:Transformation ;
+  rdfs:range im:DataObject ;
+  rdfs:comment "The Data Object a Transformation made. LOCAL EXTENSION." .
+
+im:performedAt
+  a owl:DatatypeProperty ;
+  rdfs:label "performed at" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:Transformation ;
+  rdfs:range xsd:dateTime ;
+  rdfs:comment "When a Transformation was done. LOCAL EXTENSION." .
+
+im:TransformationMapping
+  a owl:Class ;
+  rdfs:label "Transformation Mapping" ;
+  oais:status "local-extension" ;
+  rdfs:comment "Transformation Mapping: how a Transformation made each element of the new format from the old, one rule per line in im:specificationText (im:specificationLanguage 'OAIS Transformation Mapping'), e.g. 'star.ra = stars.entry.ra * 0.0174532925'. Kept so the Transformation can be understood and repeated. LOCAL EXTENSION." .
+
+im:followedMapping
+  a owl:ObjectProperty ;
+  rdfs:label "followed mapping" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:Transformation ;
+  rdfs:range im:TransformationMapping ;
+  rdfs:comment "The mapping a Transformation followed. LOCAL EXTENSION." .
+
+im:TransformationInformationPropertyCheck
+  a owl:Class ;
+  rdfs:label "Transformation Information Property Check" ;
+  oais:status "local-extension" ;
+  rdfs:comment "Transformation Information Property Check: whether one Transformation Information Property's values were preserved by a Transformation (im:checkOutcome: 'preserved', 'changed' or 'not checked'), found by decoding the new Data Object with its own Representation Information and comparing physical values, with the details in rdfs:comment. LOCAL EXTENSION -- OAIS says such checks may be part of Provenance Information." .
+
+im:hasPropertyCheck
+  a owl:ObjectProperty ;
+  rdfs:label "has property check" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:Transformation ;
+  rdfs:range im:TransformationInformationPropertyCheck ;
+  rdfs:comment "A check of a Transformation Information Property made for a Transformation. LOCAL EXTENSION." .
+
+im:checksProperty
+  a owl:ObjectProperty ;
+  rdfs:label "checks property" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:TransformationInformationPropertyCheck ;
+  rdfs:range im:TransformationInformationProperty ;
+  rdfs:comment "The Transformation Information Property a check is of. LOCAL EXTENSION." .
+
+im:checkOutcome
+  a owl:DatatypeProperty ;
+  rdfs:label "check outcome" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:TransformationInformationPropertyCheck ;
+  rdfs:comment "Whether the property's values were 'preserved', 'changed', or 'not checked' (e.g. because the units differ). LOCAL EXTENSION." .
+
+im:sourcePath
+  a owl:DatatypeProperty ;
+  rdfs:label "source path" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:TransformationInformationPropertyCheck ;
+  rdfs:comment "Where the checked values are in the old format, as an im:structuralPath. LOCAL EXTENSION." .
+
+im:targetPath
+  a owl:DatatypeProperty ;
+  rdfs:label "target path" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:TransformationInformationPropertyCheck ;
+  rdfs:comment "Where the checked values went in the new format, as an im:structuralPath. LOCAL EXTENSION." .
+
+im:AIPVersion
+  a owl:Class ;
+  rdfs:label "AIP Version" ;
+  oais:status "local-extension" ;
+  rdfs:subClassOf im:ArchivalInformationPackage ;
+  rdfs:comment "AIP Version: an AIP whose Content Information or Preservation Description Information has undergone a Transformation on a source AIP (im:hasSourceAIP, where there is one), and is a candidate to replace it. LOCAL EXTENSION -- an OAIS term the Information Model has no class for." .
+
+im:hasSourceAIP
+  a owl:ObjectProperty ;
+  rdfs:label "has source AIP" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:AIPVersion ;
+  rdfs:range im:ArchivalInformationPackage ;
+  rdfs:comment "The AIP an AIP Version was made from by a Transformation. LOCAL EXTENSION." .
+
+im:recordsTransformation
+  a owl:ObjectProperty ;
+  rdfs:label "records transformation" ;
+  oais:status "local-extension" ;
+  rdfs:domain im:ProvenanceInformation ;
+  rdfs:range im:Transformation ;
+  rdfs:comment "A Transformation that Provenance Information records. LOCAL EXTENSION." .
+
 # ---- Designated Community, Preservation Objectives and Transformation ----
 # ---- Information Properties, and the Agent who defines or identifies  ----
 # ---- them (moved from oais_im_schema-sh-v5.ttl)                        ----

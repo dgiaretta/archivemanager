@@ -1,5 +1,7 @@
 package info.oais.archive.manager.service.format;
 
+import info.oais.archive.manager.service.BitStore;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +17,8 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.Optional;
 import java.time.Duration;
 
 /**
@@ -31,6 +35,8 @@ import java.time.Duration;
  *   <li>at most {@code archive.fetch.max-bytes}, within
  *       {@code archive.fetch.timeout-seconds}.</li>
  * </ul>
+ * Bits in the archive's own {@link BitStore} are read from there, not
+ * fetched, whatever host their address names.
  * The address check happens before connecting; a host whose DNS answer
  * changes between the check and the connection could still slip through, so
  * don't rely on this alone where that matters.
@@ -43,13 +49,22 @@ public class StorageFetcher {
     private final long maxBytes;
     private final boolean allowPrivateAddresses;
     private final Duration timeout;
+    private final BitStore bitStore;
 
+    @Autowired
     public StorageFetcher(@Value("${archive.fetch.max-bytes:104857600}") long maxBytes,
                           @Value("${archive.fetch.allow-private-addresses:false}") boolean allowPrivateAddresses,
-                          @Value("${archive.fetch.timeout-seconds:60}") long timeoutSeconds) {
+                          @Value("${archive.fetch.timeout-seconds:60}") long timeoutSeconds,
+                          BitStore bitStore) {
+        this.bitStore = bitStore;
         this.maxBytes = maxBytes;
         this.allowPrivateAddresses = allowPrivateAddresses;
         this.timeout = Duration.ofSeconds(timeoutSeconds);
+    }
+
+    /** A fetcher with no {@link BitStore}: everything is fetched over the network. */
+    public StorageFetcher(long maxBytes, boolean allowPrivateAddresses, long timeoutSeconds) {
+        this(maxBytes, allowPrivateAddresses, timeoutSeconds, null);
     }
 
     /**
@@ -58,6 +73,11 @@ public class StorageFetcher {
      * @throws IOException saying why it wasn't fetched
      */
     public Path fetch(URI location, Path directory) throws IOException {
+        Optional<Path> stored = bitStore == null ? Optional.empty() : bitStore.file(location);
+        if (stored.isPresent()) {
+            return Files.copy(stored.get(), Files.createTempFile(directory, "data-", ".bin"),
+                    StandardCopyOption.REPLACE_EXISTING);
+        }
         HttpClient client = HttpClient.newBuilder().connectTimeout(timeout)
                 .followRedirects(HttpClient.Redirect.NEVER).build();
         URI current = location;

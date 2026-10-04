@@ -80,7 +80,8 @@ import info.oais.infomodel.interfaces.DigitalObject;
  * Daffodil's unparser. Everything the schema describes is re-encoded from
  * its value, so lengths and counts can change if the elements giving them
  * are changed to match. Bytes after the data the schema describes aren't
- * part of the infoset, so they aren't written.</p>
+ * part of the infoset, so they aren't written. {@link #encode} unparses an
+ * infoset built from values alone, with no original data.</p>
  */
 public final class DfdlStructureRepInfo extends AbstractExecutableStructureRepInfo implements WritableStructureRepInfo {
 
@@ -152,12 +153,26 @@ public final class DfdlStructureRepInfo extends AbstractExecutableStructureRepIn
 			element.removeAttributeNS(XSI, "nil");
 			element.setTextContent(change.getValue());
 		}
+		return encode(document);
+	}
+
+	/**
+	 * Encodes a DFDL infoset -- an XML document whose elements are the
+	 * schema's, in its namespace, holding values as text -- with Daffodil's
+	 * unparser: the way to write a new file in the described format from
+	 * values alone, with no original to start from. The infoset must have
+	 * every element the schema requires, in the schema's order.
+	 *
+	 * @throws StructureInterpretationException if the schema can't be compiled or the infoset doesn't fit it
+	 */
+	public byte[] encode(Document infoset) {
+		DataProcessor processor = dataProcessor();
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		UnparseResult result;
 		try (WritableByteChannel channel = Channels.newChannel(out)) {
-			result = processor.unparse(new W3CDOMInfosetInputter(document), channel);
+			result = processor.unparse(new W3CDOMInfosetInputter(infoset), channel);
 		} catch (IOException e) {
-			throw new StructureInterpretationException("Unable to write back", e);
+			throw new StructureInterpretationException("Unable to write the data", e);
 		} catch (RuntimeException e) {
 			throw new StructureInterpretationException("DFDL unparse failed against " + getFormatSpecification()
 					+ ": " + e.getMessage(), e);

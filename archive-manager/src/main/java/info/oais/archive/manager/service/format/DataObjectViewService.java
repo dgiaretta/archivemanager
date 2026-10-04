@@ -10,7 +10,9 @@ import info.oais.infomodel.structure.manifest.ViewDescription;
 import info.oais.infomodel.structure.image.DecodedImage;
 import info.oais.infomodel.structure.image.FitsImageWriter;
 import info.oais.infomodel.structure.image.OaisStructureImage;
+import info.oais.infomodel.structure.StructureNode;
 import info.oais.infomodel.structure.topcat.OaisStructureTableBuilder;
+import info.oais.infomodel.structure.topcat.RepInfoDecoder;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
@@ -290,6 +292,33 @@ public class DataObjectViewService {
                     image.description(), List.of("Decoded from " + remote.data(),
                             "through the OAIS Representation Information of " + remote.iri())), out);
         });
+    }
+
+    /** Work on a Data Object's decoded bits. */
+    public interface DecodedWork<T> {
+        T run(DescribedData data, StructureNode decoded) throws IOException;
+    }
+
+    /**
+     * Decodes {@code dataObject}'s bits -- fetched from its storage location
+     * -- with its first usable structure description, and runs {@code work}
+     * on them while they're available: some engines read the bits as the
+     * tree is walked.
+     *
+     * @throws IOException if it has no storage location or Representation Information, or fetching or
+     *                     decoding fails
+     */
+    public <T> T decode(String dataObject, DecodedWork<T> work) throws IOException {
+        List<T> result = new ArrayList<>(1);
+        withLocalCopy(dataObject, (remote, local) -> {
+            List<Path> temporary = new ArrayList<>();
+            try {
+                result.add(work.run(remote, RepInfoDecoder.decode(local, temporary)));
+            } finally {
+                RepInfoDecoder.deleteAll(temporary);
+            }
+        });
+        return result.get(0);
     }
 
     private interface LocalWork {

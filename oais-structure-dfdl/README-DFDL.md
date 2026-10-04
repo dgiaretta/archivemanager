@@ -152,6 +152,14 @@ infoset doesn't hold isn't written the way it was read: bytes after the describe
 inside an element of explicit length (written as the fill byte), and which of several delimiters or
 terminators the data used (the first is written - e.g. a newline after a last line that had none).
 
+`encode(infoset)` writes a new file from values alone, with no original: the infoset is an XML
+document of the schema's elements, in its namespace and order, holding values as text.
+`DfdlSchemaOutline.read(schemaText)` gives the element tree such an infoset follows - names,
+namespaces, how often each occurs, value types, which are computed (`dfdl:outputValueCalc`) and which
+are alternatives of a choice - read from the schema as XML Schema, following named types and element
+references within the one document. archive-manager's Transformation builds infosets this way to
+rewrite a Data Object in another format.
+
 ## Known limitations
 
 - Only the schema's default root element can be used.

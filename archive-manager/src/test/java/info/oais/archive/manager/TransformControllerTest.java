@@ -1,0 +1,285 @@
+package info.oais.archive.manager;
+
+import info.oais.archive.manager.rdf.Ns;
+import info.oais.archive.manager.rdf.RdfStore;
+import info.oais.archive.manager.security.EditAuthInterceptor;
+import info.oais.archive.manager.service.ArchiveService;
+import info.oais.archive.manager.service.BitStore;
+import info.oais.archive.manager.service.EditService;
+import info.oais.archive.manager.service.format.DataObjectViewService;
+import info.oais.infomodel.structure.StructureNode;
+import org.apache.jena.datatypes.xsd.XSDDatatype;
+import org.apache.jena.query.ReadWrite;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.RDFNode;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.Statement;
+import org.apache.jena.vocabulary.RDF;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.mock.web.MockHttpSession;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+class TransformControllerTest {
+
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private RdfStore store;
+    @Autowired
+    private EditService edit;
+    @Autowired
+    private ArchiveService archive;
+    @Autowired
+    private BitStore bits;
+    @Autowired
+    private DataObjectViewService views;
+
+    @Test
+    void transformsAStarCatalogueIntoPositionsAndRecordsIt() throws Exception {
+        Set<Resource> before = read(() -> new HashSet<>(store.dataModel().listSubjects().toList()));
+        BitStore.StoredBits sourceBits = bits.store(TransformFixtures.catalogue(), "stars.bin");
+        Path newBits = null;
+        try {
+            Map<String, String> made = write(() -> catalogueAndTarget("http://localhost" + sourceBits.path()));
+            String id = archive.encodeId(made.get("source"));
+            MockHttpSession session = new MockHttpSession();
+            session.setAttribute(EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
+
+            mockMvc.perform(get("/resource/" + id)).andExpect(content().string(containsString("Transform&hellip;")));
+            mockMvc.perform(get("/transform/" + id).session(session))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("Test star positions (as used by Test positions)")));
+            mockMvc.perform(get("/transform/" + id).param("target", made.get("targetRepInfo")).session(session))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("for star in star")))
+                    .andExpect(content().string(containsString("star.dec = star.dec")))
+                    .andExpect(content().string(containsString("star.name = star.name")));
+
+            mockMvc.perform(form(post("/transform/" + id + "/try"), made).session(session))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(containsString("not shown reversible")))
+                    .andExpect(content().string(containsString("star.vmag: not carried over")))
+                    .andExpect(content().string(containsString("units differ")));
+            mockMvc.perform(get("/transform/" + id + "/trial").session(session)).andExpect(status().isOk());
+
+            String location = mockMvc.perform(form(post("/transform/" + id), made).session(session))
+                    .andExpect(redirectedUrlPattern("/resource/*"))
+                    .andReturn().getResponse().getRedirectedUrl();
+            String transformation = archive.decodeId(location.substring("/resource/".length()));
+
+            String newObject = read(() -> {
+                Model m = store.dataModel();
+                Resource t = m.getResource(transformation);
+                assertThat(types(t)).contains("Transformation", "NonReversibleTransformation");
+                assertThat(object(t, "transformationSource")).isEqualTo(made.get("source"));
+                assertThat(t.getProperty(m.createProperty(Ns.IM + "performedAt")).getLiteral().getDatatypeURI())
+                        .isEqualTo(XSDDatatype.XSDdateTime.getURI());
+                Resource mapping = m.getResource(object(t, "followedMapping"));
+                assertThat(literal(mapping, Ns.IM + "specificationText"))
+                        .contains("star.ra_rad = star.ra * 0.017453292519943295");
+
+                Map<String, String> outcomes = t.listProperties(m.createProperty(Ns.IM + "hasPropertyCheck")).toList()
+                        .stream().map(s -> s.getObject().asResource()).collect(Collectors.toMap(
+                                c -> literal(c, Ns.IM + "sourcePath"), c -> literal(c, Ns.IM + "checkOutcome")));
+                assertThat(outcomes).containsExactlyInAnyOrderEntriesOf(Map.of("star.dec", "preserved",
+                        "star.ra", "not checked", "star.vmag", "changed"));
+
+                Resource result = m.getResource(object(t, "transformationResult"));
+                assertThat(object(result, "interpretedUsing")).isEqualTo(made.get("targetRepInfo"));
+                assertThat(object(result, "hasStorageLocation")).startsWith("http://localhost/api/bits/")
+                        .endsWith("/Test-bright-stars.pos");
+
+                Resource content = m.listSubjectsWithProperty(m.createProperty(Ns.IM + "hasDataObject"), result)
+                        .next();
+                Resource aip = m.listSubjectsWithProperty(m.createProperty(Ns.IM + "hasContentInformation"), content)
+                        .next();
+                assertThat(types(aip)).contains("ArchivalInformationPackage", "AIPVersion");
+                assertThat(object(aip, "hasSourceAIP")).isEqualTo(made.get("sourceAip"));
+                Resource pdi = m.getResource(object(aip, "hasPreservationDescriptiveInformation"));
+                assertThat(literal(m.getResource(object(pdi, "hasFixityInformation")), Ns.RDFS + "comment"))
+                        .startsWith("SHA-256: ");
+                assertThat(object(m.getResource(object(pdi, "hasProvenanceInformation")), "recordsTransformation"))
+                        .isEqualTo(transformation);
+                assertThat(content.listProperties(m.createProperty(Ns.IM + "hasTransformationInformationProperty"))
+                        .toList()).hasSize(2);
+
+                List<Statement> sourceProperties = m.getResource(made.get("sourceContent"))
+                        .listProperties(m.createProperty(Ns.IM + "hasTransformationInformationProperty")).toList();
+                assertThat(sourceProperties).hasSize(3);
+                assertThat(sourceProperties.stream().map(s -> object(s.getObject().asResource(),
+                        "dependsOnRepresentationInformation"))).contains(made.get("decMeaning"));
+                return result.getURI();
+            });
+            newBits = read(() -> bits.file(URI.create(object(store.dataModel().getResource(newObject),
+                    "hasStorageLocation")))).orElseThrow();
+
+            // The new Data Object's bits are read from the archive's own store, and decode with its own description.
+            int stars = read(() -> {
+                try {
+                    return views.decode(newObject, (data, root) -> StructurePathsForTest.count(root, "star"));
+                } catch (java.io.IOException e) {
+                    throw new java.io.UncheckedIOException(e);
+                }
+            });
+            assertThat(stars).isEqualTo(3);
+            String path = newBits.getParent().getFileName() + "/" + newBits.getFileName();
+            mockMvc.perform(get("/api/bits/" + path)).andExpect(status().isOk());
+
+            // Done again, the Transformation Information Properties the first one added are reused.
+            mockMvc.perform(form(post("/transform/" + id), made).session(session))
+                    .andExpect(redirectedUrlPattern("/resource/*"));
+            assertThat(read(() -> store.dataModel().getResource(made.get("sourceContent"))
+                    .listProperties(store.dataModel().createProperty(Ns.IM + "hasTransformationInformationProperty"))
+                    .toList())).hasSize(3);
+        } finally {
+            write(() -> {
+                Model m = store.dataModel();
+                for (Resource r : m.listSubjects().toList()) {
+                    if (!before.contains(r)) {
+                        for (Statement s : m.listStatements(r, m.createProperty(Ns.IM + "hasStorageLocation"),
+                                (RDFNode) null).toList()) {
+                            bits.file(URI.create(s.getObject().asResource().getURI())).ifPresent(this::deleteStored);
+                        }
+                        m.removeAll(r, null, null);
+                        m.removeAll(null, null, r);
+                    }
+                }
+                return null;
+            });
+            bits.delete(sourceBits);
+        }
+    }
+
+    /** The source catalogue, with what two of its elements mean, in an AIP; and a Data Object in the target format. */
+    private Map<String, String> catalogueAndTarget(String sourceLocation) {
+        String source = edit.createEntity(Ns.IM + "DigitalObject");
+        edit.addLiteral(source, Ns.RDFS + "label", "Test bright stars");
+        edit.addRelationship(source, Ns.IM + "hasStorageLocation", sourceLocation);
+        String top = repInfo(source, TransformFixtures.STARS, "Test bright star catalogue");
+        String decMeaning = meaning(top, "star.dec", "Declination", "deg");
+        meaning(top, "star.ra", "Right ascension", "deg");
+        String content = edit.createEntity(Ns.IM + "ContentInformation");
+        edit.addRelationship(content, Ns.IM + "hasDataObject", source);
+        String aip = edit.createEntity(Ns.IM + "ArchivalInformationPackage");
+        edit.addRelationship(aip, Ns.IM + "hasContentInformation", content);
+
+        String target = edit.createEntity(Ns.IM + "DigitalObject");
+        edit.addLiteral(target, Ns.RDFS + "label", "Test positions");
+        edit.addRelationship(target, Ns.IM + "hasStorageLocation", "https://example.org/positions.pos");
+        String targetTop = repInfo(target, TransformFixtures.POSITIONS, "Test star positions");
+        meaning(targetTop, "star.ra_rad", "Right ascension", "rad");
+        meaning(targetTop, "star.dec", "Declination", "deg");
+        return Map.of("source", source, "sourceContent", content, "sourceAip", aip, "decMeaning", decMeaning,
+                "targetRepInfo", targetTop);
+    }
+
+    private String repInfo(String dataObject, String dfdl, String label) {
+        String top = edit.createEntity(Ns.IM + "RepInfoAndGroup");
+        edit.addLiteral(top, Ns.RDFS + "label", label);
+        edit.addRelationship(dataObject, Ns.IM + "interpretedUsing", top);
+        String structure = edit.createEntity(Ns.IM + "StructureRepresentationInformation");
+        edit.addLiteral(structure, Ns.IM + "specificationLanguage", "DFDL");
+        edit.addLiteral(structure, Ns.IM + "specificationText", dfdl);
+        edit.addRelationship(top, Ns.IM + "hasGroupMember", structure);
+        edit.addRelationship(top, Ns.IM + "hasStructureRepresentationInformation", structure);
+        String semantics = edit.createEntity(Ns.IM + "SemanticRepresentationInformation");
+        edit.addRelationship(top, Ns.IM + "hasGroupMember", semantics);
+        edit.addRelationship(top, Ns.IM + "hasSemanticRepresentationInformation", semantics);
+        return top;
+    }
+
+    private String meaning(String top, String path, String label, String unit) {
+        Model m = store.dataModel();
+        String semantics = object(m.getResource(top), "hasSemanticRepresentationInformation");
+        String ri = edit.createEntity(Ns.IM + "SemanticRepresentationInformation");
+        edit.addLiteral(ri, Ns.RDFS + "label", label);
+        edit.addLiteral(ri, Ns.IM + "structuralPath", path);
+        String unitIri = edit.createEntity(Ns.IM + "UnitOfMeasurement");
+        edit.addLiteral(unitIri, Ns.RDFS + "label", unit);
+        edit.addRelationship(ri, Ns.IM + "hasUnitOfMeasurement", unitIri);
+        edit.addRelationship(semantics, Ns.IM + "interpretedUsingRecurse", ri);
+        return ri;
+    }
+
+    private MockHttpServletRequestBuilder form(MockHttpServletRequestBuilder request, Map<String, String> made) {
+        return request.param("target", made.get("targetRepInfo"))
+                .param("mappingText", TransformFixtures.MAPPING).param("useText", "on")
+                .param("tip.star.dec", "on").param("tip.star.ra", "on").param("tip.star.vmag", "on");
+    }
+
+    private void deleteStored(Path file) {
+        try {
+            Files.deleteIfExists(file);
+            Files.deleteIfExists(file.getParent());
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException(e);
+        }
+    }
+
+    private static Set<String> types(Resource r) {
+        return r.listProperties(RDF.type).toList().stream()
+                .map(s -> s.getObject().asResource().getURI().substring(Ns.IM.length())).collect(Collectors.toSet());
+    }
+
+    private static String object(Resource r, String imProperty) {
+        Statement s = r.getProperty(r.getModel().createProperty(Ns.IM + imProperty));
+        return s == null ? null : s.getObject().asResource().getURI();
+    }
+
+    private static String literal(Resource r, String property) {
+        Statement s = r.getProperty(r.getModel().createProperty(property));
+        return s == null ? null : s.getString();
+    }
+
+    private <T> T read(Supplier<T> work) {
+        store.beginTransaction(ReadWrite.READ);
+        try {
+            return work.get();
+        } finally {
+            store.endTransaction(true);
+        }
+    }
+
+    private <T> T write(Supplier<T> work) {
+        store.beginTransaction(ReadWrite.WRITE);
+        boolean ok = false;
+        try {
+            T result = work.get();
+            ok = true;
+            return result;
+        } finally {
+            store.endTransaction(ok);
+        }
+    }
+
+    /** Counts a decoded tree's top-level elements called {@code name}. */
+    private static final class StructurePathsForTest {
+        static int count(StructureNode root, String name) {
+            return (int) root.getChildren().stream().filter(c -> c.getName().equals(name)).count();
+        }
+    }
+}

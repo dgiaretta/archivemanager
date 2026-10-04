@@ -47,6 +47,12 @@
             It has no DFDL or DRB SDF description with a table or image view to decode it by on the server;
             saving its description again from RepInfo Tools adds one.
         </p>
+        <h3>Preserve it by Transformation</h3>
+        <p class="muted">
+            Rewrite it in another format described in the archive, check its Transformation Information
+            Properties, and record the result as a new Data Object in an AIP Version.
+        </p>
+        <p><a class="button" th:href="@{/transform/{id}(id=${id})}">Transform&hellip;</a></p>
     </section>
 
     <div class="grid">

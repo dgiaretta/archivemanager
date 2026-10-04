@@ -118,6 +118,10 @@ public class EditAuthInterceptor implements HandlerInterceptor {
         if (path.startsWith("/repinfo-tools")) {
             return true;
         }
+        // Likewise every /transform/... route: choosing, trying and doing a Transformation.
+        if (path.startsWith("/transform/")) {
+            return true;
+        }
         // The REST counterparts of the rules above (ArchiveApiController) -- same
         // shared-path-with-an-open-GET-sibling situation as /entities and /records
         // themselves, so the same explicit method-aware matching is needed here too.

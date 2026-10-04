@@ -1,7 +1,10 @@
 package info.oais.archive.manager.web;
 
 import info.oais.archive.manager.service.ArchiveService;
+import info.oais.archive.manager.service.BitStore;
 import info.oais.archive.manager.service.format.DataObjectViewService;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -29,7 +32,9 @@ import java.nio.charset.StandardCharsets;
  *       server, as VOTable, which TOPCAT opens with no plugin at all;</li>
  *   <li>{@code /api/data-objects/{id}/fits} -- an image, decoded on the server
  *       and viewed with its image view, as FITS, which SAOImage DS9, Aladin
- *       and Fiji/ImageJ open.</li>
+ *       and Fiji/ImageJ open;</li>
+ *   <li>{@code /api/bits/{id}/{name}} -- bits in the archive's own
+ *       {@link BitStore}, e.g. a transformed Data Object's.</li>
  * </ul>
  */
 @RestController
@@ -40,10 +45,21 @@ public class DataObjectExportController {
 
     private final ArchiveService archive;
     private final DataObjectViewService views;
+    private final BitStore bits;
 
-    public DataObjectExportController(ArchiveService archive, DataObjectViewService views) {
+    public DataObjectExportController(ArchiveService archive, DataObjectViewService views, BitStore bits) {
         this.archive = archive;
         this.views = views;
+        this.bits = bits;
+    }
+
+    @GetMapping("/api/bits/{id}/{name}")
+    public ResponseEntity<Resource> bits(@PathVariable String id, @PathVariable String name) {
+        return bits.file(id, name)
+                .map(file -> ResponseEntity.ok().contentType(MediaType.APPLICATION_OCTET_STREAM)
+                        .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + name + "\"")
+                        .<Resource>body(new FileSystemResource(file)))
+                .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
     @GetMapping("/api/data-objects/{id}/repinfo.ttl")
