@@ -1,6 +1,5 @@
 package info.oais.archive.manager.service;
 
-import jdk.security.jarsigner.JarSigner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -118,8 +117,7 @@ public class JarSigning {
         try {
             addPermissions(source, withManifest, name);
             try (ZipFile zip = new ZipFile(withManifest.toFile()); OutputStream out = Files.newOutputStream(signing)) {
-                new JarSigner.Builder(key, certPath).digestAlgorithm("SHA-256").signatureAlgorithm("SHA256withRSA")
-                        .signerName("ARCHIVE").build().sign(zip, out);
+                Signer.sign(key, certPath, zip, out);
             } catch (GeneralSecurityException e) {
                 throw new IOException("Couldn't sign " + name + ": " + e.getMessage(), e);
             }
@@ -183,12 +181,33 @@ public class JarSigning {
         }
     }
 
+    /**
+     * The JDK's jar signer, used only from here, so that this class -- and
+     * the archive -- still load on a Java without the {@code jdk.jartool}
+     * module, and serve the jars unsigned.
+     */
+    private static final class Signer {
+
+        static void sign(PrivateKey key, CertPath certPath, ZipFile zip, OutputStream out)
+                throws GeneralSecurityException, IOException {
+            new jdk.security.jarsigner.JarSigner.Builder(key, certPath).digestAlgorithm("SHA-256")
+                    .signatureAlgorithm("SHA256withRSA").signerName("ARCHIVE").build().sign(zip, out);
+        }
+    }
+
     /** Loads the key, making it the first time. */
     private void load() {
         if (tried) {
             return;
         }
         tried = true;
+        try {
+            Class.forName("jdk.security.jarsigner.JarSigner");
+        } catch (ClassNotFoundException | LinkageError e) {
+            log.warn("Jars for OpenWebStart will be served unsigned: this Java has no jdk.jartool module (a JDK is "
+                    + "needed, not just a Java runtime)");
+            return;
+        }
         Path keystore = location.resolve("signing.p12");
         Path passwordFile = location.resolve("signing.password");
         try {
