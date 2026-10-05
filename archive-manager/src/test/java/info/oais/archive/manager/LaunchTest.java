@@ -60,6 +60,9 @@ class LaunchTest {
             Files.writeString(splat.resolve("lib/amd64/jniast.dll"), "windows library");
             Files.writeString(splat.resolve("lib/amd64/libjniast.so"), "linux library");
             Files.writeString(splat.resolve("lib/amd64/README.txt"), "not a library");
+            jar(splat.resolve("lib/amd64/jniast_libs.jar"), null); // one platform's libraries: not for everyone
+            Files.createDirectories(splat.resolve("lib/x86_64"));
+            Files.writeString(splat.resolve("lib/x86_64/libjniast.jnilib"), "mac library");
         } catch (IOException e) {
             throw new ExceptionInInitializerError(e);
         }
@@ -135,9 +138,10 @@ class LaunchTest {
                     .containsExactly("uk.ac.starlink.splat.SplatBrowserMain");
             assertThat(texts(splat, "argument")).containsExactly("http://localhost/api/data-objects/" + id
                     + "/data.vot");
-            assertThat(attributes(splat, "resources", "os")).contains("Linux", "Windows");
+            assertThat(attributes(splat, "resources", "os")).contains("Linux", "Windows", "Mac OS X");
             assertThat(attributes(splat, "nativelib", "href")).containsExactlyInAnyOrder(
-                    "files/splat-native/linux-amd64.jar", "files/splat-native/windows-amd64.jar");
+                    "files/splat-native/linux-amd64.jar", "files/splat-native/windows-amd64.jar",
+                    "files/splat-native/mac-os-x-x86_64.jar");
 
             assertSignedBy(certificate, mockMvc.perform(get("/launch/files/splat/lib/jniast/jniast.jar"))
                     .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray());

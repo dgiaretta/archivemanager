@@ -193,8 +193,15 @@ public class LaunchService {
             return List.of();
         }
         List<String> jars = new ArrayList<>();
+        // Jars in a folder of native libraries (e.g. lib/amd64/jniast_libs.jar, from SPLAT's own Web Start
+        // packaging) are one platform's libraries, served per platform from the loose files instead.
+        java.util.Set<Path> nativeFolders = new java.util.HashSet<>();
+        for (NativeLibraries n : splatNatives()) {
+            n.files().forEach(f -> nativeFolders.add(f.getParent()));
+        }
         try (Stream<Path> files = Files.walk(splatHome.resolve("lib"))) {
-            files.filter(p -> p.toString().toLowerCase(Locale.ROOT).endsWith(".jar") && Files.isRegularFile(p))
+            files.filter(p -> p.toString().toLowerCase(Locale.ROOT).endsWith(".jar") && Files.isRegularFile(p)
+                            && !nativeFolders.contains(p.getParent()))
                     .map(p -> splatHome.relativize(p).toString().replace('\\', '/')).sorted().forEach(jars::add);
         }
         jars.remove("lib/splat/splat.jar");
