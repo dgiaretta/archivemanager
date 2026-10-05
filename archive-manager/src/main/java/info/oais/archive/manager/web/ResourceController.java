@@ -27,17 +27,20 @@ public class ResourceController {
     private final info.oais.archive.manager.service.PackageExportService exports;
     private final info.oais.archive.manager.service.AipComponents components;
     private final info.oais.archive.manager.service.LaunchService launch;
+    private final info.oais.archive.manager.service.packages.PackageMappingService packages;
 
     public ResourceController(ArchiveService archive,
                               info.oais.archive.manager.service.format.DataObjectViewService views,
                               info.oais.archive.manager.service.PackageExportService exports,
                               info.oais.archive.manager.service.AipComponents components,
-                              info.oais.archive.manager.service.LaunchService launch) {
+                              info.oais.archive.manager.service.LaunchService launch,
+                              info.oais.archive.manager.service.packages.PackageMappingService packages) {
         this.archive = archive;
         this.views = views;
         this.exports = exports;
         this.components = components;
         this.launch = launch;
+        this.packages = packages;
     }
 
     @GetMapping("/{id}")
@@ -52,6 +55,7 @@ public class ResourceController {
         model.addAttribute("incoming", archive.incomingLinks(iri));
         // What it can be written out as: an AIP as a BagIt bag, Representation Information (or a
         // Data Object interpreted using some) as its data description.
+        model.addAttribute("packageLocation", packages.packageLocation(iri).map(java.net.URI::toString).orElse(null));
         boolean isPackage = exports.isPackage(iri);
         model.addAttribute("isPackage", isPackage);
         if (isPackage) {

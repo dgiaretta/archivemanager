@@ -233,6 +233,19 @@
             what's missing with the editor. The page also lists everything linked to the AIP, and "View in
             graph" shows the whole package.
         </p>
+        <p>
+            <strong>An AIP stored as a package.</strong> Often the components aren't described in the archive
+            itself but are inside the package the AIP is stored as &mdash; for instance an AIP made by Eternal,
+            kept as a <code>.7z</code> or <code>.zip</code> file and named by the AIP's storage location. Then
+            the AIP's page offers <strong>Map its package to the AIP components</strong>: the archive fetches the
+            package, opens it, checks its BagIt bag (every file's checksum, and <code>Payload-Oxum</code>), and
+            shows, for each component, where in the package it is and what it says there &mdash; the upload
+            spreadsheet carried in it (<code>metadata.csv</code>, read with the column definitions in
+            <code>metadata_definition.xml</code>), the METS file's PREMIS (each file's format with its PRONOM
+            identifier, its checksum, and events such as ingestion and virus checks), the checksum audit and
+            the Preservation Description Information file &mdash; and which components the package doesn't
+            have. The table can be downloaded as CSV.
+        </p>
     </section>
 
     <section class="editor-section" id="preservation">
@@ -320,7 +333,8 @@
         <ul>
             <li>Make sure it is complete: the AIP's page shows which components are present and which are
                 missing; add what's missing with the editor, as described in <a href="#editing">Working with
-                the archive</a>.</li>
+                the archive</a>. For an AIP already packaged elsewhere (e.g. by Eternal), "Map its package to the
+                AIP components" shows whether its package holds every component, and checks its bag.</li>
             <li>Hand it over: on the AIP's page, <strong>Download as BagIt</strong> writes it out as a
                 <a href="https://www.rfc-editor.org/rfc/rfc8493" target="_blank" rel="noopener">BagIt</a>
                 bag (RFC 8493, zipped), the packaging format archives and libraries use to move content

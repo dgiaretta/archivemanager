@@ -1098,6 +1098,36 @@ wanted.
     to extract them -- so an AIP with none of its own gets an
     `im:PackagingInformation` in `aip.ttl` describing the bag (IRI: the
     AIP's plus `#bagit-packaging`). The same checklist is on the AIP's page.
+- **Mapping a packaged AIP to the AIP components** (`/packages/{id}/contents`,
+  open; "Map its package to the AIP components" on the page of anything whose
+  `im:hasStorageLocation` is a `.7z`, `.zip`, `.tar` or `.tar.gz` file) -- for
+  AIPs whose components are inside the package they're stored as rather than
+  described in the archive, e.g. AIPs made by Eternal / Archivematica.
+  `PackageInspector` fetches and opens the package (7-Zip through Commons
+  Compress, which needs XZ for Java -- a dependency -- to read 7-Zip at all),
+  finds the BagIt bag and checks it (every payload file's checksum against
+  its manifest, unlisted and missing files, `Payload-Oxum`), and finds each
+  component OAIS requires of an AIP, saying where in the package it is and
+  what it says, as in the NAM-DPP3 validation report's mapping table:
+  Packaging Information (the archive file, the bag, its manifests, METS);
+  Package Description (the upload spreadsheet, `metadata.csv`; METS Dublin
+  Core; `README.html`); the Data Object (the spreadsheet's `filename`);
+  Structure (`Format`, `FormatInfo`; the METS PREMIS format with its PRONOM
+  identifier), Semantic (`Semantics`, `Language`) and Other (`OtherRI`)
+  Representation Information; and the PDI -- Fixity (`FixityHashSHA256`, the
+  bag manifest's entry, verified against the file, the PREMIS digest,
+  `checksum_audit.xml`), Provenance (`Provenance`, `Creator`, `Publisher`,
+  `Contributor` ...; the PREMIS events; the original file's technical
+  metadata before normalisation), Context (`Relation`), Reference (the AIP's
+  name, `External-Identifier`, the record number and identifier) and Access
+  Rights (`Rights`), plus any real values in
+  `preservation_description_information.xml`. Spreadsheet columns match
+  whether they have the upload spreadsheet's names or Dublin Core ones
+  (`dc.rights`, `dc.relation` ...); in older packages that fold the record
+  number into `dc.subject`, `metadata_definition.xml` says so and it's found
+  there. The page also lists the spreadsheet's columns with their
+  definitions and every file with its checksum; `/packages/{id}/contents.csv`
+  gives the mapping as CSV (UTF-8 with a byte-order mark, for Excel).
 - **SPARQL console** (`/sparql`) -- run arbitrary SELECT queries against the
   union of the data graph and the ontology graph. Try, for instance:
 

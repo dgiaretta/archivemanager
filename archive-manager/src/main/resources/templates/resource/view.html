@@ -15,6 +15,18 @@
         <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}">Edit &rarr;</a>
     </p>
 
+    <section class="editor-section" th:if="${packageLocation != null}">
+        <h3>Its package</h3>
+        <p>
+            It is stored as a package, <a th:href="${packageLocation}" th:text="${#strings.substringAfter(packageLocation, '://')}">package</a>.
+            <a class="button" th:href="@{/packages/{id}/contents(id=${id})}">Map its package to the AIP components &rarr;</a>
+        </p>
+        <p class="muted">
+            Opens the package, checks its bag, and shows where each component OAIS requires of an AIP is in it
+            &mdash; the upload spreadsheet, METS/PREMIS, checksums &mdash; and what it says there.
+        </p>
+    </section>
+
     <section class="editor-section" th:if="${isPackage or hasDescription}">
         <h3>Write it out</h3>
         <p th:if="${isPackage}">
@@ -35,6 +47,9 @@
                 <span class="muted">The bag names each one in <code>oais-aip-components.txt</code> and says what's
                 missing in <code>bag-info.txt</code>. Add what's missing with the
                 <a th:href="@{/entities/{id}/edit(id=${id})}">editor</a>.</span>
+                <span class="muted" th:if="${packageLocation != null and !aipComplete}">These are the components described
+                in the archive; this AIP's package may hold the rest &mdash;
+                <a th:href="@{/packages/{id}/contents(id=${id})}">see what's in it</a>.</span>
             </p>
             <table class="listing">
                 <thead><tr><th>Component</th><th>Required</th><th>Status</th><th>Individuals</th></tr></thead>

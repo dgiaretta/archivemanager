@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head('Package of ' + ${title})}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <p class="breadcrumb"><a th:href="@{/resource/{id}(id=${id})}" th:text="'← ' + ${title}">&larr; AIP</a></p>
+    <h1>What's in its package</h1>
+    <p class="muted">
+        Where each component that OAIS requires of an Archival Information Package is found in the package
+        <span th:text="${title}">AIP</span> is stored as, and what it says there: the package is fetched from its
+        storage location and opened, its bag checked, and its files read &mdash; the upload spreadsheet
+        (<code>metadata.csv</code>), the METS file's PREMIS, the checksum audit and the Preservation Description
+        Information file.
+    </p>
+    <p class="muted" th:if="${location != null}">Package: <a th:href="${location}" th:text="${location}">location</a></p>
+    <p class="notice error" th:if="${error != null}" th:text="${error}">Problem.</p>
+
+    <th:block th:if="${inspection != null}">
+        <section class="editor-section">
+            <h2>The package</h2>
+            <ul>
+                <li><span th:text="${inspection.archiveFormat()}">7-Zip</span>,
+                    <span th:text="${inspection.size()}">0</span> bytes,
+                    <span th:text="${inspection.files().size()}">0</span> files.</li>
+                <li th:if="${inspection.bagName() != null}">A BagIt <span th:text="${inspection.bagitVersion()}">1.0</span>
+                    bag, <code th:text="${inspection.bagName()}">name</code>.</li>
+                <li th:if="${inspection.bagName() != null}">
+                    <strong th:text="${inspection.bagCheck().valid()} ? 'The bag is complete and unchanged:' : 'The bag does not check out:'">valid</strong>
+                    <span th:text="${inspection.bagCheck().matched()} + ' of ' + ${inspection.bagCheck().listed()} + ' payload files match their checksums in ' + ${inspection.bagCheck().manifest()}">28 of 28</span><th:block th:if="${inspection.bagCheck().oxumDeclared() != null}">;
+                    Payload-Oxum <span th:text="${inspection.bagCheck().oxumDeclared()}">1.1</span>
+                    <span th:text="${inspection.bagCheck().oxumDeclared() == inspection.bagCheck().oxumActual()} ? '(matches)' : '(the payload is ' + ${inspection.bagCheck().oxumActual()} + ')'">(matches)</span></th:block>.
+                    <span th:if="${!inspection.bagCheck().mismatched().isEmpty()}" th:text="'Changed: ' + ${#strings.listJoin(inspection.bagCheck().mismatched(), ', ')}"></span>
+                    <span th:if="${!inspection.bagCheck().missing().isEmpty()}" th:text="'Missing: ' + ${#strings.listJoin(inspection.bagCheck().missing(), ', ')}"></span>
+                    <span th:if="${!inspection.bagCheck().unlisted().isEmpty()}" th:text="'Not in the manifest: ' + ${#strings.listJoin(inspection.bagCheck().unlisted(), ', ')}"></span>
+                </li>
+                <li th:if="${inspection.spreadsheet() != null}">The upload spreadsheet is
+                    <code th:text="${inspection.spreadsheet()}">metadata.csv</code>.</li>
+            </ul>
+        </section>
+
+        <section class="editor-section">
+            <h2>Mapping to the AIP components</h2>
+            <p>
+                <strong th:text="${inspection.missing() == 0} ? 'Every component OAIS requires of an AIP is in the package.' : ${inspection.missing()} + ' of the components OAIS requires of an AIP are not in the package.'">All present.</strong>
+                <a class="button button-secondary" th:href="@{/packages/{id}/contents.csv(id=${id})}">Download as CSV &rarr;</a>
+            </p>
+            <table class="listing package-mapping">
+                <thead><tr><th>AIP component</th><th>Where to find it in the package</th><th>What it says</th></tr></thead>
+                <tbody>
+                <th:block th:each="f : ${inspection.findings()}">
+                    <tr th:if="${f.sources().isEmpty()}">
+                        <td th:style="${'padding-left:' + (0.4 + 1.2 * f.depth()) + 'rem'}"><strong th:text="${f.component()}">Component</strong></td>
+                        <td colspan="2"><strong style="color:#c0392b">Not in the package</strong></td>
+                    </tr>
+                    <tr th:each="s, it : ${f.sources()}">
+                        <td th:style="${'padding-left:' + (0.4 + 1.2 * f.depth()) + 'rem'}"><strong th:if="${it.first}" th:text="${f.component()}">Component</strong>
+                            <div class="muted" th:if="${it.first and f.note() != null}" th:text="${f.note()}">note</div></td>
+                        <td><code th:text="${s.where()}">metadata.csv: Rights</code></td>
+                        <td dir="auto" th:text="${s.value()}">value</td>
+                    </tr>
+                </th:block>
+                </tbody>
+            </table>
+            <ul class="muted" th:if="${!inspection.notes().isEmpty()}">
+                <li th:each="n : ${inspection.notes()}" th:text="${n}">note</li>
+            </ul>
+        </section>
+
+        <section class="editor-section" th:if="${!inspection.spreadsheetColumns().isEmpty()}">
+            <h2>The upload spreadsheet's columns</h2>
+            <p class="muted">As the package's <code>metadata_definition.xml</code> defines them, where it does.</p>
+            <table class="listing">
+                <thead><tr><th>Column</th><th>Definition</th></tr></thead>
+                <tbody>
+                <tr th:each="c : ${inspection.spreadsheetColumns()}">
+                    <td><code th:text="${c}">dc.title</code></td>
+                    <td th:text="${inspection.columnDefinitions().getOrDefault(c, '')}">definition</td>
+                </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section class="editor-section">
+            <h2>Every file in the package</h2>
+            <details>
+                <summary th:text="${inspection.files().size()} + ' files, with their sizes and SHA-256 checksums'">files</summary>
+                <table class="listing">
+                    <thead><tr><th>File</th><th>Bytes</th><th>SHA-256</th></tr></thead>
+                    <tbody>
+                    <tr th:each="f : ${inspection.files()}">
+                        <td><code th:text="${f.path()}">path</code></td>
+                        <td th:text="${f.size()}">0</td>
+                        <td><code th:text="${f.sha256()}">sha</code></td>
+                    </tr>
+                    </tbody>
+                </table>
+            </details>
+        </section>
+    </th:block>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

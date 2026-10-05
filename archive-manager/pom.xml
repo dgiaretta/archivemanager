@@ -138,6 +138,15 @@
       <version>5.2.5</version>
     </dependency>
 
+    <!-- XZ for Java: Commons Compress (already here, through POI) needs it to read 7-Zip packages
+         at all, since its 7-Zip reader loads the LZMA classes whatever compression a package
+         uses: e.g. an Eternal AIP stored as .7z, which the package inspector looks inside. -->
+    <dependency>
+      <groupId>org.tukaani</groupId>
+      <artifactId>xz</artifactId>
+      <version>1.9</version>
+    </dependency>
+
     <!-- OAIS core model (info.oais.infomodel.*) - previously a copy lived
          directly in this module's src tree - plus the DFDL adapter, which
          RepInfo Tools uses to run a generated .dfdl.xsd against an uploaded
