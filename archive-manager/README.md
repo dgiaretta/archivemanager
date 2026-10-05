@@ -1125,7 +1125,19 @@ wanted.
   whether they have the upload spreadsheet's names or Dublin Core ones
   (`dc.rights`, `dc.relation` ...); in older packages that fold the record
   number into `dc.subject`, `metadata_definition.xml` says so and it's found
-  there. The page also lists the spreadsheet's columns with their
+  there. Each component also has the upload spreadsheet's entries expected
+  to hold it: Structure -- `Format`, `FormatInfo`; Semantic -- `Semantics`
+  (often just the UUID of a separate AIP holding the Semantic Representation
+  Information, which is looked for in this archive and linked when it's
+  described here), `Language`; Other -- `OtherRI` (optional, so its absence
+  isn't counted as missing); Fixity -- `FixityHashSHA256`; Provenance --
+  `Provenance`, `Creator`, `Publisher`, `Contributor`; Context -- `Relation`;
+  Access Rights -- `Rights`. Any not filled in is listed under its component,
+  even when the component is found elsewhere in the package (e.g. Fixity in
+  the bag's manifest), with why: the column is blank; it's defined in
+  `metadata_definition.xml` but left out of `metadata.csv` (packages leave out
+  blank columns); or the spreadsheet used for that package has no such
+  column. The page also lists the spreadsheet's columns with their
   definitions and every file with its checksum; `/packages/{id}/contents.csv`
   gives the mapping as CSV (UTF-8 with a byte-order mark, for Excel).
 - **SPARQL console** (`/sparql`) -- run arbitrary SELECT queries against the

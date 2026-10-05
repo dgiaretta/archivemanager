@@ -53,6 +53,14 @@ class PackageMappingTest {
         Path file = PackageInspectorTest.sevenZip(dir.resolve("aip.7z"), PackageInspectorTest.eternalPackage());
         BitStore.StoredBits stored = bits.store(Files.readAllBytes(file), "GHG-aip.7z");
         try {
+            // The separate AIP holding the Semantic Representation Information, as its Semantics identifies it.
+            String semanticsAip = write(() -> {
+                String a = edit.createEntity(Ns.IM + "ArchivalInformationPackage");
+                edit.addLiteral(a, Ns.RDFS + "label", "Semantics of the GHG inventory");
+                edit.addRelationship(a, Ns.IM + "hasStorageLocation",
+                        "https://example.org/NAM/SemRI-6ffddacf-89ed-450c-b142-7427fb109cce.7z");
+                return a;
+            });
             String aip = write(() -> {
                 String a = edit.createEntity(Ns.IM + "ArchivalInformationPackage");
                 edit.addLiteral(a, Ns.RDFS + "label", "AIP for CC-00003");
@@ -70,7 +78,9 @@ class PackageMappingTest {
                             "Every component OAIS requires of an AIP is in the package.")))
                     .andExpect(content().string(containsString("The bag is complete and unchanged:")))
                     .andExpect(content().string(containsString("PRONOM x-fmt/238")))
-                    .andExpect(content().string(containsString("metadata.csv: Rights")));
+                    .andExpect(content().string(containsString("metadata.csv: Rights")))
+                    .andExpect(content().string(containsString("href=\"/resource/" + archive.encodeId(semanticsAip)
+                            + "\">Semantics of the GHG inventory")));
 
             byte[] csv = mockMvc.perform(get("/packages/{id}/contents.csv", id)).andExpect(status().isOk())
                     .andReturn().getResponse().getContentAsByteArray();

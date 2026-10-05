@@ -243,8 +243,13 @@
             spreadsheet carried in it (<code>metadata.csv</code>, read with the column definitions in
             <code>metadata_definition.xml</code>), the METS file's PREMIS (each file's format with its PRONOM
             identifier, its checksum, and events such as ingestion and virus checks), the checksum audit and
-            the Preservation Description Information file &mdash; and which components the package doesn't
-            have. The table can be downloaded as CSV.
+            the Preservation Description Information file. Each component also lists the upload spreadsheet's
+            entries expected to hold it &mdash; Semantics (often the identifier of a separate AIP holding the
+            Semantic Representation Information, linked when that AIP is described in this archive) and
+            Language; FixityHashSHA256; Provenance, Creator, Publisher and Contributor; Relation for Context
+            Information; Rights for Access Rights Information; Format and FormatInfo; OtherRI &mdash; and says
+            which aren't filled in, and why: left blank, or no such column in the spreadsheet used. Other
+            Representation Information is optional. The table can be downloaded as CSV.
         </p>
     </section>
 

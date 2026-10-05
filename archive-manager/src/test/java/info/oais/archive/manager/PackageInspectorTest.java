@@ -124,8 +124,9 @@ class PackageInspectorTest {
                 .containsEntry("data/METS.e9d0fddd.xml: PREMIS format",
                         "Microsoft Access Database -- version 2000 -- PRONOM x-fmt/238");
         assertThat(where(i, "Semantic Representation Information"))
-                .containsEntry("metadata.csv: Semantics", "URI: 6ffddacf-89ed-450c-b142-7427fb109cce")
+                .containsKey("metadata.csv: Semantics")
                 .containsEntry("metadata.csv: Language", "English");
+        assertThat(i.unfilled()).isZero();
         assertThat(where(i, "Other Representation Information")).containsKey("metadata.csv: OtherRI");
         assertThat(where(i, "PDI: Fixity Information"))
                 .containsEntry("metadata.csv: FixityHashSHA256", BitStore.sha256(DATABASE))
@@ -166,6 +167,87 @@ class PackageInspectorTest {
     }
 
     @Test
+    void saysWhereAMissingComponentBelongsAndWhyItIsNotThere() throws Exception {
+        Map<String, byte[]> files = eternalPackage();
+        String csv = new String(files.get(BAG + "/" + TRANSFER + "metadata.csv"), StandardCharsets.UTF_8);
+        // Rights blank; no Relation column, though metadata_definition.xml defines dc.relation; no OtherRI column.
+        String[] lines = csv.split("\n", 2);
+        String header = lines[0].replace(",Relation,", ",").replace(",OtherRI", "");
+        String row = lines[1].replace("Maldives First Biennial Transparency Report (BTR1),", "")
+                .replace("\"Access restricted. Shared only with written approval.\"", "")
+                .replace(",https://www.ipcc-nggip.iges.or.jp/software/index.html", "");
+        files.put(BAG + "/" + TRANSFER + "metadata.csv", (header + "\n" + row).getBytes(StandardCharsets.UTF_8));
+        files.put(BAG + "/" + TRANSFER + "metadata_definition.xml", """
+                <mets:mets xmlns:mets="http://www.loc.gov/METS/"><mets:dmdSec><mets:mdWrap><mets:xmlData><metadata>
+                  <dcrelation><translation/><definition/><originalName>dc.relation</originalName></dcrelation>
+                </metadata></mets:xmlData></mets:mdWrap></mets:dmdSec></mets:mets>
+                """.getBytes(StandardCharsets.UTF_8));
+        Inspection i = PackageInspector.inspect(sevenZip(dir.resolve("gaps.7z"), files), "gaps.7z");
+
+        Finding rights = finding(i, "PDI: Access Rights Information");
+        assertThat(rights.found()).isFalse();
+        assertThat(gaps(rights)).containsExactly(Map.entry("metadata.csv: Rights", "blank in this package"));
+        Finding context = finding(i, "PDI: Context Information");
+        assertThat(context.found()).isFalse();
+        assertThat(gaps(context)).containsExactly(Map.entry("metadata.csv: dc.relation",
+                "defined in metadata_definition.xml, but not in metadata.csv, so it was left blank"));
+        Finding other = finding(i, "Other Representation Information");
+        assertThat(other.required()).isFalse();
+        assertThat(other.found()).isFalse();
+        assertThat(gaps(other)).containsExactly(Map.entry("metadata.csv: OtherRI",
+                "the upload spreadsheet used for this package has no OtherRI column"));
+        assertThat(i.missing()).isEqualTo(2); // Rights and Context; Other Representation Information is optional
+    }
+
+    @Test
+    void saysWhichExpectedSpreadsheetEntriesAreNotFilledIn() throws Exception {
+        // An older package: Dublin Core columns, the record number folded into dc.subject, no FixityHashSHA256,
+        // Semantics or Provenance, and dc.publisher defined but left blank.
+        Map<String, byte[]> payload = new LinkedHashMap<>();
+        payload.put("data/objects/R00030_A.pdf", DATABASE);
+        payload.put(TRANSFER + "metadata.csv", """
+                filename,dc.title,dc.subject,dc.creator,dc.contributor,dc.language
+                objects/R00030_A.pdf,R00030_A,R00030; Mosque,National Archives of Maldives,By Sultan Hassan Nooraddin,Dhivehi
+                """.getBytes(StandardCharsets.UTF_8));
+        payload.put(TRANSFER + "metadata_definition.xml", """
+                <mets:mets xmlns:mets="http://www.loc.gov/METS/"><mets:dmdSec><mets:mdWrap><mets:xmlData><metadata>
+                  <dcsubject><translation/><definition>English: Number given by the National Archives of Maldives to identify the content</definition><originalName>dc.subject</originalName></dcsubject>
+                  <dcpublisher><translation/><definition/><originalName>dc.publisher</originalName></dcpublisher>
+                </metadata></mets:xmlData></mets:mdWrap></mets:dmdSec></mets:mets>
+                """.getBytes(StandardCharsets.UTF_8));
+        Inspection i = PackageInspector.inspect(sevenZip(dir.resolve("old.7z"), bag(payload)), "old.7z");
+
+        Finding fixity = finding(i, "PDI: Fixity Information");
+        assertThat(fixity.found()).isTrue(); // the bag's manifest
+        assertThat(gaps(fixity)).containsExactly(Map.entry("metadata.csv: FixityHashSHA256",
+                "the upload spreadsheet used for this package has no FixityHashSHA256 column"));
+        Finding semantic = finding(i, "Semantic Representation Information");
+        assertThat(where(i, "Semantic Representation Information")).containsEntry("metadata.csv: dc.language",
+                "Dhivehi");
+        assertThat(gaps(semantic)).containsOnlyKeys("metadata.csv: Semantics");
+        Finding provenance = finding(i, "PDI: Provenance Information");
+        assertThat(where(i, "PDI: Provenance Information")).containsKeys("metadata.csv: dc.creator",
+                "metadata.csv: dc.contributor");
+        assertThat(gaps(provenance)).containsExactly(
+                Map.entry("metadata.csv: Provenance", "the upload spreadsheet used for this package has no Provenance column"),
+                Map.entry("metadata.csv: dc.publisher",
+                        "defined in metadata_definition.xml, but not in metadata.csv, so it was left blank"));
+        assertThat(where(i, "PDI: Reference Information")).containsValue("R00030");
+        // Not filled in: Format, FormatInfo, Semantics, FixityHashSHA256, Provenance, Publisher, Relation, Rights
+        assertThat(i.unfilled()).isEqualTo(8);
+    }
+
+    @Test
+    void notesThatSemanticsIdentifiesASeparateAip() throws Exception {
+        Inspection i = PackageInspector.inspect(sevenZip(dir.resolve("aip.7z"), eternalPackage()), "aip.7z");
+        assertThat(where(i, "Semantic Representation Information")).containsEntry("metadata.csv: Semantics",
+                "URI: 6ffddacf-89ed-450c-b142-7427fb109cce -- the identifier of the separate AIP that holds the "
+                        + "Semantic Representation Information");
+        assertThat(PackageInspector.uuid("URI: 6FFDDACF-89ed-450c-b142-7427fb109cce"))
+                .isEqualTo("6ffddacf-89ed-450c-b142-7427fb109cce");
+    }
+
+    @Test
     void readsAZipThatIsNotABag() throws Exception {
         Path zip = dir.resolve("loose.zip");
         try (OutputStream out = Files.newOutputStream(zip); ZipOutputStream z = new ZipOutputStream(out)) {
@@ -180,6 +262,12 @@ class PackageInspectorTest {
 
     private static Finding finding(Inspection i, String component) {
         return i.findings().stream().filter(f -> f.component().equals(component)).findFirst().orElseThrow();
+    }
+
+    private static Map<String, String> gaps(Finding f) {
+        Map<String, String> found = new LinkedHashMap<>();
+        f.gaps().forEach(s -> found.put(s.where(), s.value()));
+        return found;
     }
 
     private static Map<String, String> where(Inspection i, String component) {

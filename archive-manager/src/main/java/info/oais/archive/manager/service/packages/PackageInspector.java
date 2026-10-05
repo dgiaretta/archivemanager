@@ -77,12 +77,40 @@ public final class PackageInspector {
         }
     }
 
-    /** Where a component is in the package, and what it says there. */
-    public record Source(String where, String value) {
+    /**
+     * Where a component is in the package, and what it says there.
+     *
+     * @param link a page about it, e.g. the archive's page of a separate AIP it identifies; or null
+     */
+    public record Source(String where, String value, String link) {
+
+        public Source(String where, String value) {
+            this(where, value, null);
+        }
     }
 
-    /** One component OAIS requires of an AIP. */
-    public record Finding(String component, int depth, boolean found, List<Source> sources, String note) {
+    /**
+     * One component of an AIP.
+     *
+     * @param required whether OAIS requires it (Other Representation Information is optional)
+     * @param sources  where it is in the package
+     * @param gaps     the upload spreadsheet's entries expected to hold it that aren't filled in, each with why
+     *                 (e.g. "metadata.csv: FixityHashSHA256" -- "blank in this package")
+     */
+    public record Finding(String component, int depth, boolean required, boolean found, List<Source> sources,
+                          String note, List<Source> gaps) {
+
+        /** A row of the mapping: where, what, and whether it's a gap. */
+        public record Row(String where, String value, String link, boolean gap) {
+        }
+
+        /** Its rows: where it's found, then the expected entries that aren't filled in. */
+        public List<Row> rows() {
+            List<Row> rows = new ArrayList<>();
+            sources.forEach(s -> rows.add(new Row(s.where(), s.value(), s.link(), false)));
+            gaps.forEach(g -> rows.add(new Row(g.where(), g.value(), null, true)));
+            return rows;
+        }
     }
 
     /** What a package holds. */
@@ -91,8 +119,14 @@ public final class PackageInspector {
                              List<Finding> findings, String spreadsheet, List<String> spreadsheetColumns,
                              Map<String, String> columnDefinitions, List<String> notes) {
 
+        /** How many required components aren't in the package. */
         public long missing() {
-            return findings.stream().filter(f -> !f.found()).count();
+            return findings.stream().filter(f -> f.required() && !f.found()).count();
+        }
+
+        /** How many of the upload spreadsheet's expected entries, for required components, aren't filled in. */
+        public long unfilled() {
+            return findings.stream().filter(Finding::required).mapToLong(f -> f.gaps().size()).sum();
         }
     }
 
@@ -278,14 +312,17 @@ public final class PackageInspector {
             }
             metsPath(metsPath).ifPresent(m -> packaging.add(new Source(m, "METS: the package's structure and "
                     + "each file's technical and preservation metadata")));
-            findings.add(new Finding("Packaging Information", 0, bagName != null, packaging,
-                    "how the components are bound together and extracted: the archive file, the bag and its manifests"));
+            findings.add(new Finding("Packaging Information", 0, true, bagName != null, packaging,
+                    "how the components are bound together and extracted: the archive file, the bag and its manifests",
+                    bagName == null ? List.of(new Source("bagit.txt", "the package isn't a BagIt bag")) : List.of()));
+
+            Map<String, String> row = spreadsheet.isEmpty() ? Map.of() : spreadsheet.get(0);
+            Expected expect = new Expected(row, sheet, columns, definitions);
 
             // Package Description
             List<Source> description = new ArrayList<>();
             if (sheet != null) {
-                Map<String, String> first = spreadsheet.isEmpty() ? Map.of() : spreadsheet.get(0);
-                String summary = join(value(first, "originaltitle", "title"), value(first, "description"));
+                String summary = join(value(row, "originaltitle", "title"), value(row, "description"));
                 description.add(new Source(sheet, summary == null ? "the descriptive fields of the record" : summary));
             }
             metsPath(metsPath).ifPresent(m -> {
@@ -296,7 +333,9 @@ public final class PackageInspector {
             });
             find(p -> p.equals("data/README.html")).ifPresent(p -> description.add(new Source(relative(p),
                     "an explanation of the package for a person opening it")));
-            findings.add(new Finding("Package Description", 0, !description.isEmpty(), description, null));
+            findings.add(new Finding("Package Description", 0, true, !description.isEmpty(), description, null,
+                    sheet == null ? List.of(new Source("metadata.csv", "the package has no upload spreadsheet"))
+                            : List.of()));
 
             // Data Object
             List<Source> data = new ArrayList<>();
@@ -305,35 +344,43 @@ public final class PackageInspector {
                 data.add(new Source(sheet != null ? sheet + ": filename" : "data/objects",
                         object + (f.isPresent() ? " (" + f.get().size() + " bytes)" : " -- not in the package")));
             }
-            findings.add(new Finding("Data Object", 1, objects.stream().anyMatch(o -> file(o).isPresent()), data, null));
+            boolean dataFound = objects.stream().anyMatch(o -> file(o).isPresent());
+            findings.add(new Finding("Data Object", 1, true, dataFound, data, null, dataFound ? List.of()
+                    : List.of(new Source("metadata.csv: filename", "no file it names is in data/objects"))));
 
-            Map<String, String> row = spreadsheet.isEmpty() ? Map.of() : spreadsheet.get(0);
-
-            // Structure Representation Information
+            // Structure Representation Information: metadata.csv Format + FormatInfo, and the PREMIS format
             List<Source> structure = new ArrayList<>();
-            column(row, sheet, structure, "format");
-            column(row, sheet, structure, "formatinfo");
+            List<Source> structureGaps = new ArrayList<>();
+            expect.column(structure, structureGaps, "Format", "format");
+            expect.column(structure, structureGaps, "FormatInfo", "formatinfo");
             for (String object : objects) {
                 premisFor(premis, object).ifPresent(o -> structure.add(new Source(metsPath(metsPath).orElse("METS")
                         + ": PREMIS format", join(o.formatName(), o.formatVersion() == null || o.formatVersion().isBlank()
                         ? null : "version " + o.formatVersion(), o.registryKey() == null ? null
                         : "PRONOM " + o.registryKey()))));
             }
-            findings.add(new Finding("Structure Representation Information", 2, !structure.isEmpty(), structure,
-                    "a format's registry identifier (PRONOM) points to its specification"));
+            findings.add(new Finding("Structure Representation Information", 2, true, !structure.isEmpty(), structure,
+                    "a format's registry identifier (PRONOM) points to its specification", structureGaps));
 
-            // Semantic Representation Information
+            // Semantic Representation Information: metadata.csv Semantics (perhaps the UUID of a separate AIP
+            // holding it) + Language
             List<Source> semantic = new ArrayList<>();
-            column(row, sheet, semantic, "semantics");
-            column(row, sheet, semantic, "language");
-            column(row, sheet, semantic, "anotherlanguage");
-            column(row, sheet, semantic, "idioma");
-            findings.add(new Finding("Semantic Representation Information", 2, !semantic.isEmpty(), semantic, null));
+            List<Source> semanticGaps = new ArrayList<>();
+            expect.column(semantic, semanticGaps, "Semantics", "semantics");
+            semantic.replaceAll(s -> s.where().endsWith(": Semantics") || s.where().endsWith(": dc.semantics")
+                    ? new Source(s.where(), s.value() + (uuid(s.value()) == null ? "" : " -- the identifier of the "
+                    + "separate AIP that holds the Semantic Representation Information")) : s);
+            expect.column(semantic, semanticGaps, "Language", "language");
+            expect.extra(semantic, "anotherlanguage", "idioma");
+            findings.add(new Finding("Semantic Representation Information", 2, true, !semantic.isEmpty(), semantic,
+                    "what the data means: often in a separate AIP, which Semantics identifies", semanticGaps));
 
-            // Other Representation Information
+            // Other Representation Information: metadata.csv OtherRI (optional)
             List<Source> other = new ArrayList<>();
-            column(row, sheet, other, "otherri");
-            findings.add(new Finding("Other Representation Information", 2, !other.isEmpty(), other, null));
+            List<Source> otherGaps = new ArrayList<>();
+            expect.column(other, otherGaps, "OtherRI", "otherri");
+            findings.add(new Finding("Other Representation Information", 2, false, !other.isEmpty(), other,
+                    "optional: e.g. software or documentation needed to use the data", otherGaps));
 
             Map<String, String> pdi = pdi(find(p -> p.endsWith("/preservation_description_information.xml"))
                     .flatMap(this::text).orElse(""));
@@ -341,9 +388,10 @@ public final class PackageInspector {
                     .orElse(null);
             Optional<String> audit = find(p -> p.endsWith("/checksum_audit.xml"));
 
-            // PDI: Fixity
+            // PDI: Fixity -- metadata.csv FixityHashSHA256, and what the package itself records
             List<Source> fixity = new ArrayList<>();
-            column(row, sheet, fixity, "fixityhashsha256");
+            List<Source> fixityGaps = new ArrayList<>();
+            expect.column(fixity, fixityGaps, "FixityHashSHA256", "fixityhashsha256");
             for (String object : objects) {
                 Optional<PackageFile> f = file(object);
                 String inManifest = manifestEntry(object);
@@ -362,14 +410,16 @@ public final class PackageInspector {
             }
             audit.ifPresent(a -> fixity.add(new Source(relative(a), checksumAudit(text(a).orElse("")))));
             pdiValue(pdi, pdiPath, fixity, "pdifixity");
-            findings.add(new Finding("PDI: Fixity Information", 1, !fixity.isEmpty(), fixity, null));
+            findings.add(new Finding("PDI: Fixity Information", 1, true, !fixity.isEmpty(), fixity, null, fixityGaps));
 
-            // PDI: Provenance
+            // PDI: Provenance -- metadata.csv Provenance + Creator + Publisher + Contributor, and more
             List<Source> provenance = new ArrayList<>();
-            for (String c : List.of("provenance", "creator", "publisher", "contributor", "date", "source", "origem",
-                    "receivedon", "enteredon")) {
-                column(row, sheet, provenance, c);
-            }
+            List<Source> provenanceGaps = new ArrayList<>();
+            expect.column(provenance, provenanceGaps, "Provenance", "provenance");
+            expect.column(provenance, provenanceGaps, "Creator", "creator");
+            expect.column(provenance, provenanceGaps, "Publisher", "publisher");
+            expect.column(provenance, provenanceGaps, "Contributor", "contributor");
+            expect.extra(provenance, "date", "source", "origem", "receivedon", "enteredon");
             for (String object : objects) {
                 premisFor(premis, object).filter(o -> !o.events().isEmpty()).ifPresent(o -> provenance.add(new Source(
                         metsPath(metsPath).orElse("METS") + ": PREMIS events", String.join("; ", o.events()))));
@@ -377,15 +427,18 @@ public final class PackageInspector {
             find(p -> p.endsWith("/file_before_processed_info.xml")).ifPresent(p -> provenance.add(new Source(
                     relative(p), "technical metadata of the original file, before it was normalised on ingest")));
             pdiValue(pdi, pdiPath, provenance, "pdiprovenanceinformation");
-            findings.add(new Finding("PDI: Provenance Information", 1, !provenance.isEmpty(), provenance, null));
+            findings.add(new Finding("PDI: Provenance Information", 1, true, !provenance.isEmpty(), provenance, null,
+                    provenanceGaps));
 
-            // PDI: Context
+            // PDI: Context -- metadata.csv Relation
             List<Source> context = new ArrayList<>();
-            column(row, sheet, context, "relation");
+            List<Source> contextGaps = new ArrayList<>();
+            expect.column(context, contextGaps, "Relation", "relation");
             pdiValue(pdi, pdiPath, context, "pdicontextinformation");
-            findings.add(new Finding("PDI: Context Information", 1, !context.isEmpty(), context, null));
+            findings.add(new Finding("PDI: Context Information", 1, true, !context.isEmpty(), context, null,
+                    contextGaps));
 
-            // PDI: Reference
+            // PDI: Reference -- the AIP's name and identifiers
             List<Source> reference = new ArrayList<>();
             if (bagName != null) {
                 reference.add(new Source("the AIP's name", bagName));
@@ -393,22 +446,26 @@ public final class PackageInspector {
             if (bagInfo.containsKey("External-Identifier")) {
                 reference.add(new Source("bag-info.txt: External-Identifier", bagInfo.get("External-Identifier")));
             }
-            column(row, sheet, reference, "recordno");
+            expect.extra(reference, "recordno");
             if (value(row, "recordno") == null && value(row, "subject") != null && definitions.getOrDefault("dc.subject", "")
                     .toLowerCase(Locale.ROOT).contains("identify")) {
                 // Older packages fold the record number into dc.subject, first (metadata_definition.xml says so).
                 reference.add(new Source(sheet + ": dc.subject, first part (the record number, as "
                         + "metadata_definition.xml defines it)", value(row, "subject").split(";")[0].strip()));
             }
-            column(row, sheet, reference, "identifier");
+            expect.extra(reference, "identifier");
             pdiValue(pdi, pdiPath, reference, "pdireferenceinformation");
-            findings.add(new Finding("PDI: Reference Information", 1, !reference.isEmpty(), reference, null));
+            findings.add(new Finding("PDI: Reference Information", 1, true, !reference.isEmpty(), reference, null,
+                    reference.isEmpty() ? List.of(new Source("the AIP's name", "the package has no named bag"))
+                            : List.of()));
 
-            // PDI: Access Rights
+            // PDI: Access Rights -- metadata.csv Rights
             List<Source> rights = new ArrayList<>();
-            column(row, sheet, rights, "rights");
+            List<Source> rightsGaps = new ArrayList<>();
+            expect.column(rights, rightsGaps, "Rights", "rights");
             pdiValue(pdi, pdiPath, rights, "pdiaccessrightsinformation");
-            findings.add(new Finding("PDI: Access Rights Information", 1, !rights.isEmpty(), rights, null));
+            findings.add(new Finding("PDI: Access Rights Information", 1, true, !rights.isEmpty(), rights, null,
+                    rightsGaps));
 
             if (spreadsheetPath == null) {
                 notes.add("There's no upload spreadsheet (metadata.csv) in the package.");
@@ -425,12 +482,75 @@ public final class PackageInspector {
                     columns, definitions, notes);
         }
 
-        private void column(Map<String, String> row, String sheet, List<Source> into, String column) {
-            for (Map.Entry<String, String> e : row.entrySet()) {
-                if (normalise(e.getKey()).equals(column) && e.getValue() != null && !e.getValue().isBlank()
-                        && !e.getValue().strip().equals("0")) {
-                    into.add(new Source(sheet + ": " + e.getKey(), e.getValue().strip()));
+        /** The upload spreadsheet's row, and how to find an entry in it -- or say why it isn't there. */
+        private final class Expected {
+            private final Map<String, String> row;
+            private final String sheet;
+            private final List<String> columns;
+            private final Map<String, String> definitions;
+
+            Expected(Map<String, String> row, String sheet, List<String> columns, Map<String, String> definitions) {
+                this.row = row;
+                this.sheet = sheet;
+                this.columns = columns;
+                this.definitions = definitions;
+            }
+
+            /**
+             * The entry {@code label} (any column whose name, as compared, is one
+             * of {@code names}, e.g. "Rights" or "dc.rights"): into
+             * {@code sources} if it's filled in, else into {@code gaps} with why
+             * not -- the package has no spreadsheet; the column is blank; it's
+             * defined in metadata_definition.xml but left out of metadata.csv, as
+             * packages leave out blank columns; or the spreadsheet used for this
+             * package has no such column.
+             */
+            void column(List<Source> sources, List<Source> gaps, String label, String... names) {
+                List<String> wanted = List.of(names);
+                boolean filled = false;
+                for (Map.Entry<String, String> e : row.entrySet()) {
+                    if (wanted.contains(normalise(e.getKey())) && filled(e.getValue())) {
+                        sources.add(new Source(sheet + ": " + e.getKey(), e.getValue().strip()));
+                        filled = true;
+                    }
                 }
+                if (filled) {
+                    return;
+                }
+                if (sheet == null) {
+                    gaps.add(new Source("metadata.csv: " + label, "the package has no upload spreadsheet"));
+                    return;
+                }
+                for (String c : columns) {
+                    if (wanted.contains(normalise(c))) {
+                        gaps.add(new Source("metadata.csv: " + c, "blank in this package"));
+                        return;
+                    }
+                }
+                for (String d : definitions.keySet()) {
+                    if (wanted.contains(normalise(d))) {
+                        gaps.add(new Source("metadata.csv: " + d, "defined in metadata_definition.xml, but not in "
+                                + "metadata.csv, so it was left blank"));
+                        return;
+                    }
+                }
+                gaps.add(new Source("metadata.csv: " + label, "the upload spreadsheet used for this package has no "
+                        + label + " column"));
+            }
+
+            /** Entries that add to a component when filled in, but aren't expected of it. */
+            void extra(List<Source> sources, String... names) {
+                for (String name : names) {
+                    for (Map.Entry<String, String> e : row.entrySet()) {
+                        if (normalise(e.getKey()).equals(name) && filled(e.getValue())) {
+                            sources.add(new Source(sheet + ": " + e.getKey(), e.getValue().strip()));
+                        }
+                    }
+                }
+            }
+
+            private boolean filled(String value) {
+                return value != null && !value.isBlank() && !value.strip().equals("0");
             }
         }
 
@@ -762,6 +882,15 @@ public final class PackageInspector {
             }
         }
         return parts.isEmpty() ? "an integrity trail recorded at ingestion" : String.join("; ", parts);
+    }
+
+    private static final java.util.regex.Pattern UUID = java.util.regex.Pattern.compile(
+            "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}");
+
+    /** The first UUID in {@code text}, e.g. in "URI: 6ffddacf-...", or null. */
+    public static String uuid(String text) {
+        java.util.regex.Matcher m = text == null ? null : UUID.matcher(text);
+        return m != null && m.find() ? m.group().toLowerCase(Locale.ROOT) : null;
     }
 
     private static String join(String... parts) {

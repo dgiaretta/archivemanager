@@ -1,7 +1,9 @@
 package info.oais.archive.manager.service.packages;
 
 import info.oais.archive.manager.rdf.Ns;
+import info.oais.archive.manager.rdf.QueryRunner;
 import info.oais.archive.manager.rdf.RdfStore;
+import info.oais.archive.manager.service.ArchiveService;
 import info.oais.archive.manager.service.format.StorageFetcher;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.Statement;
@@ -11,8 +13,10 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -30,10 +34,14 @@ public class PackageMappingService {
 
     private final RdfStore store;
     private final StorageFetcher fetcher;
+    private final QueryRunner q;
+    private final ArchiveService archive;
 
-    public PackageMappingService(RdfStore store, StorageFetcher fetcher) {
+    public PackageMappingService(RdfStore store, StorageFetcher fetcher, QueryRunner q, ArchiveService archive) {
         this.store = store;
         this.fetcher = fetcher;
+        this.q = q;
+        this.archive = archive;
     }
 
     /** The storage location of {@code iri} that is a package, if it has one. */
@@ -61,7 +69,7 @@ public class PackageMappingService {
         try {
             Path file = fetcher.fetch(location, dir);
             String name = location.getPath().substring(location.getPath().lastIndexOf('/') + 1);
-            return PackageInspector.inspect(file, name);
+            return withSemanticAips(PackageInspector.inspect(file, name));
         } finally {
             try (Stream<Path> files = Files.walk(dir)) {
                 files.sorted(Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
@@ -69,16 +77,62 @@ public class PackageMappingService {
         }
     }
 
-    /** The mapping as CSV: one row per place a component is found, or per missing component. */
+    /**
+     * The Semantic Representation Information the upload spreadsheet's
+     * Semantics identifies by UUID -- a separate AIP -- found in this archive,
+     * if it's described here: anything whose IRI, or any of whose values,
+     * holds the UUID (e.g. an AIP whose storage location is that AIP's file).
+     */
+    private PackageInspector.Inspection withSemanticAips(PackageInspector.Inspection inspection) {
+        List<PackageInspector.Finding> findings = new ArrayList<>();
+        for (PackageInspector.Finding f : inspection.findings()) {
+            if (!f.component().equals("Semantic Representation Information")) {
+                findings.add(f);
+                continue;
+            }
+            List<PackageInspector.Source> sources = new ArrayList<>(f.sources());
+            for (PackageInspector.Source s : f.sources()) {
+                String uuid = s.where().matches("metadata\\.csv: (dc\\.)?[Ss]emantics") ? PackageInspector.uuid(s.value())
+                        : null;
+                if (uuid == null) {
+                    continue;
+                }
+                List<Map<String, String>> found = q.select(store.dataModel(), Ns.PREFIXES + """
+                        SELECT DISTINCT ?s WHERE {
+                          ?s ?p ?o .
+                          FILTER(CONTAINS(LCASE(STR(?s)), "%1$s") || CONTAINS(LCASE(STR(?o)), "%1$s"))
+                        } LIMIT 5
+                        """.formatted(uuid));
+                if (found.isEmpty()) {
+                    sources.add(new PackageInspector.Source("this archive", "no AIP with the identifier " + uuid
+                            + " is described in this archive (it may be held elsewhere, e.g. in Eternal)"));
+                }
+                for (Map<String, String> r : found) {
+                    String iri = r.get("s");
+                    sources.add(new PackageInspector.Source("this archive", archive.label(iri) + " (" + iri + ")",
+                            "/resource/" + archive.encodeId(iri)));
+                }
+            }
+            findings.add(new PackageInspector.Finding(f.component(), f.depth(), f.required(), f.found(), sources,
+                    f.note(), f.gaps()));
+        }
+        return new PackageInspector.Inspection(inspection.archiveFormat(), inspection.size(), inspection.bagName(),
+                inspection.bagitVersion(), inspection.bagInfo(), inspection.bagCheck(), inspection.files(), findings,
+                inspection.spreadsheet(), inspection.spreadsheetColumns(), inspection.columnDefinitions(),
+                inspection.notes());
+    }
+
+    /**
+     * The mapping as CSV: one row per place a component is found, and per
+     * expected entry of the upload spreadsheet that isn't filled in.
+     */
     public static String csv(PackageInspector.Inspection inspection) {
         StringBuilder sb = new StringBuilder("AIP component,Found,Where to find it in the package,What it says\r\n");
         for (PackageInspector.Finding f : inspection.findings()) {
-            if (f.sources().isEmpty()) {
-                sb.append(cell(f.component())).append(",no,,\r\n");
-            }
-            for (PackageInspector.Source s : f.sources()) {
-                sb.append(cell(f.component())).append(",yes,").append(cell(s.where())).append(',')
-                        .append(cell(s.value())).append("\r\n");
+            for (PackageInspector.Finding.Row r : f.rows()) {
+                String found = !r.gap() ? "yes" : f.found() ? "not filled in" : f.required() ? "no" : "no (optional)";
+                sb.append(cell(f.component())).append(',').append(found).append(',').append(cell(r.where()))
+                        .append(',').append(cell(r.value())).append("\r\n");
             }
         }
         return sb.toString();

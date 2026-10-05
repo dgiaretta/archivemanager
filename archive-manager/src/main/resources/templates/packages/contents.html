@@ -42,22 +42,25 @@
         <section class="editor-section">
             <h2>Mapping to the AIP components</h2>
             <p>
-                <strong th:text="${inspection.missing() == 0} ? 'Every component OAIS requires of an AIP is in the package.' : ${inspection.missing()} + ' of the components OAIS requires of an AIP are not in the package.'">All present.</strong>
+                <strong th:text="${inspection.missing() == 0} ? 'Every component OAIS requires of an AIP is in the package.' : (${inspection.missing() == 1} ? '1 of the components OAIS requires of an AIP is not in the package.' : ${inspection.missing()} + ' of the components OAIS requires of an AIP are not in the package.')">All present.</strong>
+                <span th:if="${inspection.unfilled() > 0}" th:text="${inspection.unfilled()} + (${inspection.unfilled() == 1} ? ' entry' : ' entries') + ' of the upload spreadsheet expected to hold them ' + (${inspection.unfilled() == 1} ? 'is' : 'are') + ' not filled in.'">2 entries not filled in.</span>
                 <a class="button button-secondary" th:href="@{/packages/{id}/contents.csv(id=${id})}">Download as CSV &rarr;</a>
             </p>
             <table class="listing package-mapping">
                 <thead><tr><th>AIP component</th><th>Where to find it in the package</th><th>What it says</th></tr></thead>
                 <tbody>
                 <th:block th:each="f : ${inspection.findings()}">
-                    <tr th:if="${f.sources().isEmpty()}">
-                        <td th:style="${'padding-left:' + (0.4 + 1.2 * f.depth()) + 'rem'}"><strong th:text="${f.component()}">Component</strong></td>
-                        <td colspan="2"><strong style="color:#c0392b">Not in the package</strong></td>
-                    </tr>
-                    <tr th:each="s, it : ${f.sources()}">
+                    <tr th:each="r, it : ${f.rows()}">
                         <td th:style="${'padding-left:' + (0.4 + 1.2 * f.depth()) + 'rem'}"><strong th:if="${it.first}" th:text="${f.component()}">Component</strong>
                             <div class="muted" th:if="${it.first and f.note() != null}" th:text="${f.note()}">note</div></td>
-                        <td><code th:text="${s.where()}">metadata.csv: Rights</code></td>
-                        <td dir="auto" th:text="${s.value()}">value</td>
+                        <td><code th:text="${r.where()}">metadata.csv: Rights</code></td>
+                        <td th:unless="${r.gap()}" dir="auto"><a th:if="${r.link() != null}" th:href="@{${r.link()}}" th:text="${r.value()}">value</a><span th:if="${r.link() == null}" th:text="${r.value()}">value</span></td>
+                        <td th:if="${r.gap()}">
+                            <strong th:if="${!f.found() and f.required()}" style="color:#c0392b">Not in the package</strong>
+                            <span th:if="${!f.found() and !f.required()}" class="muted">Optional; not in the package</span>
+                            <strong th:if="${f.found()}" style="color:#b9770e">Not filled in</strong>
+                            <span class="muted" th:text="'— ' + ${r.value()}">reason</span>
+                        </td>
                     </tr>
                 </th:block>
                 </tbody>
