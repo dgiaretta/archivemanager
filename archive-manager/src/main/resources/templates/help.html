@@ -143,6 +143,11 @@
                 installable drb-python driver package and a DRB SDF schema for GAEL's Java DRB; the driver can
                 carry add-ons (semantics, metadata, checks) and a hand-written Python add-in (run in sample
                 tests only if the server allows it).</li>
+            <li><strong>Descriptions in EAST</strong>, the CCSDS data description language (CCSDS 644.0-B-3):
+                upload or paste a Data Description Record and its records, arrays, enumerations and variants
+                become the element tree, from which the other languages are generated and tested. What the tree
+                can't express (markers other than end of file, references into a record read earlier, reals
+                that aren't IEEE 754, and a few others) is refused, saying on which line.</li>
             <li><strong>Formats software already reads</strong> (.xlsx, .xls, .ods, .csv): describe only what
                 each column means &mdash; the columns can be taken from a sample file. That's saved with a
                 format profile (the format's registry identifier, refined with its version and, for text, its

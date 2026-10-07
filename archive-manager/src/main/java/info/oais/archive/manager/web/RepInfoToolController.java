@@ -22,6 +22,7 @@ import info.oais.archive.manager.service.format.SampleDecodeResult;
 import info.oais.archive.manager.service.format.FormatIdentifiers;
 import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.infomodel.structure.description.Descriptions;
+import info.oais.infomodel.structure.description.EastReader;
 import info.oais.infomodel.structure.description.ChoiceDescription;
 import info.oais.infomodel.structure.description.DescriptionLanguage;
 import info.oais.infomodel.structure.description.DescriptionValidator;
@@ -139,6 +140,45 @@ public class RepInfoToolController {
         if (def == null) {
             return "redirect:/repinfo-tools/hand/" + template.substring("hand-".length());
         }
+        session.setAttribute(SESSION_KEY, def);
+        return "redirect:/repinfo-tools/edit";
+    }
+
+    /**
+     * Starts from a Data Description Record in EAST (CCSDS 644.0-B-3),
+     * uploaded or pasted: its logical and physical packages become the
+     * element tree, for the languages that can express everything it uses.
+     * If it can't be read, the start page says where and why.
+     */
+    @PostMapping("/start-east")
+    public String startEast(@RequestParam(required = false) MultipartFile file,
+                            @RequestParam(required = false) String text, HttpSession session, Model model)
+            throws IOException {
+        String east = file != null && !file.isEmpty() ? new String(file.getBytes(), StandardCharsets.UTF_8)
+                : text == null ? "" : text;
+        east = east.startsWith("﻿") ? east.substring(1) : east;
+        FormatDescription format;
+        try {
+            format = EastReader.read(east);
+        } catch (EastReader.EastException e) {
+            model.addAttribute("eastError", e.getMessage());
+            model.addAttribute("eastText", east);
+            return start(session, model);
+        }
+        FormatDefinition def = new FormatDefinition();
+        def.setName(format.name());
+        def.setNotes(format.notes());
+        def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
+        def.setDefaultByteOrder(format.defaultByteOrder());
+        def.setRoot(new RecordDescription(FormatDefinition.ROOT_ID, format.root().name(), format.root().children(),
+                null, Occurrence.ONCE, Semantics.NONE));
+        java.util.Set<DescriptionLanguage> targets = java.util.EnumSet.noneOf(DescriptionLanguage.class);
+        for (DescriptionLanguage language : DescriptionLanguage.values()) {
+            if (Feature.unsupported(format, language).isEmpty()) {
+                targets.add(language);
+            }
+        }
+        def.setTargets(targets);
         session.setAttribute(SESSION_KEY, def);
         return "redirect:/repinfo-tools/edit";
     }

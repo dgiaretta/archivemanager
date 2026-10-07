@@ -64,6 +64,25 @@
         </form>
     </div>
 
+    <h2 id="east">Or read a description in EAST</h2>
+    <p class="muted">
+        A Data Description Record in the CCSDS data description language EAST (CCSDS 644.0-B-3): its logical
+        package and its physical package. Its records, arrays, enumerations and variants become the element tree,
+        with each enumeration's literals as the meanings of its codes, so Kaitai Struct, DFDL and DRB descriptions
+        can be generated from it and tested against sample data.
+    </p>
+    <div class="notice error" th:if="${eastError}">
+        <strong>The EAST description couldn't be read.</strong> <span th:text="${eastError}">Line 3: ...</span>
+    </div>
+    <form th:action="@{/repinfo-tools/start-east}" method="post" enctype="multipart/form-data" class="form">
+        <label>EAST file <input type="file" name="file" accept=".east,.ddr,.txt,.ads"/></label>
+        <label>or paste it
+            <textarea name="text" rows="8" class="code-input" spellcheck="false"
+                      th:text="${eastText}" placeholder="package MY_DATA is ... end MY_DATA;&#10;package MY_DATA_PHYSICAL is ... end MY_DATA_PHYSICAL;"></textarea>
+        </label>
+        <button type="submit">Read the EAST description &rarr;</button>
+    </form>
+
     <h2>Or write a description by hand</h2>
     <p class="muted">
         In an engine's own language, for what the editor's element tree can't express: checksums,

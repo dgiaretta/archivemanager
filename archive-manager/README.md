@@ -684,6 +684,32 @@ wanted.
     class, and for text the character encoding, line endings, delimiter and
     quote -- since a registry identifier alone generally isn't enough to read
     a file (PRONOM's `x-fmt/111`, plain text, says nothing about encoding).
+  - **Reading a description in EAST.** A Data Description Record in EAST,
+    the CCSDS data description language (CCSDS 644.0-B-3), can be uploaded
+    or pasted ("Or read a description in EAST" on the start page,
+    `/repinfo-tools/start-east`). `EastReader` (in `oais-structure-api`)
+    reads its logical and physical packages into the element tree, which
+    then generates Kaitai Struct, DFDL and DRB like any other: records become
+    records and arrays repeated elements (the first index varying fastest,
+    unless `ARRAY_STORAGE` says otherwise); enumerations become integers
+    whose codes (from an enumeration representation clause, or 0, 1, 2...)
+    have the literals as their meanings; integer and real ranges become valid
+    ranges; record representation clauses fix the order of components and
+    add the unused space between them as `spare_n` fields; a variant part
+    becomes a choice when each alternative has one value, and otherwise an
+    optional record per alternative (for `|`, ranges, `others`, `null` and
+    true/false discriminants); and virtual discriminants are replaced by
+    their actual values' expressions. `OCTET_STORAGE` gives the byte order.
+    Since a description describes one set of data, the sets repeat to the
+    end of the data (in a record `set`) unless an EOF marker ends the last
+    variable's repetition. What the element tree can't express is refused
+    with the line and why: markers other than EOF, references into a record
+    read earlier (`LAST_DATE.DAY` from outside `LAST_DATE`), `**` and the
+    EAST functions (`cos`, `is_odd`...) on values from the data, signed or
+    `LOW_ORDER_FIRST` bit fields, integers whose bits are in pieces or not in
+    two's complement, and reals in conventions other than IEEE 754
+    (FCSTC000). Numbers in an ASCII representation are read as text, which
+    the format's notes say.
   - **Writing a description by hand.** For what the element tree can't
     express -- checksums, encryption, other compression, records spread over
     several lines, anything else a language can do -- a Kaitai Struct, DFDL

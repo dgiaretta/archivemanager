@@ -16,6 +16,7 @@ import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.infomodel.structure.description.ChoiceDescription;
 import info.oais.infomodel.structure.description.DescriptionLanguage;
 import info.oais.infomodel.structure.description.DescriptionValidator;
+import info.oais.infomodel.structure.description.EastReader;
 import info.oais.infomodel.structure.description.ElementDescription;
 import info.oais.infomodel.structure.description.Expression;
 import info.oais.infomodel.structure.description.Feature;
@@ -140,6 +141,94 @@ class GeneratedDescriptionsMatrixTest {
                         new byte[] {1, 2, 7, 5, 6, 7, 8, 9},
                         List.of("small.a = 1", "small.b = 2", "small.extra = 7", "small.items[0] = 5",
                                 "small.items[1] = 6", "small.items[2] = 7", "small.items[3] = 8", "small.items[4] = 9")),
+                new Case("EAST: record representation clauses and overlapping alternatives", eastRecords(),
+                        eastRecordsBytes(), List.of(
+                                "records.set[0].second.the_number = 2",
+                                "records.set[0].second.the_year = 2024",
+                                "records.set[0].second.the_measurement[0] = 2.5",
+                                "records.set[0].second.the_measurement[1] = -1",
+                                "records.set[0].second.the_month = 6",
+                                "records.set[0].fourth.the_day_of_month = 0",
+                                "records.set[0].fourth.the_month = 7",
+                                "records.set[0].fourth.when_mon.the_measurement = 3.25",
+                                "records.set[0].fourth.when_tue_to_thu_or_sat = <absent>",
+                                "records.set[0].fourth.when_others = <absent>",
+                                "records.set[0].fourth.the_year = 2000",
+                                "records.set[1].second.the_number = 1",
+                                "records.set[1].second.the_year = 1999",
+                                "records.set[1].second.the_measurement[0] = 4",
+                                "records.set[1].second.the_month = 12",
+                                "records.set[1].fourth.the_day_of_month = 1",
+                                "records.set[1].fourth.the_month = 8",
+                                "records.set[1].fourth.when_mon = <absent>",
+                                "records.set[1].fourth.when_tue_to_thu_or_sat.the_alpha_value = 3",
+                                "records.set[1].fourth.when_tue_to_thu_or_sat.the_beta_value = 4",
+                                "records.set[1].fourth.when_tue_to_thu_or_sat.spare_1 = 0x0000",
+                                "records.set[1].fourth.when_others = <absent>",
+                                "records.set[1].fourth.the_year = 1999",
+                                "records.set[2].second.the_number = 1",
+                                "records.set[2].second.the_year = 1998",
+                                "records.set[2].second.the_measurement[0] = 0.5",
+                                "records.set[2].second.the_month = 1",
+                                "records.set[2].fourth.the_day_of_month = 6",
+                                "records.set[2].fourth.the_month = 9",
+                                "records.set[2].fourth.when_mon = <absent>",
+                                "records.set[2].fourth.when_tue_to_thu_or_sat = <absent>",
+                                "records.set[2].fourth.when_others.spare_1 = 0x00000000",
+                                "records.set[2].fourth.the_year = 1998")),
+                new Case("EAST: packet format with virtual discriminants and bit fields", eastPacket(),
+                        eastPacketBytes(), List.of(
+                                "packet_description.set[0].flag = 1",
+                                "packet_description.set[0].length = 3",
+                                "packet_description.set[0].packet.primary_header.packet_identification.version_number = 0",
+                                "packet_description.set[0].packet.primary_header.packet_identification.type_id = 0",
+                                "packet_description.set[0].packet.primary_header.packet_identification.secondary_header_flag = 1",
+                                "packet_description.set[0].packet.primary_header.packet_identification.application_process_id = 291",
+                                "packet_description.set[0].packet.primary_header.packet_sequence_control.segmentation_flag = 3",
+                                "packet_description.set[0].packet.primary_header.packet_sequence_control.source_sequence_count = 5",
+                                "packet_description.set[0].packet.primary_header.source_data_length = 3",
+                                "packet_description.set[0].packet.case_secondary_header_flag -> when_present_flag",
+                                "packet_description.set[0].packet.case_secondary_header_flag.when_present_flag.secondary_header[0] = 10",
+                                "packet_description.set[0].packet.case_secondary_header_flag.when_present_flag.secondary_header[1] = 11",
+                                "packet_description.set[0].packet.case_secondary_header_flag.when_present_flag.secondary_header[2] = 12",
+                                "packet_description.set[0].packet.case_secondary_header_flag.when_present_flag.secondary_header[3] = 13",
+                                "packet_description.set[0].packet.case_secondary_header_flag.when_present_flag.source_data_1[0] = 1",
+                                "packet_description.set[0].packet.case_secondary_header_flag.when_present_flag.source_data_1[1] = 2",
+                                "packet_description.set[0].packet.case_secondary_header_flag.when_present_flag.source_data_1[2] = 3",
+                                "packet_description.set[1].flag = 0",
+                                "packet_description.set[1].length = 1",
+                                "packet_description.set[1].packet.primary_header.packet_identification.version_number = 0",
+                                "packet_description.set[1].packet.primary_header.packet_identification.type_id = 1",
+                                "packet_description.set[1].packet.primary_header.packet_identification.secondary_header_flag = 0",
+                                "packet_description.set[1].packet.primary_header.packet_identification.application_process_id = 1",
+                                "packet_description.set[1].packet.primary_header.packet_sequence_control.segmentation_flag = 1",
+                                "packet_description.set[1].packet.primary_header.packet_sequence_control.source_sequence_count = 6",
+                                "packet_description.set[1].packet.primary_header.source_data_length = 1",
+                                "packet_description.set[1].packet.case_secondary_header_flag -> when_absent_flag",
+                                "packet_description.set[1].packet.case_secondary_header_flag.when_absent_flag.source_data_0[0] = 9")),
+                new Case("EAST: calculated presence condition and EOF marker", eastWeeks(),
+                        new byte[] {5, 10, 20, 7, 10, 12}, List.of(
+                                "weeks.previous_week = 5",
+                                "weeks.this_week[0].result_1 = 10",
+                                "weeks.this_week[0].result_2 = 20",
+                                "weeks.this_week[0].when_true.bonus = 7",
+                                "weeks.this_week[1].result_1 = 10",
+                                "weeks.this_week[1].result_2 = 12",
+                                "weeks.this_week[1].when_true = <absent>")),
+                new Case("EAST: codes, ASCII representations and little-endian numbers", eastLittleEndian(),
+                        eastLittleEndianBytes(), List.of(
+                                "readings.set[0].name = SPACECRA",
+                                "readings.set[0].operation = 12",
+                                "readings.set[0].process = IDLE",
+                                "readings.set[0].count =   123",
+                                "readings.set[0].distance = 1.5",
+                                "readings.set[0].height = -2",
+                                "readings.set[0].heights[0].element[0] = -200",
+                                "readings.set[0].heights[0].element[1] = -100",
+                                "readings.set[0].heights[1].element[0] = 0",
+                                "readings.set[0].heights[1].element[1] = 100",
+                                "readings.set[0].heights[2].element[0] = 200",
+                                "readings.set[0].heights[2].element[1] = 300")),
                 new Case("CSV template", FormatTemplates.csv().toFormatDescription(),
                         "AB12,32,-45\nXY9,33,215\n".getBytes(StandardCharsets.US_ASCII),
                         List.of("weather_station_readings_csv_example.reading[0].station = AB12",
@@ -489,6 +578,234 @@ class GeneratedDescriptionsMatrixTest {
             header.writeBytes(String.format("%-80s", card).getBytes(StandardCharsets.US_ASCII));
         }
         return header.toByteArray();
+    }
+
+    // ---- EAST descriptions (CCSDS 644.0-B-3), read by EastReader ----
+
+    static FormatDescription eastRecords() {
+        return EastReader.read("""
+                package RECORDS is
+                   type DAY is (MON, TUE, WED, THU, FRI, SAT, SUN);
+                   for DAY'size use 8;
+                   type MONTH is range 1 .. 12;
+                   for MONTH'size use 8;
+                   type YEAR is range 1900 .. 2100;
+                   for YEAR'size use 16;
+                   type NUMBER is range 1 .. 10;
+                   for NUMBER'size use 8;
+                   type SMALL is range 1 .. 10;
+                   for SMALL'size use 8;
+                   type VALUE is digits 5;
+                   for VALUE'size use 32;
+                   type VECTOR is array(NUMBER range <>) of VALUE;
+                   type SECOND_RECORD(THE_NUMBER: NUMBER := 1) is record
+                      THE_YEAR: YEAR;
+                      THE_MEASUREMENT: VECTOR(1 .. THE_NUMBER);
+                      THE_MONTH: MONTH;
+                   end record;
+                   for SECOND_RECORD use record
+                      THE_NUMBER at 0 range 0 .. 7;
+                      THE_YEAR at 0 range 8 .. 23;
+                   end record;
+                   type FOURTH_RECORD (THE_DAY_OF_MONTH: DAY := MON) is record
+                      THE_MONTH: MONTH;
+                      THE_YEAR: YEAR;
+                      case THE_DAY_OF_MONTH is
+                         when MON =>
+                            THE_MEASUREMENT: VALUE;
+                         when TUE .. THU | SAT =>
+                            THE_ALPHA_VALUE: SMALL;
+                            THE_BETA_VALUE: SMALL;
+                         when others =>
+                            null;
+                      end case;
+                   end record;
+                   for FOURTH_RECORD use record
+                      THE_DAY_OF_MONTH at 0 range 0 .. 7;
+                      THE_MONTH at 0 range 8 .. 15;
+                      THE_MEASUREMENT at 0 range 16 .. 47;
+                      THE_ALPHA_VALUE at 0 range 16 .. 23;
+                      THE_BETA_VALUE at 0 range 24 .. 31;
+                      THE_YEAR at 0 range 48 .. 63;
+                   end record;
+                   for FOURTH_RECORD'size use 64;
+                   SECOND : SECOND_RECORD;
+                   FOURTH : FOURTH_RECORD;
+                end RECORDS;
+                package RECORDS_PHYSICAL is
+                end RECORDS_PHYSICAL;
+                """);
+    }
+
+    /** Three sets: a Monday measurement, a Tuesday's alpha and beta values, and a Sunday with nothing. */
+    static byte[] eastRecordsBytes() {
+        ByteBuffer b = ByteBuffer.allocate(3 * 8 + 12 + 8 + 8);
+        b.put((byte) 2).putShort((short) 2024).putFloat(2.5f).putFloat(-1f).put((byte) 6);
+        b.put((byte) 0).put((byte) 7).putFloat(3.25f).putShort((short) 2000);
+        b.put((byte) 1).putShort((short) 1999).putFloat(4f).put((byte) 12);
+        b.put((byte) 1).put((byte) 8).put((byte) 3).put((byte) 4).putShort((short) 0).putShort((short) 1999);
+        b.put((byte) 1).putShort((short) 1998).putFloat(0.5f).put((byte) 1);
+        b.put((byte) 6).put((byte) 9).putInt(0).putShort((short) 1998);
+        return b.array();
+    }
+
+    static FormatDescription eastPacket() {
+        return EastReader.read("""
+                package PACKET_DESCRIPTION is
+                   type VERSION is (VERSION_1, VERSION_2);
+                   for VERSION'size use 3;
+                   type PACKET_TYPE is (TELEMETRY , TELECOMMAND);
+                   for PACKET_TYPE'size use 1;
+                   type PRESENCE_FLAG is (ABSENT , PRESENT);
+                   for PRESENCE_FLAG'size use 1;
+                   type FLAG_OCTET is (ABSENT_FLAG, PRESENT_FLAG);
+                   for FLAG_OCTET'size use 8;
+                   type PROCESS_IDENTIFICATION is range 0 .. 2047;
+                   for PROCESS_IDENTIFICATION'size use 11;
+                   type PACKET_IDENTIFICATION_TYPE is record
+                      VERSION_NUMBER: VERSION;
+                      TYPE_ID: PACKET_TYPE;
+                      SECONDARY_HEADER_FLAG: PRESENCE_FLAG;
+                      APPLICATION_PROCESS_ID: PROCESS_IDENTIFICATION;
+                   end record;
+                   type STATUS is (CONTINUATION_SEGMENT, FIRST_SEGMENT, LAST_SEGMENT, UNSEGMENTED_PACKET);
+                   for STATUS'size use 2;
+                   type COUNTER is range 0 .. 16383;
+                   for COUNTER'size use 14;
+                   type PACKET_SEQUENCE_CONTROL_TYPE is record
+                      SEGMENTATION_FLAG: STATUS;
+                      SOURCE_SEQUENCE_COUNT: COUNTER;
+                   end record;
+                   type NUMBER is range 0 .. 65535;
+                   for NUMBER'size use 16;
+                   type OCTET is range 0 .. 255;
+                   for OCTET'size use 8;
+                   type DATA_ARRAY is array (NUMBER range <>) of OCTET;
+                   type SECONDARY_HEADER_TYPE is array (1 .. 4) of OCTET;
+                   type PRIMARY_HEADER_TYPE is record
+                      PACKET_IDENTIFICATION: PACKET_IDENTIFICATION_TYPE;
+                      PACKET_SEQUENCE_CONTROL: PACKET_SEQUENCE_CONTROL_TYPE;
+                      SOURCE_DATA_LENGTH: NUMBER;
+                   end record;
+                   type PACKET_FORMAT_TYPE(
+                      VIRTUAL_SECONDARY_HEADER_FLAG: FLAG_OCTET := PRESENT_FLAG;
+                      VIRTUAL_SOURCE_DATA_LENGTH: NUMBER := 256)
+                   is record
+                      PRIMARY_HEADER: PRIMARY_HEADER_TYPE;
+                      case VIRTUAL_SECONDARY_HEADER_FLAG is
+                         when ABSENT_FLAG =>
+                            SOURCE_DATA_0: DATA_ARRAY (1 .. VIRTUAL_SOURCE_DATA_LENGTH);
+                         when PRESENT_FLAG =>
+                            SECONDARY_HEADER: SECONDARY_HEADER_TYPE;
+                            SOURCE_DATA_1: DATA_ARRAY (1 .. VIRTUAL_SOURCE_DATA_LENGTH);
+                      end case;
+                   end record;
+                   FLAG : FLAG_OCTET;
+                   LENGTH : NUMBER;
+                   PACKET : PACKET_FORMAT_TYPE;
+                   PACKET.VIRTUAL_SECONDARY_HEADER_FLAG : virtual FLAG_OCTET := FLAG;
+                   PACKET.VIRTUAL_SOURCE_DATA_LENGTH : virtual NUMBER := LENGTH;
+                end PACKET_DESCRIPTION;
+                package PACKET_PHYSICAL is
+                   type BIT_ORDER is (HIGH_ORDER_FIRST, LOW_ORDER_FIRST);
+                   OCTET_STORAGE: constant BIT_ORDER := HIGH_ORDER_FIRST;
+                end PACKET_PHYSICAL;
+                """);
+    }
+
+    /** A packet with a secondary header and 3 bytes of data, then one without and with 1 byte. */
+    static byte[] eastPacketBytes() {
+        return new byte[] {1, 0, 3, 0x09, 0x23, (byte) 0xC0, 0x05, 0, 3, 0x0A, 0x0B, 0x0C, 0x0D, 1, 2, 3,
+                0, 0, 1, 0x10, 0x01, 0x40, 0x06, 0, 1, 9};
+    }
+
+    static FormatDescription eastWeeks() {
+        return EastReader.read("""
+                package WEEKS is
+                   type A_RESULT is range 0 .. 100;
+                   for A_RESULT'size use 8;
+                   type RESULTS (VIRTUAL_BONUS_FLAG : BOOLEAN := TRUE) is record
+                      RESULT_1 : A_RESULT;
+                      RESULT_2 : A_RESULT;
+                      case VIRTUAL_BONUS_FLAG is
+                         when TRUE => BONUS : A_RESULT;
+                         when FALSE => null;
+                      end case;
+                   end record;
+                   PREVIOUS_WEEK : A_RESULT;
+                   THIS_WEEK : RESULTS;
+                   END_OF_WEEKS : constant EOF;
+                   THIS_WEEK.VIRTUAL_BONUS_FLAG : virtual BOOLEAN
+                      := (THIS_WEEK.RESULT_2 - THIS_WEEK.RESULT_1) > PREVIOUS_WEEK;
+                end WEEKS;
+                package WEEKS_PHYSICAL is
+                end WEEKS_PHYSICAL;
+                """);
+    }
+
+    static FormatDescription eastLittleEndian() {
+        return EastReader.read("""
+                package READINGS is
+                   type CODE is (ADD , SUB , MUL);
+                   for CODE use (ADD => 2#1#, SUB => 2#10#, MUL => 16#0C#);
+                   for CODE'size use 8;
+                   type PROCESS_IDENTIFICATION is (WORKING, IDLE);
+                   for PROCESS_IDENTIFICATION'size use 56;
+                   type COUNTER is range -1 .. 16383;
+                   for COUNTER'size use 40;
+                   type KILOMETERS is digits 5;
+                   for KILOMETERS'size use 32;
+                   type LEVEL is range -32768 .. 32767;
+                   for LEVEL'size use 16;
+                   type OCTET is range 0 .. 255;
+                   for OCTET'size use 8;
+                   type GRID is array (OCTET range <>, OCTET range <>) of LEVEL;
+                   NAME : STRING (1 .. 8);
+                   OPERATION : CODE;
+                   PROCESS : PROCESS_IDENTIFICATION;
+                   COUNT : COUNTER;
+                   DISTANCE : KILOMETERS;
+                   HEIGHT : LEVEL;
+                   HEIGHTS : GRID (1 .. 2, 1 .. 3);
+                end READINGS;
+                package READINGS_PHYSICAL is
+                   type BIT_ORDER is ( HIGH_ORDER_FIRST, LOW_ORDER_FIRST);
+                   OCTET_STORAGE: constant BIT_ORDER := LOW_ORDER_FIRST;
+                   Binary_Representation_01: constant INTEGER_PHYSICAL_DESCRIPTION :=
+                      (NUMBER_OF_SUBFIELDS => 1, COMPLEMENT => TWOS_COMPLEMENT, LOCATION => (1 => (0,15)));
+                   Real_Representation: constant REAL_PHYSICAL_DESCRIPTION :=
+                      (NUMBER_OF_SUBFIELDS_IN_EXPONENT => 2, NUMBER_OF_SUBFIELDS_IN_MANTISSA => 3,
+                       CONVENTION_USED => FCSTC000, SIGN_BIT_NUMBER => 24, COMPLEMENT => SIGN_AND_MAGNITUDE,
+                       EXPONENT_BASE => 2, BIAS => 127,
+                       LOCATION_OF_EXPONENT => ( 1 => (25,31), 2 => (16,16)),
+                       LOCATION_OF_MANTISSA => ( 1 => (17,23), 2 => (8,15), 3 => (0,7)));
+                   ASCII_Rep_01: constant ASCII_ENUMERATION_PHYSICAL_DESCRIPTION :=
+                      (NUMBER_OF_OCCURRENCES => 2, NUMBER_OF_CHARACTERS => 7, REPRESENTATION => ("WORKING" , "IDLE"));
+                   ASCII_Rep_02: constant ASCII_NUMERIC_PHYSICAL_DESCRIPTION := (NUMBER_OF_CHARACTERS => 5);
+                   type BASIC_TYPE_NAMES is (USER_TYPE_LEVEL, USER_TYPE_KILOMETERS,
+                                             USER_TYPE_PROCESS_IDENTIFICATION, USER_TYPE_COUNTER);
+                   type RELATION(choice: BASIC_TYPE_NAMES) is record
+                      case choice is
+                         when USER_TYPE_LEVEL => PHYS_1: INTEGER_PHYSICAL_DESCRIPTION := Binary_Representation_01;
+                         when USER_TYPE_KILOMETERS => PHYS_2: REAL_PHYSICAL_DESCRIPTION := Real_Representation;
+                         when USER_TYPE_PROCESS_IDENTIFICATION =>
+                            PHYS_3: ASCII_ENUMERATION_PHYSICAL_DESCRIPTION := ASCII_Rep_01;
+                         when USER_TYPE_COUNTER => PHYS_4: ASCII_NUMERIC_PHYSICAL_DESCRIPTION := ASCII_Rep_02;
+                      end case;
+                   end record;
+                end READINGS_PHYSICAL;
+                """);
+    }
+
+    static byte[] eastLittleEndianBytes() {
+        ByteBuffer b = ByteBuffer.allocate(8 + 1 + 7 + 5 + 4 + 2 + 12).order(java.nio.ByteOrder.LITTLE_ENDIAN);
+        b.put("SPACECRA".getBytes(StandardCharsets.US_ASCII)).put((byte) 12)
+                .put("IDLE   ".getBytes(StandardCharsets.US_ASCII)).put("  123".getBytes(StandardCharsets.US_ASCII))
+                .putFloat(1.5f).putShort((short) -2);
+        for (int i = 1; i <= 6; i++) {
+            b.putShort((short) (i * 100 - 300));
+        }
+        return b.array();
     }
 
     private static FieldDescription field(String name, PrimitiveType type, Expression length) {

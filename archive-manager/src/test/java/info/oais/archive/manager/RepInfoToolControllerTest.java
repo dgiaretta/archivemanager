@@ -269,6 +269,53 @@ class RepInfoToolControllerTest {
     }
 
     @Test
+    void readsAnEastDescriptionAndTestsItAgainstASample() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
+        String east = """
+                package WEEKS is
+                   type A_RESULT is range 0 .. 100;
+                   for A_RESULT'size use 8;
+                   type RESULTS (VIRTUAL_BONUS_FLAG : BOOLEAN := TRUE) is record
+                      RESULT_1 : A_RESULT;
+                      RESULT_2 : A_RESULT;
+                      case VIRTUAL_BONUS_FLAG is
+                         when TRUE => BONUS : A_RESULT;
+                         when FALSE => null;
+                      end case;
+                   end record;
+                   PREVIOUS_WEEK : A_RESULT;
+                   THIS_WEEK : RESULTS;
+                   END_OF_WEEKS : constant EOF;
+                   THIS_WEEK.VIRTUAL_BONUS_FLAG : virtual BOOLEAN
+                      := (THIS_WEEK.RESULT_2 - THIS_WEEK.RESULT_1) > PREVIOUS_WEEK;
+                end WEEKS;
+                package WEEKS_PHYSICAL is
+                end WEEKS_PHYSICAL;
+                """;
+        mockMvc.perform(multipart("/repinfo-tools/start-east")
+                        .file(new MockMultipartFile("file", "weeks.east", "text/plain",
+                                east.getBytes(StandardCharsets.US_ASCII)))
+                        .session(session))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(get("/repinfo-tools/edit").session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Read from an EAST Data Description Record")))
+                .andExpect(content().string(containsString("when_true")));
+        mockMvc.perform(multipart("/repinfo-tools/test-dfdl")
+                        .file(new MockMultipartFile("sample", "weeks.bin", "application/octet-stream",
+                                new byte[] {5, 10, 20, 7, 10, 12}))
+                        .session(session))
+                .andExpect(content().string(containsString("decoded successfully")));
+
+        mockMvc.perform(post("/repinfo-tools/start-east").param("text", "package L is\n  X : NOWHERE;\nend L;")
+                        .session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Line 2: The type &#39;NOWHERE&#39; isn&#39;t declared")))
+                .andExpect(content().string(containsString("X : NOWHERE;")));
+    }
+
+    @Test
     void choosingDfdlOnlyOffersItsFeaturesAndGeneratesOnlyDfdl() throws Exception {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
