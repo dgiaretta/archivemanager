@@ -22,7 +22,12 @@ import info.oais.archive.manager.service.format.SampleDecodeResult;
 import info.oais.archive.manager.service.format.FormatIdentifiers;
 import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.infomodel.structure.description.Descriptions;
-import info.oais.infomodel.structure.description.EastReader;
+import info.oais.infomodel.structure.east.EastException;
+import info.oais.infomodel.structure.east.EastReader;
+import info.oais.infomodel.structure.east.EastStructureRepInfo;
+import info.oais.infomodel.structure.east.EastFormatSpecification;
+import info.oais.infomodel.structure.east.EastWriter;
+import info.oais.archive.manager.service.format.EastSampleRunner;
 import info.oais.infomodel.structure.description.ChoiceDescription;
 import info.oais.infomodel.structure.description.DescriptionLanguage;
 import info.oais.infomodel.structure.description.DescriptionValidator;
@@ -85,11 +90,13 @@ public class RepInfoToolController {
     private final DrbPythonSampleRunner drbPythonSampleRunner;
     private final DrbSampleRunner drbSampleRunner;
     private final KaitaiSampleRunner kaitaiSampleRunner;
+    private final EastSampleRunner eastSampleRunner;
 
     public RepInfoToolController(ArchiveService archive, KaitaiGenerator kaitaiGenerator, DfdlGenerator dfdlGenerator,
                                   DrbGenerator drbGenerator, FormatDescriptionRdfService rdfService,
                                   DfdlSampleRunner dfdlSampleRunner, DrbPythonSampleRunner drbPythonSampleRunner,
-                                  DrbSampleRunner drbSampleRunner, KaitaiSampleRunner kaitaiSampleRunner) {
+                                  DrbSampleRunner drbSampleRunner, KaitaiSampleRunner kaitaiSampleRunner,
+                                  EastSampleRunner eastSampleRunner) {
         this.archive = archive;
         this.kaitaiGenerator = kaitaiGenerator;
         this.dfdlGenerator = dfdlGenerator;
@@ -99,6 +106,7 @@ public class RepInfoToolController {
         this.drbPythonSampleRunner = drbPythonSampleRunner;
         this.drbSampleRunner = drbSampleRunner;
         this.kaitaiSampleRunner = kaitaiSampleRunner;
+        this.eastSampleRunner = eastSampleRunner;
     }
 
     @GetMapping
@@ -116,7 +124,7 @@ public class RepInfoToolController {
             case "hdf5" -> FormatTemplates.hdf5();
             case "telemetry" -> FormatTemplates.telemetry();
             case "csv" -> FormatTemplates.csv();
-            case "hand-kaitai", "hand-dfdl", "hand-drb" -> {
+            case "hand-kaitai", "hand-dfdl", "hand-drb", "hand-east" -> {
                 FormatDefinition d = new FormatDefinition();
                 d.setName("New format");
                 d.setKind(FormatDefinitionKind.BYTE_LAYOUT);
@@ -146,9 +154,13 @@ public class RepInfoToolController {
 
     /**
      * Starts from a Data Description Record in EAST (CCSDS 644.0-B-3),
-     * uploaded or pasted: its logical and physical packages become the
-     * element tree, for the languages that can express everything it uses.
-     * If it can't be read, the start page says where and why.
+     * uploaded or pasted. It's kept as written, as the EAST description
+     * (tested with the EAST interpreter, downloaded and saved as it is), and
+     * its logical and physical packages become the element tree, for the
+     * other languages that can express everything it uses. If the tree can't
+     * express it - markers, reals in other conventions, ... - it's kept all
+     * the same, with an empty tree and a note saying why. If it isn't EAST the
+     * interpreter can use, the start page says where and why.
      */
     @PostMapping("/start-east")
     public String startEast(@RequestParam(required = false) MultipartFile file,
@@ -156,31 +168,55 @@ public class RepInfoToolController {
             throws IOException {
         String east = file != null && !file.isEmpty() ? new String(file.getBytes(), StandardCharsets.UTF_8)
                 : text == null ? "" : text;
-        east = east.startsWith("﻿") ? east.substring(1) : east;
-        FormatDescription format;
+        east = (east.startsWith("﻿") ? east.substring(1) : east).replace("\r\n", "\n");
         try {
-            format = EastReader.read(east);
-        } catch (EastReader.EastException e) {
+            new EastStructureRepInfo(EastFormatSpecification.ofText(east));
+        } catch (EastException e) {
             model.addAttribute("eastError", e.getMessage());
             model.addAttribute("eastText", east);
             return start(session, model);
         }
         FormatDefinition def = new FormatDefinition();
-        def.setName(format.name());
-        def.setNotes(format.notes());
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
-        def.setDefaultByteOrder(format.defaultByteOrder());
-        def.setRoot(new RecordDescription(FormatDefinition.ROOT_ID, format.root().name(), format.root().children(),
-                null, Occurrence.ONCE, Semantics.NONE));
-        java.util.Set<DescriptionLanguage> targets = java.util.EnumSet.noneOf(DescriptionLanguage.class);
-        for (DescriptionLanguage language : DescriptionLanguage.values()) {
-            if (Feature.unsupported(format, language).isEmpty()) {
-                targets.add(language);
+        try {
+            FormatDescription format = EastReader.read(east);
+            def.setName(format.name());
+            def.setNotes(format.notes());
+            def.setDefaultByteOrder(format.defaultByteOrder());
+            def.setRoot(new RecordDescription(FormatDefinition.ROOT_ID, format.root().name(),
+                    format.root().children(), null, Occurrence.ONCE, Semantics.NONE));
+            java.util.Set<DescriptionLanguage> targets = java.util.EnumSet.noneOf(DescriptionLanguage.class);
+            for (DescriptionLanguage language : DescriptionLanguage.values()) {
+                if (Feature.unsupported(format, language).isEmpty()) {
+                    targets.add(language);
+                }
             }
+            def.setTargets(targets);
+            def.setHandWritten(DescriptionLanguage.EAST, east, generatedOrNull(() -> eastGenerate(def)));
+        } catch (EastException e) {
+            java.util.regex.Matcher name = java.util.regex.Pattern.compile("(?i)\\bpackage\\s+([A-Za-z][A-Za-z0-9_]*)")
+                    .matcher(east);
+            def.setName(name.find() ? name.group(1) : "EAST description");
+            def.setNotes("Read from an EAST Data Description Record (CCSDS 644.0-B-3). The element tree can't "
+                    + "express all of it (" + e.getMessage() + "), so it's kept as written and tested with the EAST "
+                    + "interpreter; descriptions in other languages need an element tree, built in the editor, or "
+                    + "writing by hand.");
+            def.setTargets(java.util.EnumSet.of(DescriptionLanguage.EAST));
+            def.setHandWritten(DescriptionLanguage.EAST, east, null);
         }
-        def.setTargets(targets);
         session.setAttribute(SESSION_KEY, def);
         return "redirect:/repinfo-tools/edit";
+    }
+
+    /** The tree written as EAST, or why it can't be, as for the other languages' features. */
+    private static String eastGenerate(FormatDefinition def) {
+        FormatDescription format = def.toFormatDescription();
+        Feature.requireSupported(format, DescriptionLanguage.EAST);
+        try {
+            return EastWriter.write(format);
+        } catch (EastException e) {
+            throw new Feature.UnsupportedFeatureException("EAST can't describe this: " + e.getMessage());
+        }
     }
 
     @PostMapping("/discard")
@@ -570,6 +606,30 @@ public class RepInfoToolController {
         return "repinfo-tools/preview";
     }
 
+    /**
+     * Same as {@link #testDfdl}, but reads the sample with the EAST
+     * interpreter (see {@link EastSampleRunner}), showing the tree as EAST
+     * gives it.
+     */
+    @PostMapping("/test-east")
+    public String testEast(@RequestParam("sample") MultipartFile sample, HttpSession session, Model model)
+            throws IOException {
+        FormatDefinition def = draft(session);
+        if (def == null) {
+            return "redirect:/repinfo-tools";
+        }
+        populatePreview(def, model);
+        String east = (String) model.getAttribute("east");
+        if (east == null) {
+            return "redirect:/repinfo-tools/preview";
+        }
+        SampleDecodeResult result = sample.isEmpty()
+                ? SampleDecodeResult.failure(EMPTY_SAMPLE)
+                : eastSampleRunner.run(east, sample.getBytes());
+        addSampleResult(model, "eastTest", result, sample);
+        return "repinfo-tools/preview";
+    }
+
     private static final String EMPTY_SAMPLE = "Choose a non-empty sample file to test against.";
 
     private static final String WRITTEN_KEY = "repinfo-tools-written";
@@ -751,6 +811,9 @@ public class RepInfoToolController {
         model.addAttribute("drbPythonUnavailable", drbPythonSampleRunner.notAvailableMessage());
         model.addAttribute("drbJava", effective(def, DescriptionLanguage.DRB, "drbJava", notGenerated, byHand, outOfDate,
                 () -> drbGenerator.generate(def, DrbTarget.JAVA)));
+        model.addAttribute("east", def.getKind() == FormatDefinitionKind.BYTE_LAYOUT
+                ? effective(def, DescriptionLanguage.EAST, "east", notGenerated, byHand, outOfDate, () -> eastGenerate(def))
+                : null);
         model.addAttribute("notGenerated", notGenerated);
         model.addAttribute("byHand", byHand);
         model.addAttribute("outOfDate", outOfDate);
@@ -857,6 +920,14 @@ public class RepInfoToolController {
                 filename = safeFileName(def.getName()) + (sdf ? ".drb.xsd" : ".java");
                 mediaType = sdf ? MediaType.APPLICATION_XML : MediaType.TEXT_PLAIN;
             }
+            case "east" -> {
+                if (def.getKind() != FormatDefinitionKind.BYTE_LAYOUT) {
+                    return ResponseEntity.notFound().build();
+                }
+                text = def.handWritten(DescriptionLanguage.EAST).orElseGet(() -> eastGenerate(def));
+                filename = safeFileName(def.getName()) + ".east";
+                mediaType = MediaType.TEXT_PLAIN;
+            }
             default -> {
                 return ResponseEntity.notFound().build();
             }
@@ -945,6 +1016,12 @@ public class RepInfoToolController {
                                 def.getKind() == FormatDefinitionKind.BYTE_LAYOUT
                                         ? def.handWritten(DescriptionLanguage.DRB).orElseGet(() -> drbGenerator.generate(def, DrbTarget.JAVA))
                                         : drbGenerator.generate(def, DrbTarget.JAVA));
+                        case "east" -> {
+                            if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
+                                generated.put(savedLabel(def, DescriptionLanguage.EAST, "EAST"),
+                                        def.handWritten(DescriptionLanguage.EAST).orElseGet(() -> eastGenerate(def)));
+                            }
+                        }
                         default -> { }
                     }
                 } catch (Feature.UnsupportedFeatureException e) {
@@ -981,6 +1058,7 @@ public class RepInfoToolController {
             case "dfdl" -> DescriptionLanguage.DFDL;
             case "drb" -> DescriptionLanguage.DRB;
             case "drb-python" -> DescriptionLanguage.DRB_PYTHON;
+            case "east" -> DescriptionLanguage.EAST;
             default -> throw new IllegalArgumentException("Descriptions in '" + path + "' can't be written by hand.");
         };
     }
@@ -991,6 +1069,7 @@ public class RepInfoToolController {
             case DFDL -> "dfdl";
             case DRB -> "drb";
             case DRB_PYTHON -> "drb-python";
+            case EAST -> "east";
         };
     }
 
@@ -1003,6 +1082,7 @@ public class RepInfoToolController {
         return generatedOrNull(() -> switch (language) {
             case KAITAI -> kaitaiGenerator.generate(def);
             case DFDL -> dfdlGenerator.generate(def);
+            case EAST -> eastGenerate(def);
             default -> drbGenerator.generate(def, DrbTarget.JAVA);
         });
     }

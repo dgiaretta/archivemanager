@@ -32,6 +32,7 @@
     <module>oais-structure-dfdl</module>
     <module>oais-structure-kaitai</module>
     <module>oais-structure-drb</module>
+    <module>oais-structure-east</module>
     <module>oais-structure-demo</module>
     <module>oais-structure-topcat</module>
     <module>oais-structure-image</module>
@@ -112,6 +113,11 @@
       <dependency>
         <groupId>info.oais.infomodel</groupId>
         <artifactId>oais-structure-drb</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>info.oais.infomodel</groupId>
+        <artifactId>oais-structure-east</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

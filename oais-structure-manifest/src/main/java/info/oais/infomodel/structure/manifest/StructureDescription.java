@@ -23,6 +23,11 @@ public record StructureDescription(String iri, String language, URI location, St
 	public static final String DRB_SDF = "DRB SDF";
 	/** No description: GAEL's Java DRB recognises the format itself, from the data file's extension. */
 	public static final String DRB = "DRB";
+	/**
+	 * An EAST Data Description Record (CCSDS 644.0-B-3), applied by the EAST interpreter
+	 * ({@code oais-structure-east}). Not among {@link #LANGUAGES}: the viewers don't run it yet.
+	 */
+	public static final String EAST = "EAST";
 
 	/** The languages this manifest format knows, in a sensible default order of preference. */
 	public static final List<String> LANGUAGES = List.of(DFDL, DRB_SDF, KAITAI, DRB);

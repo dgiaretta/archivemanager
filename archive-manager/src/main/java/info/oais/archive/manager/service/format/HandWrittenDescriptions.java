@@ -120,7 +120,16 @@ public final class HandWrittenDescriptions {
                     "prepare() decrypts the file with AES-256 in CTR mode, the key coming from the server's "
                             + "environment, and restore() encrypts it again when it's written back. Needs the "
                             + "cryptography package next to drb-python.",
-                    "drb-python-aes.py"));
+                    "drb-python-aes.py"),
+            new Example("east-markers", DescriptionLanguage.EAST, "Repetition ended by a marker",
+                    "Readings repeated until the string END, then names of characters each ended by a carriage "
+                            + "return: what the element tree can't express, but the EAST interpreter reads.",
+                    "east-markers.east"),
+            new Example("east-vax", DescriptionLanguage.EAST, "VAX reals and ones' complement",
+                    "Reals in DEC VAX F_Floating (the convention FCSTC001 of CCSDS 646.0-G-1) and integers in "
+                            + "ones' complement, as written on a VAX: little-endian, bit fields least significant "
+                            + "bit first. The EAST interpreter reads every convention of CCSDS 646.0-G-1.",
+                    "east-vax.east"));
 
     /** A new drb-python add-in: every hook, documented, none doing anything yet. */
     private static final String DRB_PYTHON_SKELETON = """
@@ -184,6 +193,14 @@ public final class HandWrittenDescriptions {
         }
         if (language == DescriptionLanguage.KAITAI) {
             checkKaitai(text, problems);
+        } else if (language == DescriptionLanguage.EAST) {
+            try {
+                // EAST describes data and nothing else: whatever the interpreter accepts can be used.
+                new info.oais.infomodel.structure.east.EastStructureRepInfo(
+                        info.oais.infomodel.structure.east.EastFormatSpecification.ofText(text));
+            } catch (info.oais.infomodel.structure.east.EastException e) {
+                problems.add(e.getMessage());
+            }
         } else if (language != DescriptionLanguage.DRB_PYTHON) {
             checkXml(language, text, problems);
         }

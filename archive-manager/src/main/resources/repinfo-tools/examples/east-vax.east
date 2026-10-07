@@ -1,0 +1,68 @@
+-- Records written on a VAX: a 4-bit and a 12-bit field packed least
+-- significant bit first, a count in ones' complement, and reals in DEC VAX
+-- F_Floating (CCSDS 646.0-G-1 convention FCSTC001), repeated to the end.
+package VAX_RECORDS is
+   east_version : constant STRING := "3.0";
+   type CHANNEL is range 0 .. 15;
+   for CHANNEL'size use 4;
+   type SAMPLE_COUNT is range 0 .. 4095;
+   for SAMPLE_COUNT'size use 12;
+   type OFFSET is range -32767 .. 32767;
+   for OFFSET'size use 16;
+   type VOLTAGE is digits 6;
+   for VOLTAGE'size use 32;
+   type MEASUREMENT is record
+      SOURCE : CHANNEL;
+      SAMPLES : SAMPLE_COUNT;
+      ZERO_POINT : OFFSET;
+      LEVEL : VOLTAGE;
+   end record;
+   ENTRY_1 : MEASUREMENT;
+   END_OF_ENTRIES : constant EOF;
+end VAX_RECORDS;
+
+package VAX_RECORDS_PHYSICAL is
+   type BIT_ORDER is (HIGH_ORDER_FIRST, LOW_ORDER_FIRST);
+   OCTET_STORAGE : constant BIT_ORDER := LOW_ORDER_FIRST;
+   type NATURAL_NUMBER is range 0 .. 65535;
+   type LOCATION_OF_SUBFIELD is record
+      BEGINNING_AT_BIT_NUMBER : NATURAL_NUMBER;
+      ENDING_AT_BIT_NUMBER : NATURAL_NUMBER;
+   end record;
+   MAXIMUM_NUMBER_OF_SUBFIELDS : constant := 255;
+   type SUBFIELD_NUMBER is range 1 .. MAXIMUM_NUMBER_OF_SUBFIELDS;
+   type LOCATION_OF_FIELD is array (SUBFIELD_NUMBER range <>) of LOCATION_OF_SUBFIELD;
+   type SIGN_CONVENTION is (UNSIGNED, SIGN_AND_MAGNITUDE, ONES_COMPLEMENT, TWOS_COMPLEMENT);
+   type LIST_OF_RECOGNIZED_CONVENTIONS is (FCSTC000, FCSTC001);
+   type INTEGER_PHYSICAL_DESCRIPTION (NUMBER_OF_SUBFIELDS : SUBFIELD_NUMBER := 1) is record
+      COMPLEMENT : SIGN_CONVENTION;
+      LOCATION : LOCATION_OF_FIELD (1 .. NUMBER_OF_SUBFIELDS);
+   end record;
+   type REAL_PHYSICAL_DESCRIPTION (NUMBER_OF_SUBFIELDS_IN_EXPONENT : SUBFIELD_NUMBER := 1;
+         NUMBER_OF_SUBFIELDS_IN_MANTISSA : SUBFIELD_NUMBER := 1) is record
+      CONVENTION_USED : LIST_OF_RECOGNIZED_CONVENTIONS;
+      SIGN_BIT_NUMBER : NATURAL_NUMBER;
+      COMPLEMENT : SIGN_CONVENTION;
+      EXPONENT_BASE : NATURAL_NUMBER;
+      BIAS : NATURAL_NUMBER;
+      LOCATION_OF_EXPONENT : LOCATION_OF_FIELD (1 .. NUMBER_OF_SUBFIELDS_IN_EXPONENT);
+      LOCATION_OF_MANTISSA : LOCATION_OF_FIELD (1 .. NUMBER_OF_SUBFIELDS_IN_MANTISSA);
+   end record;
+   -- A 16-bit integer stored little-endian, in ones' complement.
+   Offset_Representation : constant INTEGER_PHYSICAL_DESCRIPTION :=
+      (NUMBER_OF_SUBFIELDS => 2, COMPLEMENT => ONES_COMPLEMENT, LOCATION => (1 => (8, 15), 2 => (0, 7)));
+   -- VAX F_Floating, as CCSDS 646.0-G-1 gives it.
+   Voltage_Representation : constant REAL_PHYSICAL_DESCRIPTION :=
+      (NUMBER_OF_SUBFIELDS_IN_EXPONENT => 2, NUMBER_OF_SUBFIELDS_IN_MANTISSA => 3,
+       CONVENTION_USED => FCSTC001, SIGN_BIT_NUMBER => 8, COMPLEMENT => SIGN_AND_MAGNITUDE,
+       EXPONENT_BASE => 2, BIAS => 128,
+       LOCATION_OF_EXPONENT => (1 => (9, 15), 2 => (0, 0)),
+       LOCATION_OF_MANTISSA => (1 => (1, 7), 2 => (24, 31), 3 => (16, 23)));
+   type BASIC_TYPE_NAMES is (USER_TYPE_OFFSET, USER_TYPE_VOLTAGE);
+   type RELATION (CHOICE : BASIC_TYPE_NAMES) is record
+      case CHOICE is
+         when USER_TYPE_OFFSET => PHYS_OFFSET : INTEGER_PHYSICAL_DESCRIPTION := Offset_Representation;
+         when USER_TYPE_VOLTAGE => PHYS_VOLTAGE : REAL_PHYSICAL_DESCRIPTION := Voltage_Representation;
+      end case;
+   end record;
+end VAX_RECORDS_PHYSICAL;

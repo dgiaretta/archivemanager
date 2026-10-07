@@ -37,6 +37,7 @@ The repository contains a vendored `oaiscore` module plus three adapter modules:
 - `oais-structure-dfdl` — Apache Daffodil-backed adapter
 - `oais-structure-kaitai` — Kaitai Struct-backed adapter
 - `oais-structure-drb` — GAEL Java DRB-backed adapter (DRB 2.5.13, LGPL v3)
+- `oais-structure-east` — the CCSDS data description language EAST: reader, writer and interpreter
 - `oais-structure-demo` — runnable example
 
 ## What this project does
@@ -186,6 +187,14 @@ i.e. that the Representation Information is enough to re-create the file from it
   resulting tree into `StructureNode`s. It reaches DRB by reflection, so it compiles without it;
   DRB 2.5.13 (LGPL v3, not on Maven Central) is served from `third-party/maven-repo`. See
   [oais-structure-drb/README-DRB.md](oais-structure-drb/README-DRB.md).
+
+- `oais-structure-east`  
+  The CCSDS data description language EAST (CCSDS 644.0-B-3), with no third-party dependencies:
+  `EastReader` reads an EAST Data Description Record into the engine-neutral description model,
+  `EastWriter` writes one from it, and `EastStructureRepInfo` interprets data with one directly - its
+  markers, bit orders, integers in subfields, sign conventions and the real-number conventions of
+  CCSDS 646.0-G-1 (IEEE 754, VAX, MIL-STD-1750A, CDC, IBM). See
+  [oais-structure-east/README-EAST.md](oais-structure-east/README-EAST.md).
 
 - `oais-structure-demo`  
   Demonstrates how the adapters plug into the OAIS model and produce executable structure information

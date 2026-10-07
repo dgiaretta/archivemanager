@@ -6,7 +6,7 @@
 <main class="container">
     <h1>RepInfo Tools</h1>
     <p class="muted">
-        Build a Kaitai Struct (.ksy), DFDL (.dfdl.xsd), and/or DRB (SDF schema or drb-python driver) description for a
+        Build a Kaitai Struct (.ksy), DFDL (.dfdl.xsd), DRB (SDF schema or drb-python driver) and/or EAST (.east) description for a
         scientific data format, and give each field a semantic name, a definition, and units --
         then save it into the archive as real OAIS Representation Information: Structure
         Representation Information for the byte/logical layout, and Semantic Representation
@@ -67,9 +67,10 @@
     <h2 id="east">Or read a description in EAST</h2>
     <p class="muted">
         A Data Description Record in the CCSDS data description language EAST (CCSDS 644.0-B-3): its logical
-        package and its physical package. Its records, arrays, enumerations and variants become the element tree,
-        with each enumeration's literals as the meanings of its codes, so Kaitai Struct, DFDL and DRB descriptions
-        can be generated from it and tested against sample data.
+        package and its physical package. It's kept as written, and tested with the EAST interpreter. Its records,
+        arrays, enumerations and variants also become the element tree, with each enumeration's literals as the
+        meanings of its codes, so Kaitai Struct, DFDL and DRB descriptions can be generated from it and tested
+        against sample data too - when the tree can express it; if not, it's kept as EAST only.
     </p>
     <div class="notice error" th:if="${eastError}">
         <strong>The EAST description couldn't be read.</strong> <span th:text="${eastError}">Line 3: ...</span>
@@ -107,6 +108,12 @@
             <h3>DRB SDF schema</h3>
             <p class="muted">Binary and delimited text for GAEL's Java DRB.</p>
             <button type="submit">Write a DRB schema &rarr;</button>
+        </form>
+        <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
+            <input type="hidden" name="template" value="hand-east"/>
+            <h3>EAST</h3>
+            <p class="muted">CCSDS 644.0-B-3: markers, VAX, 1750A and IBM reals, integers in pieces.</p>
+            <button type="submit">Write EAST &rarr;</button>
         </form>
     </div>
 

@@ -16,6 +16,9 @@ public enum SpecificationLanguage {
 	/** CNES/GAEL DRB format descriptors, executed here via DRB's node-factory API. */
 	DRB,
 
+	/** The CCSDS data description language EAST (CCSDS 644.0-B-3), interpreted here directly. */
+	EAST,
+
 	/** Anything else a further adapter module wants to register under. */
 	OTHER
 }

@@ -32,15 +32,17 @@ class FeatureTest {
 				.withText(RecordDescription.TextLayout.CSV.withQuote("\""));
 		FormatDescription f = format(field("flag", PrimitiveType.BITS, new Expression.IntLiteral(1)), csv);
 
-		assertEquals(EnumSet.of(Feature.BIT_FIELDS, Feature.NIL_VALUES, Feature.QUOTED_TEXT), Feature.used(f).keySet());
+		assertEquals(EnumSet.of(Feature.BIT_FIELDS, Feature.DELIMITED_TEXT, Feature.NIL_VALUES, Feature.QUOTED_TEXT),
+				Feature.used(f).keySet());
+		assertTrue(Feature.unsupported(f, DescriptionLanguage.EAST).contains(Feature.DELIMITED_TEXT));
 		assertTrue(Feature.unsupported(f, DescriptionLanguage.DFDL).isEmpty());
 		assertEquals(EnumSet.of(Feature.NIL_VALUES, Feature.QUOTED_TEXT), Feature.unsupported(f, DescriptionLanguage.KAITAI));
-		assertEquals("Kaitai Struct and DFDL", Feature.BIT_FIELDS.languagesText());
+		assertEquals("Kaitai Struct, DFDL and EAST", Feature.BIT_FIELDS.languagesText());
 		assertTrue(Feature.BIT_FIELDS.supportedByAll(EnumSet.of(DescriptionLanguage.DFDL, DescriptionLanguage.KAITAI)));
 		assertFalse(Feature.BIT_FIELDS.supportedByAll(EnumSet.allOf(DescriptionLanguage.class)));
 		Feature.UnsupportedFeatureException e = assertThrows(Feature.UnsupportedFeatureException.class,
 				() -> Feature.requireSupported(f, DescriptionLanguage.DRB));
-		assertTrue(e.getMessage().contains("bit fields (Kaitai Struct and DFDL only)"), e.getMessage());
+		assertTrue(e.getMessage().contains("bit fields (Kaitai Struct, DFDL and EAST only)"), e.getMessage());
 	}
 
 	@Test
@@ -50,10 +52,10 @@ class FeatureTest {
 
 		assertTrue(DescriptionValidator.validate(f, EnumSet.of(DescriptionLanguage.DFDL, DescriptionLanguage.KAITAI)).isEmpty());
 		assertEquals(Set.of(
-				"'flag' uses bit fields, which DRB (Java) can't express (Kaitai Struct and DFDL only). "
-						+ "Remove it, or generate only for Kaitai Struct and DFDL.",
-				"'pad' uses bit fields, which DRB (Java) can't express (Kaitai Struct and DFDL only). "
-						+ "Remove it, or generate only for Kaitai Struct and DFDL."),
+				"'flag' uses bit fields, which DRB (Java) can't express (Kaitai Struct, DFDL and EAST only). "
+						+ "Remove it, or generate only for Kaitai Struct, DFDL and EAST.",
+				"'pad' uses bit fields, which DRB (Java) can't express (Kaitai Struct, DFDL and EAST only). "
+						+ "Remove it, or generate only for Kaitai Struct, DFDL and EAST."),
 				messages(DescriptionValidator.validate(f, EnumSet.of(DescriptionLanguage.DFDL, DescriptionLanguage.DRB))));
 	}
 

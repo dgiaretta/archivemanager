@@ -2,6 +2,7 @@ package info.oais.archive.manager;
 
 import info.oais.archive.manager.service.format.DfdlSampleRunner;
 import info.oais.archive.manager.service.format.DrbSampleRunner;
+import info.oais.archive.manager.service.format.EastSampleRunner;
 import info.oais.archive.manager.service.format.HandWrittenDescriptions;
 import info.oais.archive.manager.service.format.KaitaiSampleRunner;
 import info.oais.archive.manager.service.format.SampleDecodeResult;
@@ -40,6 +41,22 @@ class HandWrittenDescriptionsTest {
         for (HandWrittenDescriptions.Example e : HandWrittenDescriptions.examples()) {
             assertThat(HandWrittenDescriptions.check(e.language(), e.text())).as(e.id()).isEmpty();
         }
+    }
+
+    @Test
+    void eastExamplesReadMarkersAndVaxNumbers() {
+        EastSampleRunner runner = new EastSampleRunner();
+        java.nio.ByteBuffer readings = java.nio.ByteBuffer.allocate(4 + 4 + 3 + 8 + 3 + 1);
+        readings.putFloat(21.5f).putFloat(19.25f).put("END".getBytes(StandardCharsets.US_ASCII))
+                .put("Smith  J".getBytes(StandardCharsets.US_ASCII)).put("Rue".getBytes(StandardCharsets.US_ASCII))
+                .put((byte) 13);
+        assertThat(values(runner.run(example("east-markers"), readings.array())))
+                .contains("21.5", "19.25", "Smith  J", "R", "u", "e");
+
+        // Channel 3 and 100 samples packed least significant bit first; -5 in ones' complement,
+        // little-endian; 1.0 in VAX F_Floating (exponent 129, its two 16-bit words swapped).
+        byte[] vax = {0x43, 0x06, (byte) 0xFA, (byte) 0xFF, (byte) 0x80, 0x40, 0, 0};
+        assertThat(values(runner.run(example("east-vax"), vax))).contains("3", "100", "-5", "1");
     }
 
     @Test

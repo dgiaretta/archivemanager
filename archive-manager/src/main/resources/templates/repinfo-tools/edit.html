@@ -178,7 +178,8 @@
                     Used when the choice's value is
                     <input type="text" name="branchKey" th:value="${form.branchKey}" required/>
                 </label>
-                <th:block th:if="${form.kind == 'record' or form.kind == 'branch'}">
+                <th:block th:if="${(form.kind == 'record' or form.kind == 'branch')
+                                   and (allow.get('DELIMITED_TEXT') or form.text)}">
                     <label class="checkbox">
                         <input type="checkbox" name="text" th:checked="${form.text}"/>
                         Delimited text (e.g. one CSV row): its fields are text between separators

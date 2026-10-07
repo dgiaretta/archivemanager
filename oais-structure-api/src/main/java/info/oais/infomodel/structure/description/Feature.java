@@ -12,13 +12,16 @@ import java.util.stream.Collectors;
 /**
  * A capability beyond the core model that only some description languages
  * can express. The core - fields, records, choices, counts, lengths and
- * conditions computed from earlier fields, plain delimited text - generates
- * for every language; a description that uses a feature can only be
- * generated for the languages listed here.
+ * conditions computed from earlier fields - generates for every language; a
+ * description that uses a feature can only be generated for the languages
+ * listed here.
  */
 public enum Feature {
-	BIT_FIELDS("bit fields", DescriptionLanguage.DFDL, DescriptionLanguage.KAITAI),
-	SIZED_RECORDS("records of a stated size", DescriptionLanguage.DFDL, DescriptionLanguage.KAITAI),
+	BIT_FIELDS("bit fields", DescriptionLanguage.DFDL, DescriptionLanguage.KAITAI, DescriptionLanguage.EAST),
+	SIZED_RECORDS("records of a stated size", DescriptionLanguage.DFDL, DescriptionLanguage.KAITAI,
+			DescriptionLanguage.EAST),
+	DELIMITED_TEXT("delimited text", DescriptionLanguage.DFDL, DescriptionLanguage.KAITAI, DescriptionLanguage.DRB,
+			DescriptionLanguage.DRB_PYTHON),
 	NIL_VALUES("nil values in delimited text", DescriptionLanguage.DFDL),
 	QUOTED_TEXT("quoted values in delimited text", DescriptionLanguage.DFDL),
 	NUMBER_FORMATS("number formats in delimited text", DescriptionLanguage.DFDL),
@@ -82,6 +85,9 @@ public enum Feature {
 			}
 			if (r.offset() != null) {
 				used.add(ABSOLUTE_OFFSETS);
+			}
+			if (r.text() != null) {
+				used.add(DELIMITED_TEXT);
 			}
 			if (r.text() != null && r.text().quote() != null) {
 				used.add(QUOTED_TEXT);

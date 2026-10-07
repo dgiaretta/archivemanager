@@ -165,6 +165,9 @@ public final class FormatTemplates {
         def.setKind(FormatDefinitionKind.BYTE_LAYOUT);
         def.setDefaultByteOrder(ByteOrder.BIG_ENDIAN);
         def.setFileExtensions("csv");
+        // EAST describes binary records, not delimited text.
+        def.setTargets(java.util.EnumSet.complementOf(java.util.EnumSet.of(
+                info.oais.infomodel.structure.description.DescriptionLanguage.EAST)));
         def.setNotes("""
                 A worked example of delimited text: no header line, one reading per line, \
                 fields separated by commas and each line ended by a newline. Change the \

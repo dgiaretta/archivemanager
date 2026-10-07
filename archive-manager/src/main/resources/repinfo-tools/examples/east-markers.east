@@ -1,0 +1,22 @@
+-- Readings repeated until the string END, then customers each with a name and
+-- an address of characters ended by a carriage return, to the end of the file.
+package READINGS_AND_ADDRESSES is
+   east_version : constant STRING := "3.0";
+   type READING is digits 6 range 0.0 .. 100.0;
+   for READING'size use 32;
+   type ADDRESS is record
+      ONE_CHARACTER : CHARACTER;
+      END_OF_ADDRESS : constant CHARACTER := ASCII.CR;
+   end record;
+   type CUSTOMER is record
+      NAME : STRING (1 .. 8);
+      POSTAL_ADDRESS : ADDRESS;
+   end record;
+   VALUE : READING;
+   END_OF_READINGS : constant STRING := "END";
+   CLIENT : CUSTOMER;
+   END_OF_CLIENTS : constant EOF;
+end READINGS_AND_ADDRESSES;
+
+package READINGS_AND_ADDRESSES_PHYSICAL is
+end READINGS_AND_ADDRESSES_PHYSICAL;

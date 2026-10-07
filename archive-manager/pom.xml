@@ -183,6 +183,12 @@
       <artifactId>oais-structure-drb</artifactId>
       <version>${oais.structure.version}</version>
     </dependency>
+    <!-- EAST (CCSDS 644.0-B-3): reading, writing and interpreting EAST descriptions. -->
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-east</artifactId>
+      <version>${oais.structure.version}</version>
+    </dependency>
     <dependency>
       <groupId>fr.gael.drb</groupId>
       <artifactId>drb</artifactId>
@@ -228,6 +234,11 @@
         <directory>${project.basedir}/../oais-structure-drb</directory>
         <targetPath>docs/engines</targetPath>
         <includes><include>README-DRB.md</include></includes>
+      </resource>
+      <resource>
+        <directory>${project.basedir}/../oais-structure-east</directory>
+        <targetPath>docs/engines</targetPath>
+        <includes><include>README-EAST.md</include></includes>
       </resource>
       <resource>
         <directory>${project.basedir}/../third-party</directory>
@@ -331,7 +342,7 @@
             don't end up bundled into its jar. oais-structure-splat is left
             out: it only builds with -Psplat, against locally built jars.
           -->
-          <sourcepath>${project.basedir}/src/main/java;${project.basedir}/../oaiscore/src/main/java;${project.basedir}/../oais-structure-api/src/main/java;${project.basedir}/../oais-structure-dfdl/src/main/java;${project.basedir}/../oais-structure-kaitai/src/main/java;${project.basedir}/../oais-structure-drb/src/main/java;${project.basedir}/../oais-structure-demo/src/main/java;${project.basedir}/../oais-structure-topcat/src/main/java</sourcepath>
+          <sourcepath>${project.basedir}/src/main/java;${project.basedir}/../oaiscore/src/main/java;${project.basedir}/../oais-structure-api/src/main/java;${project.basedir}/../oais-structure-dfdl/src/main/java;${project.basedir}/../oais-structure-kaitai/src/main/java;${project.basedir}/../oais-structure-drb/src/main/java;${project.basedir}/../oais-structure-east/src/main/java;${project.basedir}/../oais-structure-demo/src/main/java;${project.basedir}/../oais-structure-topcat/src/main/java</sourcepath>
           <!-- Libraries only those extra modules use, needed to resolve their types while documenting. -->
           <additionalDependencies>
             <additionalDependency>

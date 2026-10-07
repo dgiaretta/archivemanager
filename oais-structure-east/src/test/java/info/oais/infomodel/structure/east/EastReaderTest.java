@@ -1,4 +1,4 @@
-package info.oais.infomodel.structure.description;
+package info.oais.infomodel.structure.east;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -10,6 +10,15 @@ import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
+
+import info.oais.infomodel.structure.description.ByteOrder;
+import info.oais.infomodel.structure.description.ChoiceDescription;
+import info.oais.infomodel.structure.description.DescriptionValidator;
+import info.oais.infomodel.structure.description.ElementDescription;
+import info.oais.infomodel.structure.description.FieldDescription;
+import info.oais.infomodel.structure.description.FormatDescription;
+import info.oais.infomodel.structure.description.Occurrence;
+import info.oais.infomodel.structure.description.RecordDescription;
 
 /**
  * {@link EastReader} on the examples of the EAST specification (CCSDS
@@ -333,7 +342,8 @@ class EastReaderTest {
 				   type BIT_ORDER is ( HIGH_ORDER_FIRST, LOW_ORDER_FIRST);
 				   OCTET_STORAGE: constant BIT_ORDER := LOW_ORDER_FIRST;
 				   Binary_Representation_01: constant INTEGER_PHYSICAL_DESCRIPTION :=
-				      (NUMBER_OF_SUBFIELDS => 1, COMPLEMENT => TWOS_COMPLEMENT, LOCATION => (1 => (0,15)));
+				      (NUMBER_OF_SUBFIELDS => 2, COMPLEMENT => TWOS_COMPLEMENT,
+                       LOCATION => (1 => (8,15), 2 => (0,7)));
 				   Binary_Representation_03: constant REAL_PHYSICAL_DESCRIPTION :=
 				      (NUMBER_OF_SUBFIELDS_IN_EXPONENT => 2, NUMBER_OF_SUBFIELDS_IN_MANTISSA => 3,
 				       CONVENTION_USED => FCSTC000, SIGN_BIT_NUMBER => 24, COMPLEMENT => SIGN_AND_MAGNITUDE,
@@ -514,7 +524,7 @@ class EastReaderTest {
 	}
 
 	private static void assertRefused(String text, int line, String why) {
-		EastReader.EastException e = assertThrows(EastReader.EastException.class, () -> EastReader.read(text));
+		EastException e = assertThrows(EastException.class, () -> EastReader.read(text));
 		assertTrue(e.getMessage().contains(why), e.getMessage());
 		assertEquals(line, e.line(), e.getMessage());
 	}

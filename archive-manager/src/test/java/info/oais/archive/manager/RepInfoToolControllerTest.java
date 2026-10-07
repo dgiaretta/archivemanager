@@ -25,6 +25,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -313,6 +314,56 @@ class RepInfoToolControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("Line 2: The type &#39;NOWHERE&#39; isn&#39;t declared")))
                 .andExpect(content().string(containsString("X : NOWHERE;")));
+    }
+
+    /** A description with a marker: the element tree can't express it, so it's kept as EAST and interpreted. */
+    @Test
+    void keepsEastTheTreeCantExpressAndInterpretsIt() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
+        String east = """
+                package READINGS is
+                   type READING is range 0 .. 255;
+                   for READING'size use 8;
+                   VALUE : READING;
+                   END_OF_READINGS : constant STRING := "END";
+                   LAST : READING;
+                end READINGS;
+                package READINGS_PHYSICAL is
+                end READINGS_PHYSICAL;
+                """;
+        mockMvc.perform(post("/repinfo-tools/start-east").param("text", east).session(session))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(get("/repinfo-tools/edit").session(session))
+                .andExpect(content().string(containsString("can&#39;t express all of it")));
+        mockMvc.perform(get("/repinfo-tools/preview").session(session))
+                .andExpect(content().string(containsString("EAST (.east)")))
+                .andExpect(content().string(containsString("END_OF_READINGS : constant STRING := &quot;END&quot;;")));
+        mockMvc.perform(multipart("/repinfo-tools/test-east")
+                        .file(new MockMultipartFile("sample", "r.bin", "application/octet-stream",
+                                new byte[] {7, 8, 'E', 'N', 'D', 9}))
+                        .session(session))
+                .andExpect(content().string(containsString("decoded successfully")))
+                .andExpect(content().string(containsString(">9<")));
+        mockMvc.perform(get("/repinfo-tools/download/east").session(session))
+                .andExpect(header().string("Content-Disposition", containsString("readings.east")))
+                .andExpect(content().string(east));
+    }
+
+    @Test
+    void generatesEastFromTheTelemetryTemplate() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
+        mockMvc.perform(post("/repinfo-tools/start").param("template", "telemetry").session(session))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(get("/repinfo-tools/download/east").session(session))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("end TELEMETRY_PACKETS_EXAMPLE;")));
+        mockMvc.perform(multipart("/repinfo-tools/test-east")
+                        .file(new MockMultipartFile("sample", "t.tlm", "application/octet-stream",
+                                GeneratedDescriptionsMatrixTest.telemetryBytes()))
+                        .session(session))
+                .andExpect(content().string(containsString("decoded successfully")));
     }
 
     @Test

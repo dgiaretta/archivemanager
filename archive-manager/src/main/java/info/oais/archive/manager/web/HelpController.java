@@ -26,7 +26,8 @@ public class HelpController {
     private static final Map<String, String> ENGINE_READMES = Map.of(
             "dfdl", "DFDL (Apache Daffodil)",
             "kaitai", "Kaitai Struct",
-            "drb", "DRB (Java Data Request Broker)");
+            "drb", "DRB (Java Data Request Broker)",
+            "east", "EAST (CCSDS 644.0-B-3)");
 
     // Our own bundled files, but escaped anyway: nothing in them needs raw HTML.
     private final Parser markdown = Parser.builder().build();

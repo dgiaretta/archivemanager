@@ -100,6 +100,7 @@ public final class StructureInterpreterFactory implements AbstractOaisFactory<Ex
 			case DFDL -> "oais-structure-dfdl";
 			case KAITAI_STRUCT -> "oais-structure-kaitai";
 			case DRB -> "oais-structure-drb";
+			case EAST -> "oais-structure-east";
 			case OTHER -> "a custom adapter module";
 		};
 	}

@@ -157,6 +157,9 @@ public class DataObjectViewService {
             if (StructureDescription.DRB_SDF.equals(language)) {
                 return ".drb.xsd";
             }
+            if (StructureDescription.EAST.equals(language)) {
+                return ".east";
+            }
             return StructureDescription.KAITAI.equals(language) ? ".ksy" : ".txt";
         }
     }

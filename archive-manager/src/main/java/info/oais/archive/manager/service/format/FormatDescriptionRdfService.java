@@ -134,6 +134,7 @@ public class FormatDescriptionRdfService {
             case KAITAI -> info.oais.infomodel.structure.manifest.StructureDescription.KAITAI;
             case DRB_JAVA -> info.oais.infomodel.structure.manifest.StructureDescription.DRB_SDF;
             case DRB_PYTHON -> "drb-python";
+            case EAST -> info.oais.infomodel.structure.manifest.StructureDescription.EAST;
         };
     }
 
@@ -244,7 +245,12 @@ public class FormatDescriptionRdfService {
                         + "and presents it as a tree of nodes. The descriptions were tested with version 2.5.13."),
         DRB_PYTHON("drb-python 2", "https://gitlab.com/drb-python",
                 "Python 3 with drb-python 2 (pip install drb), into which the generated driver package is "
-                        + "installed; drb-python then decodes files of the format with it.");
+                        + "installed; drb-python then decodes files of the format with it."),
+        EAST("EAST interpreter (oais-structure-east)", "https://github.com/dgiaretta/archivemanager",
+                "The EAST interpreter of the archive manager's oais-structure-east module, which reads data with "
+                        + "an EAST Data Description Record as CCSDS 644.0-B-3 defines it, and reals in the "
+                        + "conventions of CCSDS 646.0-G-1. Any EAST interpreter conforming to CCSDS 644.0-B-3 "
+                        + "can be used instead.");
 
         final String label;
         final String url;
@@ -269,6 +275,9 @@ public class FormatDescriptionRdfService {
             }
             if (formatLabel.startsWith("DRB (Python")) {
                 return DRB_PYTHON;
+            }
+            if (formatLabel.startsWith("EAST")) {
+                return EAST;
             }
             return null;
         }

@@ -143,10 +143,13 @@
                 installable drb-python driver package and a DRB SDF schema for GAEL's Java DRB; the driver can
                 carry add-ons (semantics, metadata, checks) and a hand-written Python add-in (run in sample
                 tests only if the server allows it).</li>
-            <li><strong>Descriptions in EAST</strong>, the CCSDS data description language (CCSDS 644.0-B-3):
-                upload or paste a Data Description Record and its records, arrays, enumerations and variants
-                become the element tree, from which the other languages are generated and tested. What the tree
-                can't express (markers other than end of file, reals that aren't IEEE 754, and a few others) is refused, saying on which line.</li>
+            <li><strong>EAST</strong>, the CCSDS data description language (CCSDS 644.0-B-3), is generated from
+                the element tree like the other languages, and tested against a sample file with an EAST
+                interpreter that reads everything EAST can say: markers, reals written on VAX, MIL-STD-1750A, CDC
+                and IBM machines, integers in pieces, and more. A Data Description Record can also be uploaded or
+                pasted: it's kept as written, and its records, arrays, enumerations and variants become the element
+                tree, from which the other languages are generated &mdash; or, when the tree can't express it, it's
+                kept as EAST only.</li>
             <li><strong>Formats software already reads</strong> (.xlsx, .xls, .ods, .csv): describe only what
                 each column means &mdash; the columns can be taken from a sample file. That's saved with a
                 format profile (the format's registry identifier, refined with its version and, for text, its
@@ -462,6 +465,8 @@
                 descriptions compiled ahead of time into parser code.</li>
             <li><a th:href="@{/help/engines/drb}">DRB</a> &mdash; GAEL's Java Data Request Broker
                 and its SDF schemas.</li>
+            <li><a th:href="@{/help/engines/east}">EAST</a> &mdash; the CCSDS data description language,
+                read into the element tree, written from it, and interpreted directly.</li>
         </ul>
     </section>
 

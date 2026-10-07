@@ -78,6 +78,35 @@
         <div th:replace="~{repinfo-tools/write-back :: writeBack('dfdl', 'Daffodil re-encodes the whole description (its unparser).')}"></div>
     </section>
 
+    <section class="editor-section" th:if="${east != null}" id="east-section">
+        <h2>EAST (.east)</h2>
+        <p class="notice" th:if="${byHand.containsKey('east')}">
+            Written by hand, or read in as it was written &mdash; used instead of the EAST description
+            generated from the element tree. <a th:href="@{/repinfo-tools/hand/east}">Edit it</a>.
+            <th:block th:if="${outOfDate.get('east')}">The element tree has changed since.</th:block>
+        </p>
+        <p class="muted" th:unless="${byHand.containsKey('east')}">
+            The CCSDS data description language (CCSDS 644.0-B-3), generated from the element tree, with each
+            element's meaning as comments. <a th:href="@{/repinfo-tools/hand/east}">Write or extend it by hand</a>
+            &mdash; for markers, reals in other conventions (VAX, MIL-STD-1750A, IBM...), integers in pieces, and
+            more.
+        </p>
+        <a class="button-link" th:href="@{/repinfo-tools/download/east}">Download .east &rarr;</a>
+        <pre class="sparql" th:text="${east}">...</pre>
+
+        <h3 id="east-test">Test against a sample file</h3>
+        <p class="muted">
+            Reads the sample with the EAST interpreter (the <code>oais-structure-east</code> module) exactly as the
+            description above says, and shows what it reads: EAST's own records, arrays and values, each
+            enumeration's literal as its meaning. The file is only used for this one request; nothing is stored.
+        </p>
+        <form th:action="@{/repinfo-tools/test-east} + '#east-test'" method="post" enctype="multipart/form-data" class="form">
+            <input type="file" name="sample" required/>
+            <button type="submit">Decode sample</button>
+        </form>
+        <th:block th:if="${eastTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${eastTest})}"></div></th:block>
+    </section>
+
     <section class="editor-section" th:if="${kaitai == null and dfdl == null and def.kind.name() != 'BYTE_LAYOUT'}">
         <p class="muted">
             Kaitai and DFDL describe a sequential byte layout, which this HDF5-style logical
@@ -288,6 +317,9 @@
             </label>
             <label th:if="${drbPython != null}">
                 <input type="checkbox" name="formats" value="drb-python"/> Save DRB (Python) description
+            </label>
+            <label th:if="${east != null}">
+                <input type="checkbox" name="formats" value="east"/> Save EAST description
             </label>
             <label th:if="${drbJava != null}">
                 <input type="checkbox" name="formats" value="drb-java"/> Save DRB (Java) description<span th:if="${def.kind.name() == 'BYTE_LAYOUT'}"> (SDF schema)</span>

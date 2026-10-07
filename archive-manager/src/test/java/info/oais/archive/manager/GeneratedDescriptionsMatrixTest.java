@@ -16,7 +16,10 @@ import info.oais.infomodel.structure.description.ByteOrder;
 import info.oais.infomodel.structure.description.ChoiceDescription;
 import info.oais.infomodel.structure.description.DescriptionLanguage;
 import info.oais.infomodel.structure.description.DescriptionValidator;
-import info.oais.infomodel.structure.description.EastReader;
+import info.oais.infomodel.structure.east.EastFormatSpecification;
+import info.oais.infomodel.structure.east.EastReader;
+import info.oais.infomodel.structure.east.EastStructureRepInfo;
+import info.oais.infomodel.structure.east.EastWriter;
 import info.oais.infomodel.structure.description.ElementDescription;
 import info.oais.infomodel.structure.description.Expression;
 import info.oais.infomodel.structure.description.Feature;
@@ -300,6 +303,79 @@ class GeneratedDescriptionsMatrixTest {
                 assertThat(lines).as(engine).containsExactlyElementsOf(expected);
             }
         });
+
+        // EAST: the description written as EAST, read by the EAST interpreter. EAST's tree has its own shape
+        // (an optional element or a choice is a record of its own), so the values are compared field by field.
+        String east;
+        try {
+            east = EastWriter.write(c.format());
+        } catch (info.oais.infomodel.structure.east.EastException e) {
+            assertThat(Feature.unsupported(c.format(), DescriptionLanguage.EAST)
+                    .stream().anyMatch(f -> f != Feature.SIZED_RECORDS) || e.getMessage().contains("delimited text")
+                    || e.getMessage().contains("offset") || e.getMessage().contains("compressed")
+                    || e.getMessage().contains("computed size"))
+                    .as("EAST can write everything without a feature it lacks; it refused: " + e.getMessage()).isTrue();
+            return;
+        }
+        assertThat(eastLeaves(new EastStructureRepInfo(EastFormatSpecification.ofText(east)).apply(c.sample())))
+                .as("the EAST interpreter, with the description written as EAST:\n" + east)
+                .containsExactlyElementsOf(expectedLeaves(expected));
+    }
+
+    /** Each value the EAST interpreter read, as {@code name = value} with its index in an array. */
+    private static List<String> eastLeaves(StructureNode root) {
+        List<String> out = new ArrayList<>();
+        eastLeaves(root, null, out);
+        return out;
+    }
+
+    private static void eastLeaves(StructureNode node, String indexed, List<String> out) {
+        if (node.getKind() == StructureNodeKind.LEAF) {
+            out.add((indexed != null ? indexed : node.getName()) + " = " + normalise(node.getValue().orElse(null)));
+            return;
+        }
+        List<StructureNode> children = node.getChildren();
+        for (int i = 0; i < children.size(); i++) {
+            eastLeaves(children.get(i), node.getKind() == StructureNodeKind.ARRAY ? node.getName() + "[" + i + "]"
+                    : null, out);
+        }
+    }
+
+    /**
+     * The lines lined up by {@link StructureAligner}, as the EAST interpreter gives them: each field's last
+     * name (written as EAST writes it) and index, raw bytes one by one, and no lines for absent elements or
+     * the branches choices took.
+     */
+    private static List<String> expectedLeaves(List<String> lines) {
+        List<String> out = new ArrayList<>();
+        for (String line : lines) {
+            int equals = line.indexOf(" = ");
+            if (equals < 0 || line.endsWith("<absent>")) {
+                continue;
+            }
+            String path = line.substring(0, equals);
+            String value = line.substring(equals + 3);
+            String last = path.substring(path.lastIndexOf('.') + 1);
+            String index = last.contains("[") ? last.substring(last.indexOf('[')) : "";
+            String name = EastWriter.eastName(last.replaceAll("\\[.*", "")).toLowerCase(java.util.Locale.ROOT);
+            if (value.matches("0x[0-9a-f]*") && index.isEmpty()) {
+                for (int i = 0; i + 2 <= value.length() - 2; i += 2) {
+                    out.add(name + "[" + i / 2 + "] = " + Integer.parseInt(value.substring(2 + i, 4 + i), 16));
+                }
+            } else {
+                out.add(name + index + " = " + normalise(value));
+            }
+        }
+        return out;
+    }
+
+    private static String normalise(Object value) {
+        String text = String.valueOf(value).replaceAll("\\s+$", "");
+        try {
+            return new java.math.BigDecimal(text).stripTrailingZeros().toPlainString();
+        } catch (NumberFormatException e) {
+            return text;
+        }
     }
 
     /**
@@ -801,7 +877,8 @@ class GeneratedDescriptionsMatrixTest {
                    type BIT_ORDER is ( HIGH_ORDER_FIRST, LOW_ORDER_FIRST);
                    OCTET_STORAGE: constant BIT_ORDER := LOW_ORDER_FIRST;
                    Binary_Representation_01: constant INTEGER_PHYSICAL_DESCRIPTION :=
-                      (NUMBER_OF_SUBFIELDS => 1, COMPLEMENT => TWOS_COMPLEMENT, LOCATION => (1 => (0,15)));
+                      (NUMBER_OF_SUBFIELDS => 2, COMPLEMENT => TWOS_COMPLEMENT,
+                       LOCATION => (1 => (8,15), 2 => (0,7)));
                    Real_Representation: constant REAL_PHYSICAL_DESCRIPTION :=
                       (NUMBER_OF_SUBFIELDS_IN_EXPONENT => 2, NUMBER_OF_SUBFIELDS_IN_MANTISSA => 3,
                        CONVENTION_USED => FCSTC000, SIGN_BIT_NUMBER => 24, COMPLEMENT => SIGN_AND_MAGNITUDE,
