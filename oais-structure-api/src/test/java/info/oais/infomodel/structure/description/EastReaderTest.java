@@ -405,9 +405,10 @@ class EastReaderTest {
 				"l.set.l : STRING(3)"), outline(format.root()));
 	}
 
+	/** Example 3-12: an array's size calculated from fields inside records read earlier. */
 	@Test
-	void refusesWhatTheModelCantExpressSayingWhere() {
-		assertRefused(logical("""
+	void pathsIntoRecordsReadEarlierBecomeDottedReferences() {
+		FormatDescription format = EastReader.read(logical("""
 				   type A_DAY is range 1 .. 1000;
 				   for A_DAY'size use 16;
 				   type A_DATE is record
@@ -424,7 +425,56 @@ class EastReaderTest {
 				   LAST_DATE : A_DATE;
 				   DATA : DATA_RECORD;
 				   DATA.VIRTUAL_SIZE : virtual A_DAY := LAST_DATE.DAY - FIRST_DATE.DAY;
-				"""), 16, "references into an earlier record");
+				"""));
+		assertEquals(List.of(), DescriptionValidator.validate(format));
+		assertEquals(List.of("l {}", "l.set {} until end", "l.set.first_date {}", "l.set.first_date.day : UINT16",
+				"l.set.last_date {}", "l.set.last_date.day : UINT16", "l.set.data {}",
+				"l.set.data.measurements : FLOAT32 x (last_date.day - first_date.day)"), outline(format.root()));
+	}
+
+	/** A packet as CCSDS packets are usually described: its own header says whether there's a secondary header. */
+	@Test
+	void pathsIntoAnEarlierComponentOfTheSameRecord() {
+		FormatDescription format = EastReader.read(logical("""
+				   type FLAG is (ABSENT, PRESENT);
+				   for FLAG'size use 8;
+				   type LENGTH is range 0 .. 65535;
+				   for LENGTH'size use 16;
+				   type OCTET is range 0 .. 255;
+				   for OCTET'size use 8;
+				   type OCTETS is array (LENGTH range <>) of OCTET;
+				   type ID is record
+				      SECONDARY_HEADER_FLAG : FLAG;
+				   end record;
+				   type HEADER is record
+				      IDENTIFICATION : ID;
+				      DATA_LENGTH : LENGTH;
+				   end record;
+				   type PACKET_TYPE (VIRTUAL_FLAG : FLAG := PRESENT; VIRTUAL_LENGTH : LENGTH := 1) is record
+				      PRIMARY_HEADER : HEADER;
+				      case VIRTUAL_FLAG is
+				         when PRESENT =>
+				            SECONDARY_HEADER : OCTETS (1 .. 4);
+				            DATA_1 : OCTETS (1 .. VIRTUAL_LENGTH);
+				         when ABSENT =>
+				            DATA_0 : OCTETS (1 .. VIRTUAL_LENGTH);
+				      end case;
+				   end record;
+				""", """
+				   PACKET : PACKET_TYPE;
+				   PACKET.VIRTUAL_FLAG : virtual FLAG := PACKET.PRIMARY_HEADER.IDENTIFICATION.SECONDARY_HEADER_FLAG;
+				   PACKET.VIRTUAL_LENGTH : virtual LENGTH := PACKET.PRIMARY_HEADER.DATA_LENGTH + 1;
+				"""));
+		assertEquals(List.of(), DescriptionValidator.validate(format));
+		List<String> outline = outline(format.root());
+		assertTrue(outline.contains("l.set.packet.case_flag choice on primary_header.identification.secondary_header_flag"),
+				outline.toString());
+		assertTrue(outline.contains("l.set.packet.case_flag.when_present.data_1 : UINT8 x (primary_header.data_length + 1)"),
+				outline.toString());
+	}
+
+	@Test
+	void refusesWhatTheModelCantExpressSayingWhere() {
 		assertRefused(logical("""
 				   type C is digits 10;
 				   for C'size use 32;

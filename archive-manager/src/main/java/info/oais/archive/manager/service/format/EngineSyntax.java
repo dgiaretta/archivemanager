@@ -5,10 +5,12 @@ import info.oais.infomodel.structure.description.Expression.FieldRef;
 import info.oais.infomodel.structure.description.Expression.Op;
 import info.oais.infomodel.structure.description.Scope;
 
+import java.util.stream.Collectors;
+
 /**
  * How each engine writes a description's {@link Expression}s. A field
  * reference becomes a path from the element that uses it, worked out by
- * {@link Scope}; the operators are each language's own. Every expression is
+ * {@link Scope}, going down into the records a dotted reference names; the operators are each language's own. Every expression is
  * rendered fully parenthesised, and only ever from a parsed expression tree,
  * never from text a user typed.
  */
@@ -22,7 +24,9 @@ final class EngineSyntax {
         return new Base(scope, fromId) {
             @Override
             String path(Scope.Resolved r) {
-                String path = "../".repeat(r.nodesUp() + extraLevels) + "tns:" + r.target().name();
+                String path = "../".repeat(r.nodesUp() + extraLevels)
+                        + r.via().stream().map(v -> "tns:" + v + "/").collect(Collectors.joining())
+                        + "tns:" + r.target().name();
                 // Daffodil 3.11 fails ("Invariant broken ... ClassCastException") doing arithmetic
                 // directly on small integer types such as xs:unsignedByte; as xs:integer it's fine.
                 return r.target().type().isInteger() ? "xs:integer(" + path + ")" : path;
@@ -65,7 +69,8 @@ final class EngineSyntax {
         return new Base(scope, fromId) {
             @Override
             String path(Scope.Resolved r) {
-                return "../".repeat(r.nodesUp() + extraLevels) + r.target().name();
+                return "../".repeat(r.nodesUp() + extraLevels)
+                        + r.via().stream().map(v -> v + "/").collect(Collectors.joining()) + r.target().name();
             }
 
             @Override
@@ -105,7 +110,8 @@ final class EngineSyntax {
         return new Base(scope, fromId) {
             @Override
             String path(Scope.Resolved r) {
-                return "_parent.".repeat(r.typesUp()) + r.target().name();
+                return "_parent.".repeat(r.typesUp())
+                        + r.via().stream().map(v -> v + ".").collect(Collectors.joining()) + r.target().name();
             }
 
             @Override

@@ -229,6 +229,35 @@ class GeneratedDescriptionsMatrixTest {
                                 "readings.set[0].heights[1].element[1] = 100",
                                 "readings.set[0].heights[2].element[0] = 200",
                                 "readings.set[0].heights[2].element[1] = 300")),
+                new Case("EAST: a size calculated from fields of records read earlier", eastDates(),
+                        eastDatesBytes(), List.of(
+                                "temperatures.set[0].first_date.day = 10",
+                                "temperatures.set[0].first_date.second = 3600",
+                                "temperatures.set[0].last_date.day = 12",
+                                "temperatures.set[0].last_date.second = 0",
+                                "temperatures.set[0].data.measurements[0] = 21.5",
+                                "temperatures.set[0].data.measurements[1] = 19.25",
+                                "temperatures.set[1].first_date.day = 1",
+                                "temperatures.set[1].first_date.second = 0",
+                                "temperatures.set[1].last_date.day = 2",
+                                "temperatures.set[1].last_date.second = 60",
+                                "temperatures.set[1].data.measurements[0] = -4")),
+                new Case("EAST: a packet whose header says what follows", eastHeaderPacket(),
+                        eastHeaderPacketBytes(), List.of(
+                                "packets.set[0].packet.primary_header.identification.secondary_header_flag = 1",
+                                "packets.set[0].packet.primary_header.identification.application_process_id = 7",
+                                "packets.set[0].packet.primary_header.data_length = 2",
+                                "packets.set[0].packet.case_flag -> when_present",
+                                "packets.set[0].packet.case_flag.when_present.secondary_header[0] = 170",
+                                "packets.set[0].packet.case_flag.when_present.secondary_header[1] = 187",
+                                "packets.set[0].packet.case_flag.when_present.data_1[0] = 1",
+                                "packets.set[0].packet.case_flag.when_present.data_1[1] = 2",
+                                "packets.set[0].packet.case_flag.when_present.data_1[2] = 3",
+                                "packets.set[1].packet.primary_header.identification.secondary_header_flag = 0",
+                                "packets.set[1].packet.primary_header.identification.application_process_id = 9",
+                                "packets.set[1].packet.primary_header.data_length = 0",
+                                "packets.set[1].packet.case_flag -> when_absent",
+                                "packets.set[1].packet.case_flag.when_absent.data_0[0] = 4")),
                 new Case("CSV template", FormatTemplates.csv().toFormatDescription(),
                         "AB12,32,-45\nXY9,33,215\n".getBytes(StandardCharsets.US_ASCII),
                         List.of("weather_station_readings_csv_example.reading[0].station = AB12",
@@ -806,6 +835,86 @@ class GeneratedDescriptionsMatrixTest {
             b.putShort((short) (i * 100 - 300));
         }
         return b.array();
+    }
+
+    /** Example 3-12 of the EAST specification: as many temperatures as days between two dates. */
+    static FormatDescription eastDates() {
+        return EastReader.read("""
+                package TEMPERATURES is
+                   type A_JULIAN_DAY is range 1 .. (2**16)-1;
+                   for A_JULIAN_DAY'size use 16;
+                   type A_SECOND_IN_A_DAY is range 0 .. 86399;
+                   for A_SECOND_IN_A_DAY'size use 32;
+                   type A_JULIAN_DATE is record
+                      DAY : A_JULIAN_DAY;
+                      SECOND : A_SECOND_IN_A_DAY;
+                   end record;
+                   type A_TEMPERATURE is digits 6 range 0.0 .. 100.0;
+                   for A_TEMPERATURE'size use 32;
+                   type TEMPERATURES is array (A_JULIAN_DAY range <> ) of A_TEMPERATURE;
+                   type DATA_RECORD (VIRTUAL_SIZE : A_JULIAN_DAY := 1) is record
+                      MEASUREMENTS : TEMPERATURES (1 .. VIRTUAL_SIZE);
+                   end record;
+                   FIRST_DATE : A_JULIAN_DATE;
+                   LAST_DATE : A_JULIAN_DATE;
+                   DATA : DATA_RECORD;
+                   DATA.VIRTUAL_SIZE : virtual A_JULIAN_DAY := LAST_DATE.DAY - FIRST_DATE.DAY;
+                end TEMPERATURES;
+                package TEMPERATURES_PHYSICAL is
+                end TEMPERATURES_PHYSICAL;
+                """);
+    }
+
+    static byte[] eastDatesBytes() {
+        ByteBuffer b = ByteBuffer.allocate(12 + 8 + 12 + 4);
+        b.putShort((short) 10).putInt(3600).putShort((short) 12).putInt(0).putFloat(21.5f).putFloat(19.25f);
+        b.putShort((short) 1).putInt(0).putShort((short) 2).putInt(60).putFloat(-4f);
+        return b.array();
+    }
+
+    /** A packet as CCSDS packets are usually described: its own primary header says what follows it. */
+    static FormatDescription eastHeaderPacket() {
+        return EastReader.read("""
+                package PACKETS is
+                   type FLAG is (ABSENT, PRESENT);
+                   for FLAG'size use 8;
+                   type APID is range 0 .. 255;
+                   for APID'size use 8;
+                   type LENGTH is range 0 .. 65535;
+                   for LENGTH'size use 16;
+                   type OCTET is range 0 .. 255;
+                   for OCTET'size use 8;
+                   type OCTETS is array (LENGTH range <>) of OCTET;
+                   type ID is record
+                      SECONDARY_HEADER_FLAG : FLAG;
+                      APPLICATION_PROCESS_ID : APID;
+                   end record;
+                   type HEADER is record
+                      IDENTIFICATION : ID;
+                      DATA_LENGTH : LENGTH;
+                   end record;
+                   type PACKET_TYPE (VIRTUAL_FLAG : FLAG := PRESENT; VIRTUAL_LENGTH : LENGTH := 1) is record
+                      PRIMARY_HEADER : HEADER;
+                      case VIRTUAL_FLAG is
+                         when PRESENT =>
+                            SECONDARY_HEADER : OCTETS (1 .. 2);
+                            DATA_1 : OCTETS (1 .. VIRTUAL_LENGTH);
+                         when ABSENT =>
+                            DATA_0 : OCTETS (1 .. VIRTUAL_LENGTH);
+                      end case;
+                   end record;
+                   PACKET : PACKET_TYPE;
+                   PACKET.VIRTUAL_FLAG : virtual FLAG := PACKET.PRIMARY_HEADER.IDENTIFICATION.SECONDARY_HEADER_FLAG;
+                   -- the data length is one less than the number of octets of data, as in CCSDS packets
+                   PACKET.VIRTUAL_LENGTH : virtual LENGTH := PACKET.PRIMARY_HEADER.DATA_LENGTH + 1;
+                end PACKETS;
+                package PACKETS_PHYSICAL is
+                end PACKETS_PHYSICAL;
+                """);
+    }
+
+    static byte[] eastHeaderPacketBytes() {
+        return new byte[] {1, 7, 0, 2, (byte) 0xAA, (byte) 0xBB, 1, 2, 3, 0, 9, 0, 0, 4};
     }
 
     private static FieldDescription field(String name, PrimitiveType type, Expression length) {

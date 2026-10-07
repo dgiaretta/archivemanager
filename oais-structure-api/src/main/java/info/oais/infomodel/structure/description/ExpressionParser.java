@@ -193,9 +193,12 @@ final class ExpressionParser {
 		}
 		if (Character.isLetter(c) || c == '_') {
 			int start = pos;
-			while (pos < text.length() && (Character.isLetterOrDigit(text.charAt(pos)) || text.charAt(pos) == '_')) {
+			while (pos < text.length() && (Character.isLetterOrDigit(text.charAt(pos)) || text.charAt(pos) == '_'
+					|| (text.charAt(pos) == '.' && pos + 1 < text.length()
+							&& (Character.isLetter(text.charAt(pos + 1)) || text.charAt(pos + 1) == '_')))) {
 				pos++;
 			}
+			// A dotted name (header.length) is a field inside a record read earlier.
 			String name = text.substring(start, pos);
 			if (name.equals("and") || name.equals("or") || name.equals("not")) {
 				pos = start;

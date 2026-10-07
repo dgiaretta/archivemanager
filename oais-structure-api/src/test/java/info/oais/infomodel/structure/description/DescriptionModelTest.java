@@ -79,6 +79,36 @@ class DescriptionModelTest {
 	}
 
 	@Test
+	void resolvesDottedReferencesIntoRecordsReadEarlier() {
+		assertEquals(List.of(new Expression.FieldRef("header.ids.flag")),
+				Expression.parse("header.ids.flag = 1").fieldRefs());
+		assertEquals("(header.length + 1)", Expression.parse("header.length+1").text());
+		FieldDescription flag = FieldDescription.of("flag", PrimitiveType.UINT8, null, Semantics.NONE);
+		RecordDescription ids = RecordDescription.of("ids", List.of(flag));
+		RecordDescription header = RecordDescription.of("header", List.of(
+				FieldDescription.of("length", PrimitiveType.UINT16, null, Semantics.NONE), ids));
+		RecordDescription items = RecordDescription.of("items", List.of(
+				FieldDescription.of("v", PrimitiveType.UINT8, null, Semantics.NONE)))
+				.withOccurrence(new Occurrence.Repeated(Expression.parse("2")));
+		FieldDescription data = FieldDescription.of("data", PrimitiveType.BYTES, Expression.parse("header.length"),
+				Semantics.NONE);
+		RecordDescription body = RecordDescription.of("body", List.of(data));
+		RecordDescription root = RecordDescription.of("file", List.of(header, items, body));
+		FormatDescription format = new FormatDescription("file", "", ByteOrder.BIG_ENDIAN, List.of(), root);
+		Scope scope = new Scope(format);
+
+		Scope.Resolved r = scope.resolve(data.id(), "header.ids.flag").orElseThrow();
+		assertEquals(flag, r.target());
+		assertEquals(List.of("header", "ids"), r.via());
+		assertLevels(r, 2, 1);
+		assertEquals(List.of(), DescriptionValidator.validate(format));
+		assertTrue(scope.resolve(data.id(), "items.v").isEmpty(), "inside a repeated record");
+		assertTrue(scope.resolve(data.id(), "header.ids").isEmpty(), "a record, not a field");
+		assertTrue(scope.resolve(data.id(), "header.nothing").isEmpty(), "no such field");
+		assertTrue(scope.resolve(flag.id(), "header.length").isEmpty(), "from inside the record itself");
+	}
+
+	@Test
 	void theReferencePacketFormatIsValid() {
 		assertEquals(List.of(), DescriptionValidator.validate(PacketFormat.description()));
 	}

@@ -48,10 +48,14 @@ public final class StructureAligner {
 
 	/** @param decoded the node for the whole file, as returned by any structure engine */
 	public static AlignedNode align(FormatDescription format, StructureNode decoded) {
-		return alignRecord(format.root(), decoded, new ValueScope(null), null);
+		return alignRecord(format.root(), decoded, new ValueScope(null), null, false);
 	}
 
-	/** Field values decoded so far, looked up nearest record first (the same rule as {@link Scope}). */
+	/**
+	 * Field values decoded so far, looked up nearest record first (the same
+	 * rule as {@link Scope}); a record that occurs once keeps its own values
+	 * under its name, for dotted references ({@code header.length}).
+	 */
 	private static final class ValueScope {
 		private final ValueScope parent;
 		private final Map<String, Object> values = new HashMap<>();
@@ -61,17 +65,27 @@ public final class StructureAligner {
 		}
 
 		Object lookup(String name) {
+			String[] parts = name.split("\\.");
 			for (ValueScope s = this; s != null; s = s.parent) {
-				if (s.values.containsKey(name)) {
-					return s.values.get(name);
+				if (s.values.containsKey(parts[0])) {
+					Object value = s.values.get(parts[0]);
+					for (int i = 1; i < parts.length && value != null; i++) {
+						value = value instanceof ValueScope inner ? inner.values.get(parts[i]) : null;
+					}
+					return value;
 				}
 			}
 			return null;
 		}
 	}
 
-	private static AlignedNode alignRecord(RecordDescription d, StructureNode node, ValueScope outer, Integer index) {
+	/** @param keep whether {@code outer} keeps this record's values under its name (a record occurring once) */
+	private static AlignedNode alignRecord(RecordDescription d, StructureNode node, ValueScope outer, Integer index,
+			boolean keep) {
 		ValueScope scope = new ValueScope(outer);
+		if (keep) {
+			outer.values.put(d.name(), scope);
+		}
 		List<StructureNode> decoded = node.getChildren();
 		List<AlignedNode> children = new ArrayList<>();
 		for (ElementDescription child : d.children()) {
@@ -140,7 +154,7 @@ public final class StructureAligner {
 					node.getSourceRange().orElse(null));
 		}
 		if (d instanceof RecordDescription r) {
-			return alignRecord(r, node, scope, index);
+			return alignRecord(r, node, scope, index, index == null && r.occurrence() instanceof Occurrence.Once);
 		}
 		ChoiceDescription c = (ChoiceDescription) d;
 		ChoiceDescription.Branch branch = null;
@@ -159,7 +173,7 @@ public final class StructureAligner {
 			branch = chooseBranch(c, scope).orElseThrow(() -> new StructureInterpretationException(
 					"Can't tell which branch of '" + c.name() + "' was decoded"));
 		}
-		AlignedNode chosen = alignRecord(branch.record(), branchNode, scope, null);
+		AlignedNode chosen = alignRecord(branch.record(), branchNode, scope, null, false);
 		return new AlignedNode(c, index, AlignedNode.Presence.PRESENT, null, List.of(chosen),
 				node.getSourceRange().orElse(null));
 	}

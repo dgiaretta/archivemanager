@@ -62,7 +62,8 @@
             repeated, or be one line of delimited text such as a CSV row); a <strong>field</strong>
             is one value; a <strong>choice</strong> is one of several records, picked by an earlier
             field's value. Counts, lengths and conditions can use earlier fields and arithmetic,
-            e.g. <code>n</code>, <code>rows * cols</code>, <code>flags = 1</code>. Select an element to
+            e.g. <code>n</code>, <code>rows * cols</code>, <code>flags = 1</code>, and fields inside a record
+            read earlier, e.g. <code>header.length + 1</code>. Select an element to
             edit it, including what it means: its semantic name, definition, units and more.
         </p>
         <p class="notice" th:if="${!handWritten.isEmpty()}">

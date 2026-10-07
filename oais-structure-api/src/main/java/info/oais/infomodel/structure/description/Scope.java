@@ -13,6 +13,9 @@ import java.util.Optional;
  * the referring element in its record, or else an earlier child of an
  * enclosing record, searching outwards - the nearest match wins. The target
  * must be a field that occurs exactly once, so its value is always there.
+ * A dotted reference ({@code header.length}) names a field inside a record
+ * read earlier: its first name is found the same way, and each further name
+ * goes down into a record that occurs once (not into a choice's branches).
  * These are the same rules Kaitai Struct, DFDL and DRB can all express, which
  * is what lets one expression be generated for all of them.</p>
  */
@@ -28,8 +31,18 @@ public final class Scope {
 	 * @param typesUp  how many record types up the target is - the number of
 	 *                 {@code _parent} steps in Kaitai Struct (a choice's branch record's
 	 *                 parent is the record declaring the choice)
+	 * @param via      for a dotted reference ({@code header.length}), the records gone down
+	 *                 through to reach {@code target}, the first being the one found by
+	 *                 {@code nodesUp} and {@code typesUp}; empty for a plain name
 	 */
-	public record Resolved(FieldDescription target, int nodesUp, int typesUp) {
+	public record Resolved(FieldDescription target, int nodesUp, int typesUp, List<String> via) {
+		public Resolved {
+			via = via == null ? List.of() : List.copyOf(via);
+		}
+
+		public Resolved(FieldDescription target, int nodesUp, int typesUp) {
+			this(target, nodesUp, typesUp, List.of());
+		}
 	}
 
 	private final Map<String, List<Step>> pathsById;
@@ -63,11 +76,20 @@ public final class Scope {
 		}
 	}
 
-	/** Resolves {@code name} as referred to from the element with id {@code fromId}. */
+	/**
+	 * Resolves {@code name} as referred to from the element with id
+	 * {@code fromId}. A dotted name ({@code header.length}) starts from a
+	 * record read earlier, found by the same rule as a field, and goes down
+	 * through records that occur once to a field in the last of them.
+	 */
 	public Optional<Resolved> resolve(String fromId, String name) {
 		List<Step> path = pathsById.get(fromId);
 		if (path == null) {
 			return Optional.empty();
+		}
+		String[] parts = name.split("\\.", -1);
+		if (parts.length > 1) {
+			return resolvePath(path, parts);
 		}
 		int nodesUp = 0;
 		int typesUp = 0;
@@ -90,6 +112,44 @@ public final class Scope {
 			}
 		}
 		return Optional.empty();
+	}
+
+	private static Optional<Resolved> resolvePath(List<Step> path, String[] parts) {
+		int nodesUp = 0;
+		int typesUp = 0;
+		for (int i = path.size() - 1; i >= 0; i--) {
+			Step step = path.get(i);
+			nodesUp++;
+			if (step.container() instanceof RecordDescription) {
+				for (int j = step.earlierSiblings().size() - 1; j >= 0; j--) {
+					ElementDescription sibling = step.earlierSiblings().get(j);
+					if (sibling.name().equals(parts[0])) {
+						int up = nodesUp;
+						int types = typesUp;
+						return descend(sibling, parts).map(target -> new Resolved(target, up, types,
+								List.of(parts).subList(0, parts.length - 1)));
+					}
+				}
+				typesUp++;
+			}
+		}
+		return Optional.empty();
+	}
+
+	/** The field {@code parts[1..]} names inside {@code start}, going down through records that occur once. */
+	private static Optional<FieldDescription> descend(ElementDescription start, String[] parts) {
+		ElementDescription current = start;
+		for (int i = 1; i < parts.length; i++) {
+			if (!(current instanceof RecordDescription r) || !(r.occurrence() instanceof Occurrence.Once)
+					|| r.isText()) {
+				return Optional.empty();
+			}
+			String part = parts[i];
+			current = r.children().stream().filter(c -> c.name().equals(part)).findFirst().orElse(null);
+		}
+		return current instanceof FieldDescription f && f.occurrence() instanceof Occurrence.Once
+				? Optional.of(f)
+				: Optional.empty();
 	}
 
 	/** Whether the element with this id is somewhere in the description. */

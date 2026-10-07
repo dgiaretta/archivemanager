@@ -98,10 +98,15 @@ class _Scope:
         self.values: Dict[str, Any] = {}
 
     def lookup(self, name: str) -> Any:
+        # A dotted name (header.length) is a field inside a record read earlier, which keeps its values by name.
+        first, *rest = name.split(".")
         scope = self
         while scope is not None:
-            if name in scope.values:
-                return scope.values[name]
+            if first in scope.values:
+                value = scope.values[first]
+                for part in rest:
+                    value = value.values[part]
+                return value
             scope = scope.parent
         raise ValueError(f"no value for {name!r} yet")
 
@@ -226,7 +231,8 @@ def _read_all(desc: dict, reader: _Reader, scope: _Scope, text: Optional[Tuple[b
     return nodes
 
 
-def _read_one(desc: dict, reader: _Reader, scope: _Scope, text: Optional[Tuple[bytes, bytes]], last: bool) -> DrbNode:
+def _read_one(desc: dict, reader: _Reader, scope: _Scope, text: Optional[Tuple[bytes, bytes]], last: bool,
+              keep: bool = True) -> DrbNode:
     start = reader.pos
     kind = desc["kind"]
     if kind == "field":
@@ -243,14 +249,17 @@ def _read_one(desc: dict, reader: _Reader, scope: _Scope, text: Optional[Tuple[b
             node._delimiter = reader.last_delimiter
         return node
     if kind == "record":
-        children = _read_record(desc, reader, _Scope(scope))
+        inner = _Scope(scope)
+        if keep and desc.get("occurs") is None:
+            scope.values[desc["name"]] = inner
+        children = _read_record(desc, reader, inner)
         attrs = {"offset": start, "length": reader.pos - start}
         attrs.update(_semantic_attributes(desc))
         return _Node(desc["name"], None, children, attrs)
     key = _eval(desc["on"], scope)
     for branch_key, record in desc["branches"]:
         if branch_key == key or str(branch_key) == str(key):
-            branch = _read_one(record, reader, scope, None, False)
+            branch = _read_one(record, reader, scope, None, False, keep=False)
             attrs = {"offset": start, "length": reader.pos - start}
             attrs.update(_semantic_attributes(desc))
             return _Node(desc["name"], None, [branch], attrs)
@@ -327,7 +336,7 @@ def _check_count(desc: dict, count: int, scope: _Scope, path: str) -> None:
 
 
 def _write_one(desc: dict, node: DrbNode, out: bytearray, scope: _Scope, text: Optional[Tuple[bytes, bytes]],
-               last: bool, path: str) -> None:
+               last: bool, path: str, keep: bool = True) -> None:
     kind = desc["kind"]
     if kind == "field":
         out += _encode_field(desc, node, scope, text, last, path)
@@ -335,7 +344,10 @@ def _write_one(desc: dict, node: DrbNode, out: bytearray, scope: _Scope, text: O
             scope.values[desc["name"]] = node.value
         return
     if kind == "record":
-        _write_record(desc, node.children, out, _Scope(scope), path + "/")
+        inner = _Scope(scope)
+        if keep and desc.get("occurs") is None:
+            scope.values[desc["name"]] = inner
+        _write_record(desc, node.children, out, inner, path + "/")
         return
     key = _eval(desc["on"], scope)
     branch = node.children[0]
@@ -343,7 +355,7 @@ def _write_one(desc: dict, node: DrbNode, out: bytearray, scope: _Scope, text: O
         if record["name"] == branch.name:
             if not (branch_key == key or str(branch_key) == str(key)):
                 raise ValueError(f"{path}: the value {key!r} selects another branch than {branch.name!r}")
-            _write_one(record, branch, out, scope, None, False, path + "/" + branch.name)
+            _write_one(record, branch, out, scope, None, False, path + "/" + branch.name, keep=False)
             return
     raise ValueError(f"{path}: {branch.name!r} isn't one of its branches")
 

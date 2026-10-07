@@ -551,10 +551,13 @@ wanted.
     are small **expressions** (`Expression`, parsed by `ExpressionParser`):
     references to fields read earlier, integer and string literals,
     `+ - * / %`, comparisons `= != < <= > >=`, and `and`/`or`/`not` -- e.g.
-    `message_length`, `sample_pairs * 2`, `packet_type = 2`. `Scope` works
-    out which fields an expression can see (earlier siblings and the
-    enclosing records' earlier fields, read exactly once) and how far up
-    each engine has to navigate to reach them; `EngineSyntax` then renders
+    `message_length`, `sample_pairs * 2`, `packet_type = 2`. A dotted
+    reference names a field inside a record read earlier, going down through
+    records that occur once -- e.g. `primary_header.data_length + 1`. `Scope`
+    works out which fields an expression can see (earlier siblings and the
+    enclosing records' earlier fields, read exactly once, and fields inside
+    those that are records occurring once) and how far up each engine has
+    to navigate to reach them; `EngineSyntax` then renders
     the expression as XPath for DFDL/DRB or as Kaitai's expression language.
     `DescriptionValidator` explains anything that can't be generated (an
     unknown or later field, a repeat to the end that isn't last, a text
@@ -699,13 +702,13 @@ wanted.
     becomes a choice when each alternative has one value, and otherwise an
     optional record per alternative (for `|`, ranges, `others`, `null` and
     true/false discriminants); and virtual discriminants are replaced by
-    their actual values' expressions. `OCTET_STORAGE` gives the byte order.
+    their actual values' expressions, in which an EAST path into a record
+    read earlier (`LAST_DATE.DAY`) becomes a dotted reference
+    (`last_date.day`). `OCTET_STORAGE` gives the byte order.
     Since a description describes one set of data, the sets repeat to the
     end of the data (in a record `set`) unless an EOF marker ends the last
     variable's repetition. What the element tree can't express is refused
-    with the line and why: markers other than EOF, references into a record
-    read earlier (`LAST_DATE.DAY` from outside `LAST_DATE`), `**` and the
-    EAST functions (`cos`, `is_odd`...) on values from the data, signed or
+    with the line and why: markers other than EOF, `**` and the EAST functions (`cos`, `is_odd`...) on values from the data, signed or
     `LOW_ORDER_FIRST` bit fields, integers whose bits are in pieces or not in
     two's complement, and reals in conventions other than IEEE 754
     (FCSTC000). Numbers in an ASCII representation are read as text, which

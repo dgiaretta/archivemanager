@@ -32,7 +32,9 @@ import java.util.Set;
  * value, and otherwise one optional record per alternative, present when its
  * condition holds (which covers {@code |}, ranges, {@code others},
  * {@code null} alternatives and true/false discriminants). Virtual
- * discriminants are replaced by the expressions their actual values give.</p>
+ * discriminants are replaced by the expressions their actual values give,
+ * in which an EAST path into a record read earlier ({@code LAST_DATE.DAY})
+ * becomes a dotted reference ({@code last_date.day}).</p>
  *
  * <p>A description describes one set of data; unless the last variable is
  * repeated until an EOF marker, the sets repeat to the end of the data, in
@@ -40,8 +42,7 @@ import java.util.Set;
  *
  * <p>What the description model can't express is refused with an
  * {@link EastException} giving the line and why: markers other than EOF,
- * references into a record read earlier ({@code LAST_DATE.DAY} from outside
- * {@code LAST_DATE}), the {@code **} operator and functions on data values,
+ * the {@code **} operator and functions on data values,
  * signed or least-significant-bit-first bit fields, integers in pieces or
  * not in two's complement, and reals in conventions other than IEEE 754.
  * Numbers in an ASCII representation are read as text, saying so in their
@@ -2002,12 +2003,15 @@ public final class EastReader {
 					}
 					return new Expression.IntLiteral(code);
 				}
-				String prefix = String.join(".", name.path().subList(0, name.path().size() - 1));
-				if (ctx.ancestors().contains(prefix)) {
-					return new Expression.FieldRef(name.last());
+				// An EAST path names a field from the top; from inside the records it goes through, only
+				// the rest of the path is needed: a field of an enclosing record, or one inside a record
+				// read earlier (header.length).
+				for (int i = name.path().size() - 1; i > 0; i--) {
+					if (ctx.ancestors().contains(String.join(".", name.path().subList(0, i)))) {
+						return new Expression.FieldRef(String.join(".", name.path().subList(i, name.path().size())));
+					}
 				}
-				throw new EastException(line, "'" + name.raw() + "' is inside " + prefix.toUpperCase(Locale.ROOT)
-						+ ", a record read earlier; references into an earlier record aren't supported yet");
+				return new Expression.FieldRef(name.joined());
 			}
 			if (n instanceof Chr c) {
 				return new Expression.IntLiteral(c.value());
