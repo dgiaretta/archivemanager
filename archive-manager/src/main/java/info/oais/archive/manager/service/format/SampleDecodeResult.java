@@ -210,7 +210,10 @@ public record SampleDecodeResult(List<TreeRow> rows, boolean truncated, String e
             return hex(bytes);
         }
         if (value instanceof Double || value instanceof Float) {
-            return new java.math.BigDecimal(value.toString()).stripTrailingZeros().toPlainString();
+            double d = ((Number) value).doubleValue();
+            // NaN and the infinities (often fill values) have no decimal form: shown as they are.
+            return Double.isFinite(d) ? new java.math.BigDecimal(value.toString()).stripTrailingZeros().toPlainString()
+                    : value.toString();
         }
         return String.valueOf(value);
     }
