@@ -638,6 +638,12 @@ final class EastInterpreter {
 				}
 				if (rep != null) {
 					double d = realRep(rep, size, path);
+					if (size == 32 && rep.name("convention_used", 2).equals("fcstc000")) {
+						// An IEEE 754 single: shown as one, not with a double's extra digits.
+						float f = (float) d;
+						return new Leaf(f, Float.isFinite(f) ? new BigDecimal(Float.toString(f)) : BigDecimal.ZERO,
+								Map.of());
+					}
 					return new Leaf(d, BigDecimal.valueOf(Double.isFinite(d) ? d : 0), Map.of());
 				}
 				if (size == 32) {

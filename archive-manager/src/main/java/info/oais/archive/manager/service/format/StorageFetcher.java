@@ -37,6 +37,11 @@ import java.time.Duration;
  * </ul>
  * Bits in the archive's own {@link BitStore} are read from there, not
  * fetched, whatever host their address names.
+ * A file-sharing service's link to its page about a file -- a Dropbox link
+ * ending {@code dl=0}, a Google Drive {@code /file/d/.../view} link, a GitHub
+ * {@code /blob/} page -- is turned into the link that downloads the file
+ * itself (see {@link #direct}); if such a service still answers with a web
+ * page, the fetch fails saying so, rather than giving the page as the data.
  * The address check happens before connecting; a host whose DNS answer
  * changes between the check and the connection could still slip through, so
  * don't rely on this alone where that matters.
@@ -80,7 +85,7 @@ public class StorageFetcher {
         }
         HttpClient client = HttpClient.newBuilder().connectTimeout(timeout)
                 .followRedirects(HttpClient.Redirect.NEVER).build();
-        URI current = location;
+        URI current = direct(location);
         for (int hop = 0; hop <= MAX_REDIRECTS; hop++) {
             check(current);
             HttpResponse<InputStream> response;
@@ -101,6 +106,14 @@ public class StorageFetcher {
                 response.body().close();
                 throw new IOException("Fetching " + current + " failed: HTTP " + status);
             }
+            String type = response.headers().firstValue("Content-Type").orElse("").toLowerCase(java.util.Locale.ROOT);
+            if (type.startsWith("text/html") && sharingService(location)) {
+                response.body().close();
+                throw new IOException(location + " is a file-sharing service's web page about the file, not the "
+                        + "file itself (it answered with text/html). Give the storage location as the link that "
+                        + "downloads the file: for Dropbox, ending dl=1; for Google Drive, "
+                        + "https://drive.google.com/uc?export=download&id=...; for GitHub, the raw file's link.");
+            }
             Path file = Files.createTempFile(directory, "data-", ".bin");
             try (InputStream in = response.body(); OutputStream out = Files.newOutputStream(file)) {
                 byte[] buffer = new byte[64 * 1024];
@@ -117,6 +130,54 @@ public class StorageFetcher {
             return file;
         }
         throw new IOException("Fetching " + location + " was redirected more than " + MAX_REDIRECTS + " times");
+    }
+
+    /**
+     * The link that downloads a file, for a file-sharing service's link to its
+     * page about the file: Dropbox's {@code dl=0} becomes {@code dl=1}, Google
+     * Drive's {@code /file/d/ID/view} becomes {@code /uc?export=download&id=ID},
+     * and GitHub's {@code /owner/repo/blob/ref/path} becomes the raw file at
+     * {@code raw.githubusercontent.com}. Any other link is returned unchanged.
+     */
+    static URI direct(URI location) {
+        String host = location.getHost() == null ? "" : location.getHost().toLowerCase(java.util.Locale.ROOT);
+        String path = location.getRawPath() == null ? "" : location.getRawPath();
+        String query = location.getRawQuery();
+        try {
+            if (host.equals("dropbox.com") || host.endsWith(".dropbox.com")) {
+                if (path.startsWith("/s/") || path.startsWith("/scl/") || path.startsWith("/sh/")) {
+                    String rest = query == null ? "" : query.replaceAll("(^|&)(dl|raw)=[^&]*", "")
+                            .replaceAll("^&", "");
+                    return URI.create(location.getScheme() + "://" + location.getRawAuthority() + path + "?"
+                            + (rest.isEmpty() ? "" : rest + "&") + "dl=1");
+                }
+            }
+            if (host.equals("drive.google.com")) {
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("^/file/d/([^/]+)").matcher(path);
+                if (m.find()) {
+                    return URI.create("https://drive.google.com/uc?export=download&id=" + m.group(1));
+                }
+            }
+            if (host.equals("github.com")) {
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("^/([^/]+)/([^/]+)/blob/(.+)$")
+                        .matcher(path);
+                if (m.find()) {
+                    return URI.create("https://raw.githubusercontent.com/" + m.group(1) + "/" + m.group(2) + "/"
+                            + m.group(3));
+                }
+            }
+        } catch (IllegalArgumentException e) {
+            return location;
+        }
+        return location;
+    }
+
+    /** Whether a link is to a file-sharing service, whose answer as a web page isn't the file. */
+    private static boolean sharingService(URI location) {
+        String host = location.getHost() == null ? "" : location.getHost().toLowerCase(java.util.Locale.ROOT);
+        return host.equals("dropbox.com") || host.endsWith(".dropbox.com") || host.endsWith("drive.google.com")
+                || host.equals("github.com") || host.endsWith("onedrive.live.com") || host.equals("1drv.ms")
+                || host.endsWith(".sharepoint.com") || host.equals("box.com") || host.endsWith(".box.com");
     }
 
     private void check(URI location) throws IOException {
