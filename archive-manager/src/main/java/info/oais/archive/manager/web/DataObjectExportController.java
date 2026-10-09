@@ -3,6 +3,7 @@ package info.oais.archive.manager.web;
 import info.oais.archive.manager.service.ArchiveService;
 import info.oais.archive.manager.service.BitStore;
 import info.oais.archive.manager.service.format.DataObjectViewService;
+import info.oais.archive.manager.service.format.DecodedValuesService;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -10,6 +11,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -35,6 +37,8 @@ import java.nio.charset.StandardCharsets;
  *       and Fiji/ImageJ open;</li>
  *   <li>{@code /api/data-objects/{id}/pixels.json} -- an image's pixels, for
  *       the archive's own image viewer in the browser;</li>
+ *   <li>{@code /api/data-objects/{id}/values.json} -- its data values, a page
+ *       at a time, for printing in the browser;</li>
  *   <li>{@code /api/bits/{id}/{name}} -- bits in the archive's own
  *       {@link BitStore}, e.g. a transformed Data Object's.</li>
  * </ul>
@@ -48,11 +52,31 @@ public class DataObjectExportController {
     private final ArchiveService archive;
     private final DataObjectViewService views;
     private final BitStore bits;
+    private final DecodedValuesService values;
 
-    public DataObjectExportController(ArchiveService archive, DataObjectViewService views, BitStore bits) {
+    public DataObjectExportController(ArchiveService archive, DataObjectViewService views, BitStore bits,
+                                      DecodedValuesService values) {
         this.archive = archive;
         this.views = views;
         this.bits = bits;
+        this.values = values;
+    }
+
+    /**
+     * One page of a Data Object's data values, decoded through its
+     * Representation Information (with its structure description in
+     * {@code language}, or its first usable one), as RepInfo Tools prints a
+     * sample's: each element's depth, name, kind, value, byte range and
+     * meaning. The data is decoded once, and later pages read from what was
+     * decoded, so a large file is neither sent whole nor decoded again.
+     */
+    @GetMapping("/api/data-objects/{id}/values.json")
+    public ResponseEntity<DecodedValuesService.Page> values(@PathVariable String id,
+                                                            @RequestParam(defaultValue = "1") int page,
+                                                            @RequestParam(defaultValue = "100") int size,
+                                                            @RequestParam(required = false) String language) {
+        DecodedValuesService.Page p = values.page(archive.decodeId(id), language, page, size);
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON).body(p);
     }
 
     /** A Data Object's bits, fetched from its storage location: e.g. to transform with another application. */

@@ -191,6 +191,100 @@ class ViewersTest {
         }
     }
 
+    /**
+     * A Data Object's values printed a page at a time, with their meanings from the saved Semantic
+     * Representation Information, decoded with whichever saved description is chosen.
+     */
+    @Test
+    void printsADataObjectsValuesAPageAtATime() throws Exception {
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
+        mockMvc.perform(post("/repinfo-tools/start").param("template", "telemetry").session(session));
+        String telemetry = archive.decodeId(mockMvc.perform(post("/repinfo-tools/save")
+                        .param("formats", "dfdl", "drb-java", "east").session(session))
+                .andReturn().getResponse().getRedirectedUrl().substring("/resource/".length()));
+        mockMvc.perform(post("/repinfo-tools/start").param("template", "csv").session(session));
+        String readings = archive.decodeId(mockMvc.perform(post("/repinfo-tools/save").param("formats", "dfdl")
+                .session(session)).andReturn().getResponse().getRedirectedUrl().substring("/resource/".length()));
+        StringBuilder csv = new StringBuilder();
+        for (int i = 0; i < 300; i++) {
+            csv.append("S").append(i).append(',').append(i % 366).append(',').append(i - 150).append('\n');
+        }
+        byte[] tlm = GeneratedDescriptionsMatrixTest.telemetryBytes();
+        HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        server.createContext("/", exchange -> {
+            byte[] body = exchange.getRequestURI().getPath().endsWith(".csv")
+                    ? csv.toString().getBytes(StandardCharsets.US_ASCII) : tlm;
+            exchange.sendResponseHeaders(200, body.length);
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        try {
+            String base = "http://127.0.0.1:" + server.getAddress().getPort();
+            write(() -> {
+                edit.addRelationship(telemetry, Ns.IM + "hasStorageLocation", base + "/packets.tlm");
+                edit.addRelationship(readings, Ns.IM + "hasStorageLocation", base + "/readings.csv");
+                return null;
+            });
+            String id = archive.encodeId(telemetry);
+            mockMvc.perform(get("/resource/{id}", id))
+                    .andExpect(content().string(containsString("See the values here")))
+                    .andExpect(content().string(containsString("/api/data-objects/" + id + "/values.json")))
+                    .andExpect(content().string(containsString("<option value=\"EAST\">EAST</option>")))
+                    .andExpect(content().string(containsString("/js/values-viewer.js")));
+
+            // The first page, decoded with its DFDL description (the preferred one): meanings as RepInfo Tools shows them.
+            String first = mockMvc.perform(get("/api/data-objects/{id}/values.json", id).param("size", "1000"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.language").value("DFDL"))
+                    .andExpect(jsonPath("$.languages").value(org.hamcrest.Matchers.contains("DFDL", "DRB SDF", "EAST")))
+                    .andExpect(jsonPath("$.error").doesNotExist())
+                    .andReturn().getResponse().getContentAsString();
+            assertThat(first).contains("= 28 V").contains("= 300 K").contains("housekeeping");
+            long total = new com.fasterxml.jackson.databind.ObjectMapper().readTree(first).get("totalRows").asLong();
+
+            // Small pages cover the same rows, in order.
+            List<String> paged = new java.util.ArrayList<>();
+            for (int page = 1; page <= (total + 4) / 5; page++) {
+                String json = mockMvc.perform(get("/api/data-objects/{id}/values.json", id)
+                        .param("page", String.valueOf(page)).param("size", "5"))
+                        .andExpect(jsonPath("$.page").value(page))
+                        .andExpect(jsonPath("$.totalPages").value((total + 4) / 5))
+                        .andReturn().getResponse().getContentAsString();
+                new com.fasterxml.jackson.databind.ObjectMapper().readTree(json).get("rows")
+                        .forEach(r -> paged.add(r.get("name").asText() + "=" + r.get("value").asText()));
+            }
+            List<String> whole = new java.util.ArrayList<>();
+            new com.fasterxml.jackson.databind.ObjectMapper().readTree(first).get("rows")
+                    .forEach(r -> whole.add(r.get("name").asText() + "=" + r.get("value").asText()));
+            assertThat(paged).containsExactlyElementsOf(whole);
+
+            // The same data, decoded with its EAST description, by the EAST interpreter.
+            mockMvc.perform(get("/api/data-objects/{id}/values.json", id).param("language", "EAST").param("size", "1000"))
+                    .andExpect(jsonPath("$.language").value("EAST"))
+                    .andExpect(jsonPath("$.error").doesNotExist())
+                    .andExpect(jsonPath("$.rows[?(@.meaning =~ /.*= 28 V.*/)]").isNotEmpty());
+            mockMvc.perform(get("/api/data-objects/{id}/values.json", id).param("language", "Kaitai Struct"))
+                    .andExpect(jsonPath("$.error").value(containsString("no Kaitai Struct description")));
+
+            // Many rows: a page past the file's index blocks, and a page beyond the last is the last.
+            String readingsId = archive.encodeId(readings);
+            mockMvc.perform(get("/api/data-objects/{id}/values.json", readingsId).param("page", "9").param("size", "50"))
+                    .andExpect(jsonPath("$.totalRows").value(1 + 300 * 4))
+                    .andExpect(jsonPath("$.rows[0].name").value("temperature"))
+                    .andExpect(jsonPath("$.rows[0].value").value("-51"))
+                    .andExpect(jsonPath("$.rows[1].name").value("reading[100]"));
+            mockMvc.perform(get("/api/data-objects/{id}/values.json", readingsId).param("page", "1000").param("size", "50"))
+                    .andExpect(jsonPath("$.page").value(25))
+                    .andExpect(jsonPath("$.rows.length()").value(1));
+        } finally {
+            server.stop(0);
+            removeReachable(telemetry);
+            removeReachable(readings);
+        }
+    }
+
     @Test
     void offersSplatWhenTheTableViewIsAllNumbersAndNothingWithoutAStorageLocation() throws Exception {
         String[] objects = write(() -> {

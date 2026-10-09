@@ -1070,6 +1070,27 @@ wanted.
     cursor. Aladin Lite isn't used because it places images on the sky, and
     refuses one whose FITS has no sky coordinates (WCS) -- which the archive's
     images don't, since Representation Information can't yet describe them.
+  - **"See the values here"**: the Data Object's data values printed in the
+    page (`static/js/values-viewer.js`), as RepInfo Tools prints a sample's --
+    each element's name, kind, value, position in the bits, and meaning --
+    for any Data Object whose bits have a storage location and that has a
+    structure description the server can use (DFDL, DRB SDF, Kaitai Struct
+    with its class, DRB, or EAST, chosen in the page when there are several).
+    The meanings come from its Semantic Representation Information
+    (`DataObjectViewService.elementSemantics`): the semantic name, a code's
+    meaning, a scaled value with its units, a fill value; they're found by
+    structural path, or by the saved path whose names appear in order in the
+    decoded one, for engines whose trees have extra levels (EAST's). The
+    values are served a page at a time
+    (`/api/data-objects/{id}/values.json?page=&size=&language=`, at most
+    1000 rows a page) by `DecodedValuesService`, which decodes the data once
+    and writes its rows to a temporary file with the position of every 64th
+    row, so later pages are read straight from the file: neither is a large
+    file sent to the browser whole nor decoded again for each page. The rows
+    of the last 8 Data Objects are kept for 30 minutes, and dropped when the
+    storage location or a structure description changes; at most 5 million
+    rows are written. Decoding itself still holds the engine's whole tree in
+    memory, as the VOTable and FITS do.
 - **Transformation with another application** (the same page, "Or
   transform it with another application") -- when another program does the
   Transformation: download the Data Object's bits

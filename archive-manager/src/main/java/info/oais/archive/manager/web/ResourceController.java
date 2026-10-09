@@ -70,8 +70,11 @@ public class ResourceController {
         // which refuses a missing (null) value.
         model.addAttribute("tableViewable", false);
         model.addAttribute("imageViewable", false);
+        model.addAttribute("valueLanguages", List.of());
         views.describe(iri, java.net.URI::create).ifPresent(d -> {
             model.addAttribute("describedData", d);
+            // Its values can be printed, a page at a time, when one of its structure descriptions can be used here.
+            model.addAttribute("valueLanguages", views.decodingLanguages(iri));
             List<info.oais.archive.manager.service.format.DataObjectViewService.Viewer> viewers = views.viewers(iri);
             model.addAttribute("viewers", viewers);
             model.addAttribute("launches", LaunchController.available(launch, viewers));

@@ -1,6 +1,7 @@
 package info.oais.archive.manager.service.format;
 
 import info.oais.archive.manager.rdf.Ns;
+import info.oais.infomodel.structure.description.Semantics;
 import info.oais.archive.manager.rdf.RdfStore;
 import info.oais.infomodel.structure.manifest.DescribedData;
 import info.oais.infomodel.structure.manifest.ElementMeaning;
@@ -24,6 +25,7 @@ import uk.ac.starlink.table.StarTable;
 import uk.ac.starlink.votable.VOTableWriter;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -33,8 +35,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
@@ -215,25 +219,7 @@ public class DataObjectViewService {
     private DescribedData describe(String iri, String name, URI data, List<Resource> roots,
                                    Function<String, URI> specificationUrl) {
         Model m = store.dataModel();
-        Set<Resource> reached = new LinkedHashSet<>();
-        Deque<Resource> todo = new ArrayDeque<>();
-        roots.forEach(todo::push);
-        List<Property> followed = Stream.of("hasGroupMember", "hasStructureRepresentationInformation",
-                "hasSemanticRepresentationInformation", "hasOtherRepresentationInformation", "interpretedUsingRecurse")
-                .map(p -> m.createProperty(Ns.IM + p)).toList();
-        while (!todo.isEmpty() && reached.size() < 100_000) {
-            Resource r = todo.pop();
-            if (!reached.add(r)) {
-                continue;
-            }
-            for (Property p : followed) {
-                r.listProperties(p).forEachRemaining(s -> {
-                    if (s.getObject().isResource()) {
-                        todo.push(s.getObject().asResource());
-                    }
-                });
-            }
-        }
+        Set<Resource> reached = reached(roots);
         List<StructureDescription> structures = new ArrayList<>();
         List<ViewDescription> views = new ArrayList<>();
         List<ElementMeaning> meanings = new ArrayList<>();
@@ -267,6 +253,110 @@ public class DataObjectViewService {
         structures.sort(Comparator.comparing(StructureDescription::iri));
         views.sort(Comparator.comparing(ViewDescription::iri));
         return new DescribedData(iri, name, data, structures, views, meanings);
+    }
+
+    /** Everything the Representation Information {@code roots} lead to, through groups and recursion. */
+    private Set<Resource> reached(List<Resource> roots) {
+        Model m = store.dataModel();
+        Set<Resource> reached = new LinkedHashSet<>();
+        Deque<Resource> todo = new ArrayDeque<>();
+        roots.forEach(todo::push);
+        List<Property> followed = Stream.of("hasGroupMember", "hasStructureRepresentationInformation",
+                "hasSemanticRepresentationInformation", "hasOtherRepresentationInformation", "interpretedUsingRecurse")
+                .map(p -> m.createProperty(Ns.IM + p)).toList();
+        while (!todo.isEmpty() && reached.size() < 100_000) {
+            Resource r = todo.pop();
+            if (!reached.add(r)) {
+                continue;
+            }
+            for (Property p : followed) {
+                r.listProperties(p).forEachRemaining(s -> {
+                    if (s.getObject().isResource()) {
+                        todo.push(s.getObject().asResource());
+                    }
+                });
+            }
+        }
+        return reached;
+    }
+
+    /**
+     * What each element of {@code dataObject}'s data means, by its structural
+     * path (e.g. {@code record.temp}), from the per-element Semantic
+     * Representation Information RepInfo Tools saves: its semantic name,
+     * definition, units, code list, scale and offset, fill value and valid
+     * range.
+     */
+    public Map<String, Semantics> elementSemantics(String dataObject) {
+        Model m = store.dataModel();
+        Resource data = m.getResource(dataObject);
+        List<Resource> roots = new ArrayList<>();
+        data.listProperties(m.createProperty(Ns.IM + "interpretedUsing")).forEachRemaining(s -> {
+            if (s.getObject().isResource()) {
+                roots.add(s.getObject().asResource());
+            }
+        });
+        Map<String, Semantics> byPath = new LinkedHashMap<>();
+        Property inScheme = m.createProperty(Ns.SKOS + "inScheme");
+        for (Resource r : reached(roots)) {
+            String path = literal(r, m.createProperty(Ns.IM + "structuralPath"));
+            if (path == null) {
+                continue;
+            }
+            Statement units = r.getProperty(m.createProperty(Ns.IM + "hasUnitOfMeasurement"));
+            Statement codeList = r.getProperty(m.createProperty(Ns.IM + "hasCodeList"));
+            Map<String, String> codes = new LinkedHashMap<>();
+            if (codeList != null && codeList.getObject().isResource()) {
+                m.listSubjectsWithProperty(inScheme, codeList.getObject()).forEachRemaining(concept -> {
+                    String notation = literal(concept, m.createProperty(Ns.SKOS + "notation"));
+                    if (notation != null) {
+                        codes.put(notation, literal(concept, m.createProperty(Ns.SKOS + "prefLabel")));
+                    }
+                });
+            }
+            byPath.put(path, new Semantics(literal(r, m.createProperty(Ns.RDFS + "label")),
+                    literal(r, m.createProperty(Ns.SKOS + "definition")),
+                    units == null || !units.getObject().isResource() ? null
+                            : literal(units.getObject().asResource(), m.createProperty(Ns.RDFS + "label")),
+                    null, null, codes, number(r, "scaleFactor"), number(r, "addOffset"),
+                    literal(r, m.createProperty(Ns.IM + "fillValue")), number(r, "validMin"), number(r, "validMax")));
+        }
+        return byPath;
+    }
+
+    private BigDecimal number(Resource r, String property) {
+        String text = literal(r, store.dataModel().createProperty(Ns.IM + property));
+        try {
+            return text == null ? null : new BigDecimal(text.strip());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    /**
+     * The languages of {@code dataObject}'s structure descriptions the server
+     * can decode its bits with, preferred first; empty if it has none, or no
+     * storage location.
+     */
+    public List<String> decodingLanguages(String dataObject) {
+        return describe(dataObject, URI::create).map(RepInfoDecoder::usableLanguages).orElse(List.of());
+    }
+
+    /**
+     * What decoding {@code dataObject} depends on in the archive: its storage
+     * location and the text of each of its structure descriptions. Two equal
+     * fingerprints decode the same way, unless the bits at the location change.
+     */
+    public String fingerprint(String dataObject) {
+        return describe(dataObject, URI::create).map(d -> {
+            StringBuilder sb = new StringBuilder(d.data().toString());
+            for (StructureDescription s : d.structures()) {
+                sb.append('|').append(s.iri()).append('=')
+                        .append(specification(s.iri()).map(spec -> Integer.toHexString(spec.text().hashCode()))
+                                .orElse(""));
+            }
+            return sb.toString();
+        }).orElse("");
     }
 
     /** The Representation Information manifest (Turtle) for {@code data}. */
@@ -333,11 +423,20 @@ public class DataObjectViewService {
      *                     decoding fails
      */
     public <T> T decode(String dataObject, DecodedWork<T> work) throws IOException {
+        return decode(dataObject, null, work);
+    }
+
+    /**
+     * As {@link #decode(String, DecodedWork)}, with its structure description
+     * in {@code language} ({@code StructureDescription.DFDL}, ...), or its
+     * first usable one when {@code language} is null.
+     */
+    public <T> T decode(String dataObject, String language, DecodedWork<T> work) throws IOException {
         List<T> result = new ArrayList<>(1);
         withLocalCopy(dataObject, (remote, local) -> {
             List<Path> temporary = new ArrayList<>();
             try {
-                result.add(work.run(remote, RepInfoDecoder.decode(local, temporary)));
+                result.add(work.run(remote, RepInfoDecoder.decode(local, language, temporary)));
             } finally {
                 RepInfoDecoder.deleteAll(temporary);
             }

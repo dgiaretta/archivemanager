@@ -34,6 +34,12 @@
       <artifactId>oais-structure-manifest</artifactId>
     </dependency>
 
+    <!-- EAST descriptions, interpreted directly (no third-party dependencies). -->
+    <dependency>
+      <groupId>info.oais.infomodel</groupId>
+      <artifactId>oais-structure-east</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>uk.ac.starlink</groupId>
       <artifactId>stil</artifactId>

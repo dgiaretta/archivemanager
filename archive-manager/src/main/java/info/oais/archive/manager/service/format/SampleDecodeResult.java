@@ -155,7 +155,7 @@ public record SampleDecodeResult(List<TreeRow> rows, boolean truncated, String e
         return true;
     }
 
-    private static String range(Optional<ByteRange> range) {
+    static String range(Optional<ByteRange> range) {
         return range.filter(r -> r.isByteAligned() && r.bitLength() > 0)
                 .map(r -> "bytes " + r.startByteOffset() + "–" + (r.startByteOffset() + r.byteLength() - 1))
                 .or(() -> range.map(r -> "bits " + r.startBitOffset() + "+" + r.bitLength()))
@@ -202,7 +202,7 @@ public record SampleDecodeResult(List<TreeRow> rows, boolean truncated, String e
 
     private static final int MAX_HEX_BYTES = 64;
 
-    private static String describe(Object value) {
+    static String describe(Object value) {
         if (value == null) {
             return "";
         }

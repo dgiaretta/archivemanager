@@ -115,6 +115,45 @@
                 asks whether to trust it; choose to always trust this publisher, and later launches won't ask.
             </p>
         </th:block>
+        <div th:if="${valueLanguages != null and !valueLanguages.isEmpty()}" class="values-viewer"
+             th:attr="data-values=@{/api/data-objects/{id}/values.json(id=${id})}">
+            <h3>See the values here</h3>
+            <p class="muted">
+                Decodes the data on the server through its Representation Information and prints each value, with
+                where it is in the bits and what it means (its meaning, a code's meaning, a scaled value with its
+                units), as RepInfo Tools does for a sample file &mdash; a page at a time, so a large file doesn't
+                swamp the browser. The first page of a large file takes a while to decode; the pages after it don't.
+            </p>
+            <p class="values-controls">
+                <button type="button" data-values-show>Show the values</button>
+                <label th:if="${valueLanguages.size() > 1}">decoded with its
+                    <select data-values-language>
+                        <option th:each="l : ${valueLanguages}" th:value="${l}" th:text="${l}">DFDL</option>
+                    </select> description</label>
+                <label>rows per page
+                    <select data-values-size>
+                        <option>50</option><option selected>100</option><option>250</option><option>1000</option>
+                    </select></label>
+            </p>
+            <div data-values-panel hidden>
+                <p class="notice error" data-values-error hidden></p>
+                <p class="values-pager" data-values-pager hidden>
+                    <button type="button" class="button-secondary" data-values-first>&laquo; First</button>
+                    <button type="button" class="button-secondary" data-values-previous>&lsaquo; Previous</button>
+                    <label>Page <input type="number" min="1" value="1" size="6" data-values-page/>
+                        of <span data-values-pages>1</span></label>
+                    <button type="button" class="button-secondary" data-values-next>Next &rsaquo;</button>
+                    <button type="button" class="button-secondary" data-values-last>Last &raquo;</button>
+                    <span class="muted" data-values-status></span>
+                </p>
+                <table class="listing" data-values-table hidden>
+                    <thead>
+                    <tr><th>Element</th><th>Kind</th><th>Value</th><th>Meaning</th><th>Position</th></tr>
+                    </thead>
+                    <tbody data-values-rows></tbody>
+                </table>
+            </div>
+        </div>
         <div th:if="${imageViewable}" class="image-viewer" th:attr="data-pixels=@{/api/data-objects/{id}/pixels.json(id=${id})}">
             <h3>See the image here</h3>
             <p><button type="button" data-image-show>Show the image</button>
@@ -222,5 +261,6 @@
 <div th:replace="~{fragments :: footer}"></div>
 <script th:if="${tableViewable or imageViewable}" th:src="@{/js/samp-send.js}"></script>
 <script th:if="${imageViewable}" th:src="@{/js/image-viewer.js}"></script>
+<script th:if="${valueLanguages != null and !valueLanguages.isEmpty()}" th:src="@{/js/values-viewer.js}"></script>
 </body>
 </html>

@@ -6,6 +6,7 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -18,6 +19,7 @@ import info.oais.infomodel.structure.StructureInterpreterFactory;
 import info.oais.infomodel.structure.StructureNode;
 import info.oais.infomodel.structure.dfdl.DfdlFormatSpecification;
 import info.oais.infomodel.structure.drb.DrbFormatSpecification;
+import info.oais.infomodel.structure.east.EastFormatSpecification;
 import info.oais.infomodel.structure.kaitai.KaitaiFormatSpecification;
 import info.oais.infomodel.structure.manifest.DescribedData;
 import info.oais.infomodel.structure.manifest.StructureDescription;
@@ -27,14 +29,20 @@ import info.oais.infomodel.structure.manifest.StructureDescription;
  * {@link StructureNode} tree, with the first of its structure descriptions
  * whose engine is available -- in the order DFDL, DRB SDF, Kaitai Struct
  * (whose generated class must be on the classpath), DRB's own format
- * recognition. What the tree is then viewed as -- a table
+ * recognition, EAST -- or with one in a language the caller chooses. What the tree is then viewed as -- a table
  * ({@link OaisStructureTableBuilder}), an image (oais-structure-image) -- is
  * up to the caller.
  */
 public final class RepInfoDecoder {
 
 	/** The order structure alternatives are tried in. */
-	static final List<String> PREFERENCE = StructureDescription.LANGUAGES;
+	static final List<String> PREFERENCE = preference();
+
+	private static List<String> preference() {
+		List<String> languages = new ArrayList<>(StructureDescription.LANGUAGES);
+		languages.add(StructureDescription.EAST);
+		return List.copyOf(languages);
+	}
 
 	private RepInfoDecoder() {
 	}
@@ -45,7 +53,18 @@ public final class RepInfoDecoder {
 	 * @throws IOException if none can be used here, or reading or decoding fails
 	 */
 	public static StructureNode decode(DescribedData data, List<Path> temporary) throws IOException {
-		FormatSpecification spec = formatSpecification(data, temporary);
+		return decode(data, null, temporary);
+	}
+
+	/**
+	 * Decodes {@code data}'s bits with its structure description in
+	 * {@code language} (e.g. {@link StructureDescription#DFDL}), or with its
+	 * first usable one when {@code language} is null.
+	 *
+	 * @throws IOException if there's no usable one in that language, or reading or decoding fails
+	 */
+	public static StructureNode decode(DescribedData data, String language, List<Path> temporary) throws IOException {
+		FormatSpecification spec = formatSpecification(data, language, temporary);
 		try (InputStream in = data.data().toURL().openStream()) {
 			return new StructureInterpreterFactory().create(spec).apply(new DigitalObjectRefImpl(in));
 		} catch (StructureInterpretationException | IllegalStateException e) {
@@ -55,9 +74,27 @@ public final class RepInfoDecoder {
 
 	/** The first usable structure alternative, as the engine's format specification. */
 	static FormatSpecification formatSpecification(DescribedData data, List<Path> temporary) throws IOException {
+		return formatSpecification(data, null, temporary);
+	}
+
+	/**
+	 * The languages of {@code data}'s structure descriptions that can be used
+	 * here, in the order they're preferred.
+	 */
+	public static List<String> usableLanguages(DescribedData data) {
 		Set<SpecificationLanguage> engines = new StructureInterpreterFactory().availableLanguages();
-		StructureDescription chosen = data.structure(PREFERENCE, s -> usable(s, engines)).orElseThrow(() ->
-				new IOException("None of the structure descriptions the manifest gives for " + data.name()
+		return PREFERENCE.stream().filter(l -> data.structures().stream()
+				.anyMatch(s -> s.language().equals(l) && usable(s, engines))).toList();
+	}
+
+	static FormatSpecification formatSpecification(DescribedData data, String language, List<Path> temporary)
+			throws IOException {
+		Set<SpecificationLanguage> engines = new StructureInterpreterFactory().availableLanguages();
+		StructureDescription chosen = data.structure(PREFERENCE, s -> usable(s, engines)
+				&& (language == null || s.language().equals(language))).orElseThrow(() ->
+				language != null ? new IOException("There's no " + language + " structure description of "
+						+ data.name() + " that can be used here")
+				: new IOException("None of the structure descriptions the manifest gives for " + data.name()
 						+ " can be used here (" + String.join(", ", data.structures().stream()
 								.map(s -> s.language() + (s.language().equals(StructureDescription.KAITAI)
 										? " " + s.generatedClassName() : "")).toList())
@@ -70,6 +107,8 @@ public final class RepInfoDecoder {
 				return new DrbFormatSpecification(local(chosen.location(), ".drb.xsd", temporary).toUri());
 			case StructureDescription.KAITAI:
 				return new KaitaiFormatSpecification(kaitaiClass(chosen.generatedClassName()));
+			case StructureDescription.EAST:
+				return EastFormatSpecification.at(local(chosen.location(), ".east", temporary).toUri());
 			default:
 				String path = data.data().getPath();
 				int dot = path == null ? -1 : path.lastIndexOf('.');
@@ -89,6 +128,8 @@ public final class RepInfoDecoder {
 				return engines.contains(SpecificationLanguage.DRB) && s.location() != null;
 			case StructureDescription.DRB:
 				return engines.contains(SpecificationLanguage.DRB);
+			case StructureDescription.EAST:
+				return engines.contains(SpecificationLanguage.EAST) && s.location() != null;
 			case StructureDescription.KAITAI:
 				if (!engines.contains(SpecificationLanguage.KAITAI_STRUCT) || s.generatedClassName() == null) {
 					return false;
