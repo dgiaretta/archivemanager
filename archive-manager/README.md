@@ -771,6 +771,27 @@ wanted.
     XOR/rotations without custom Java code, and DRB's SDF has no checksums,
     encryption or compression.
 
+    **Any FITS file** (FITS Standard 4.0) has a DFDL and a Kaitai Struct
+    description among the examples (`dfdl-fits.dfdl.xsd`, `kaitai-fits.ksy`),
+    tested by `FitsDescriptionsTest` on files written to the Standard's layout
+    and by STIL, and checked on the FITS Support Office's sample files (every
+    HDU read, and written back byte for byte with DFDL). They read every HDU:
+    the header's keyword records to `END`, filled to a 2880-byte block, and
+    the data, sized by the mandatory keywords at their fixed positions
+    (`BITPIX`, `NAXISn`, and `PCOUNT`, `GCOUNT` in extensions) as the
+    Standard's Eqs. 1 and 2 say, for up to 9 axes: the primary array and
+    IMAGE extensions as values of `BITPIX`'s type, a BINTABLE's rows as bytes
+    and its heap, a TABLE's rows as text, any other extension as bytes. A
+    binary table's columns (`TFORMn`) and random groups (`GROUPS`, `PCOUNT`,
+    `GCOUNT`) are given by keywords that can be anywhere in the header, which
+    neither language can look up by name (Daffodil's paths take only index
+    predicates), so they aren't read; a primary HDU with `NAXIS1 = 0` is
+    refused. Kaitai's `to_i` doesn't take the spaces before a right-justified
+    integer, so it's read from its first non-space byte. EAST can't express the
+    header's fill (it needs a count of the records read), and DRB SDF can't
+    read a number from a keyword record. Daffodil reads a large array slowly
+    (an element per value: minutes for a million values).
+
     **A sample test runs the description inside this application**, so
     hand-written text is checked first (`HandWrittenDescriptions.check`) and
     refused if it could reach beyond describing data: a DOCTYPE, or a schema

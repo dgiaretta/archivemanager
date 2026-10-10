@@ -86,6 +86,12 @@ public final class HandWrittenDescriptions {
                             + "XOR key (process: xor). Kaitai also has rol/ror rotations and zlib; it can't compute a "
                             + "CRC without a custom Java routine, which isn't allowed here.",
                     "kaitai-encrypted-and-checked.ksy"),
+            new Example("kaitai-fits", DescriptionLanguage.KAITAI, "Any FITS file (FITS Standard 4.0)",
+                    "Every HDU of any FITS file, as the DFDL example reads them: the header's keyword records to "
+                            + "END, filled to a 2880-byte block, and the data, sized by the mandatory keywords: arrays "
+                            + "read as BITPIX's type, table rows as bytes or text. A right-justified integer value is "
+                            + "worked out from its digits, since Kaitai's to_i doesn't take the spaces before it.",
+                    "kaitai-fits.ksy"),
             new Example("kaitai-stanzas", DescriptionLanguage.KAITAI, "Records of several lines",
                     "Records separated by a blank line: each record's lines repeat until an empty one.",
                     "kaitai-stanzas.ksy"),
@@ -99,6 +105,13 @@ public final class HandWrittenDescriptions {
                     "Daffodil's built-in layers: fixedLength bounds a section, gzip decompresses it. Daffodil also "
                             + "has base64, byte-swap and line-folding layers; encryption needs a custom layer.",
                     "dfdl-gzip.dfdl.xsd"),
+            new Example("dfdl-fits", DescriptionLanguage.DFDL, "Any FITS file (FITS Standard 4.0)",
+                    "Every HDU of any FITS file: the header's keyword records to END, filled to a 2880-byte block, "
+                            + "and the data, sized by the mandatory keywords (BITPIX, NAXISn, PCOUNT, GCOUNT) as the "
+                            + "Standard's Eqs. 1 and 2 say: arrays read as BITPIX's type, table rows as bytes or text. "
+                            + "A binary table's columns and random groups need keywords that can be anywhere in the "
+                            + "header, which DFDL can't look up by name, so they aren't read.",
+                    "dfdl-fits.dfdl.xsd"),
             new Example("dfdl-stanzas", DescriptionLanguage.DFDL, "Records of several lines",
                     "Records separated by a blank line: each line ends with a newline, and a record's lines "
                             + "stop at an empty one.",

@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Any FITS file, as the FITS Standard 4.0 (IAU FITS Working Group, 2018)
+     defines it: a primary HDU, then any extensions, each HDU a header of
+     80-character keyword records ending with END, filled with blank records to
+     a 2880-byte block, then its data, filled with zeros to a 2880-byte block.
+
+     Sizes come from the mandatory keywords, which the Standard puts at fixed
+     positions (Tables 7, 10, 13, 14, 17): SIMPLE or XTENSION, BITPIX, NAXIS,
+     NAXIS1 ... NAXISn, and in an extension PCOUNT and GCOUNT. The data has
+     |BITPIX| x (NAXIS1 x ... x NAXISm) bits in a primary HDU (Eq. 1) and
+     |BITPIX| x GCOUNT x (PCOUNT + NAXIS1 x ... x NAXISm) bits in an extension
+     (Eq. 2). DFDL expressions have no product over a repeated element, so the
+     product is written out for up to 9 axes; more are refused.
+
+     The primary array and IMAGE extensions are read as values of BITPIX's
+     type (8: unsigned bytes; 16, 32, 64: two's complement integers; -32, -64:
+     IEEE 754 floats), big-endian, the first axis varying fastest; a
+     BINTABLE's rows as bytes, then its heap (PCOUNT bytes); a TABLE's rows as
+     text; any other extension as bytes. A binary table's columns are defined
+     by its TFORMn keywords, which can be anywhere in the header, and DFDL
+     can't look a keyword up by name, so its rows aren't split into fields.
+     For the same reason random groups (whose GROUPS, PCOUNT and GCOUNT can be
+     anywhere in the primary header) aren't read: a primary HDU with
+     NAXIS1 = 0 is refused. Keyword values other than the mandatory integers
+     are left as the text of their records. -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+           xmlns:dfdl="http://www.ogf.org/dfdl/dfdl-1.0/"
+           xmlns:fn="http://www.w3.org/2005/xpath-functions"
+           xmlns:tns="urn:fits:standard:4.0"
+           targetNamespace="urn:fits:standard:4.0"
+           elementFormDefault="qualified">
+
+  <xs:include schemaLocation="/org/apache/daffodil/xsd/DFDLGeneralFormat.dfdl.xsd"/>
+
+  <xs:annotation>
+    <xs:appinfo source="http://www.ogf.org/dfdl/">
+      <dfdl:format ref="tns:GeneralFormat" representation="binary" byteOrder="bigEndian"
+                   binaryNumberRep="binary" lengthKind="explicit" lengthUnits="bytes"
+                   encoding="US-ASCII" occursCountKind="implicit"
+                   textTrimKind="padChar" textPadKind="padChar"
+                   textStringJustification="left" textStringPadCharacter="%SP;"/>
+    </xs:appinfo>
+  </xs:annotation>
+
+  <!-- A keyword record whose value is a fixed-format integer, right-justified in bytes 11 to 30 (Sect. 4.2.3). -->
+  <xs:complexType name="integerRecord">
+    <xs:sequence>
+      <xs:element name="keyword" type="xs:string" dfdl:representation="text" dfdl:length="8"/>
+      <xs:element name="indicator" type="xs:string" dfdl:representation="text" dfdl:length="2"
+                  dfdl:textTrimKind="none" dfdl:textPadKind="none"/>
+      <xs:element name="value" type="xs:long" dfdl:representation="text" dfdl:length="20"
+                  dfdl:textNumberRep="standard" dfdl:textNumberPattern="#0" dfdl:textNumberCheckPolicy="lax"
+                  dfdl:textNumberJustification="right" dfdl:textNumberPadCharacter="%SP;"/>
+      <xs:element name="comment" type="xs:string" dfdl:representation="text" dfdl:length="50"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <!-- Any other keyword record: its keyword, and bytes 9 to 80 as text. -->
+  <xs:complexType name="record">
+    <xs:sequence>
+      <xs:element name="keyword" type="xs:string" dfdl:representation="text" dfdl:length="8"/>
+      <xs:element name="text" type="xs:string" dfdl:representation="text" dfdl:length="72"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="fits" dfdl:lengthKind="implicit">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="hdu" maxOccurs="unbounded" dfdl:lengthKind="implicit">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="header" dfdl:lengthKind="implicit">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="first" type="tns:record" dfdl:lengthKind="implicit">
+                      <xs:annotation>
+                        <xs:appinfo source="http://www.ogf.org/dfdl/">
+                          <dfdl:discriminator test="{ tns:keyword eq 'SIMPLE' or tns:keyword eq 'XTENSION' }"
+                                              message="An HDU begins with SIMPLE (the primary HDU) or XTENSION (an extension)."/>
+                        </xs:appinfo>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element name="bitpix" type="tns:integerRecord" dfdl:lengthKind="implicit">
+                      <xs:annotation>
+                        <xs:appinfo source="http://www.ogf.org/dfdl/">
+                          <dfdl:assert test="{ tns:keyword eq 'BITPIX' and (tns:value eq 8 or tns:value eq 16
+                                              or tns:value eq 32 or tns:value eq 64 or tns:value eq -32 or tns:value eq -64) }"
+                                       message="The second keyword must be BITPIX, with 8, 16, 32, 64, -32 or -64."/>
+                        </xs:appinfo>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element name="naxis" type="tns:integerRecord" dfdl:lengthKind="implicit">
+                      <xs:annotation>
+                        <xs:appinfo source="http://www.ogf.org/dfdl/">
+                          <dfdl:assert test="{ tns:keyword eq 'NAXIS' and tns:value ge 0 and tns:value le 9 }"
+                                       message="The third keyword must be NAXIS; this description reads up to 9 axes."/>
+                        </xs:appinfo>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element name="naxisn" type="tns:integerRecord" minOccurs="0" maxOccurs="9"
+                                dfdl:lengthKind="implicit" dfdl:occursCountKind="expression"
+                                dfdl:occursCount="{ ../tns:naxis/tns:value }"/>
+                    <xs:element name="pcount" type="tns:integerRecord" minOccurs="0" maxOccurs="1"
+                                dfdl:lengthKind="implicit" dfdl:occursCountKind="expression"
+                                dfdl:occursCount="{ if (../tns:first/tns:keyword eq 'XTENSION') then 1 else 0 }"/>
+                    <xs:element name="gcount" type="tns:integerRecord" minOccurs="0" maxOccurs="1"
+                                dfdl:lengthKind="implicit" dfdl:occursCountKind="expression"
+                                dfdl:occursCount="{ if (../tns:first/tns:keyword eq 'XTENSION') then 1 else 0 }"/>
+                    <xs:element name="card" type="tns:record" minOccurs="0" maxOccurs="unbounded"
+                                dfdl:lengthKind="implicit">
+                      <xs:annotation>
+                        <xs:appinfo source="http://www.ogf.org/dfdl/">
+                          <dfdl:discriminator test="{ tns:keyword ne 'END' }"/>
+                        </xs:appinfo>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element name="end" type="tns:record" dfdl:lengthKind="implicit">
+                      <xs:annotation>
+                        <xs:appinfo source="http://www.ogf.org/dfdl/">
+                          <dfdl:assert test="{ tns:keyword eq 'END' }" message="A header ends with END."/>
+                        </xs:appinfo>
+                      </xs:annotation>
+                    </xs:element>
+                    <!-- Blank records filling the header's last 2880-byte block (36 records). -->
+                    <xs:element name="fill" type="xs:string" dfdl:representation="text"
+                                dfdl:length="{ ((36 - (fn:count(../tns:card) + 4 + xs:integer(../tns:naxis/tns:value)
+                                               + (if (../tns:first/tns:keyword eq 'XTENSION') then 2 else 0)) mod 36) mod 36) * 80 }"/>
+                    <!-- What the data is, and how big, from the mandatory keywords (Eqs. 1 and 2). -->
+                    <xs:element name="kind" type="xs:string" dfdl:inputValueCalc="{
+                        if (../tns:first/tns:keyword eq 'SIMPLE') then 'PRIMARY'
+                        else if (fn:contains(../tns:first/tns:text, &quot;'IMAGE&quot;)) then 'IMAGE'
+                        else if (fn:contains(../tns:first/tns:text, &quot;'BINTABLE&quot;)) then 'BINTABLE'
+                        else if (fn:contains(../tns:first/tns:text, &quot;'TABLE&quot;)) then 'TABLE'
+                        else 'OTHER' }">
+                      <xs:annotation>
+                        <xs:appinfo source="http://www.ogf.org/dfdl/">
+                          <dfdl:assert test="{ . ne 'PRIMARY' or xs:integer(../tns:naxis/tns:value) eq 0
+                                              or xs:integer(../tns:naxisn[1]/tns:value) ne 0 }"
+                                       message="A primary HDU with NAXIS1 = 0 holds random groups, which this description doesn't read."/>
+                        </xs:appinfo>
+                      </xs:annotation>
+                    </xs:element>
+                    <xs:element name="elements" type="xs:long" dfdl:inputValueCalc="{
+                        if (xs:integer(../tns:naxis/tns:value) eq 0) then 0
+                        else xs:integer(../tns:naxisn[1]/tns:value)
+                          * (if (xs:integer(../tns:naxis/tns:value) ge 2) then xs:integer(../tns:naxisn[2]/tns:value) else 1)
+                          * (if (xs:integer(../tns:naxis/tns:value) ge 3) then xs:integer(../tns:naxisn[3]/tns:value) else 1)
+                          * (if (xs:integer(../tns:naxis/tns:value) ge 4) then xs:integer(../tns:naxisn[4]/tns:value) else 1)
+                          * (if (xs:integer(../tns:naxis/tns:value) ge 5) then xs:integer(../tns:naxisn[5]/tns:value) else 1)
+                          * (if (xs:integer(../tns:naxis/tns:value) ge 6) then xs:integer(../tns:naxisn[6]/tns:value) else 1)
+                          * (if (xs:integer(../tns:naxis/tns:value) ge 7) then xs:integer(../tns:naxisn[7]/tns:value) else 1)
+                          * (if (xs:integer(../tns:naxis/tns:value) ge 8) then xs:integer(../tns:naxisn[8]/tns:value) else 1)
+                          * (if (xs:integer(../tns:naxis/tns:value) ge 9) then xs:integer(../tns:naxisn[9]/tns:value) else 1) }"/>
+                    <xs:element name="data_bytes" type="xs:long" dfdl:inputValueCalc="{
+                        (fn:abs(xs:integer(../tns:bitpix/tns:value)) idiv 8)
+                        * (if (../tns:first/tns:keyword eq 'XTENSION')
+                           then xs:integer(../tns:gcount[1]/tns:value) * (xs:integer(../tns:pcount[1]/tns:value) + xs:integer(../tns:elements))
+                           else xs:integer(../tns:elements)) }"/>
+                    <xs:element name="layout" type="xs:string" dfdl:inputValueCalc="{
+                        if (../tns:kind eq 'PRIMARY' or ../tns:kind eq 'IMAGE')
+                        then fn:concat('array', xs:string(../tns:bitpix/tns:value))
+                        else ../tns:kind }"/>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="data" dfdl:lengthKind="explicit" dfdl:length="{ ../tns:header/tns:data_bytes }">
+                <xs:complexType>
+                  <xs:choice dfdl:choiceDispatchKey="{ ../tns:header/tns:layout }">
+                    <xs:element name="unsigned_bytes" dfdl:choiceBranchKey="array8" dfdl:lengthKind="implicit">
+                      <xs:complexType><xs:sequence>
+                        <xs:element name="value" type="xs:unsignedByte" dfdl:length="1" minOccurs="0" maxOccurs="unbounded"
+                                    dfdl:occursCountKind="expression" dfdl:occursCount="{ ../../../tns:header/tns:elements }"/>
+                      </xs:sequence></xs:complexType>
+                    </xs:element>
+                    <xs:element name="int16" dfdl:choiceBranchKey="array16" dfdl:lengthKind="implicit">
+                      <xs:complexType><xs:sequence>
+                        <xs:element name="value" type="xs:short" dfdl:length="2" minOccurs="0" maxOccurs="unbounded"
+                                    dfdl:occursCountKind="expression" dfdl:occursCount="{ ../../../tns:header/tns:elements }"/>
+                      </xs:sequence></xs:complexType>
+                    </xs:element>
+                    <xs:element name="int32" dfdl:choiceBranchKey="array32" dfdl:lengthKind="implicit">
+                      <xs:complexType><xs:sequence>
+                        <xs:element name="value" type="xs:int" dfdl:length="4" minOccurs="0" maxOccurs="unbounded"
+                                    dfdl:occursCountKind="expression" dfdl:occursCount="{ ../../../tns:header/tns:elements }"/>
+                      </xs:sequence></xs:complexType>
+                    </xs:element>
+                    <xs:element name="int64" dfdl:choiceBranchKey="array64" dfdl:lengthKind="implicit">
+                      <xs:complexType><xs:sequence>
+                        <xs:element name="value" type="xs:long" dfdl:length="8" minOccurs="0" maxOccurs="unbounded"
+                                    dfdl:occursCountKind="expression" dfdl:occursCount="{ ../../../tns:header/tns:elements }"/>
+                      </xs:sequence></xs:complexType>
+                    </xs:element>
+                    <xs:element name="float32" dfdl:choiceBranchKey="array-32" dfdl:lengthKind="implicit">
+                      <xs:complexType><xs:sequence>
+                        <xs:element name="value" type="xs:float" dfdl:length="4" dfdl:binaryFloatRep="ieee"
+                                    minOccurs="0" maxOccurs="unbounded"
+                                    dfdl:occursCountKind="expression" dfdl:occursCount="{ ../../../tns:header/tns:elements }"/>
+                      </xs:sequence></xs:complexType>
+                    </xs:element>
+                    <xs:element name="float64" dfdl:choiceBranchKey="array-64" dfdl:lengthKind="implicit">
+                      <xs:complexType><xs:sequence>
+                        <xs:element name="value" type="xs:double" dfdl:length="8" dfdl:binaryFloatRep="ieee"
+                                    minOccurs="0" maxOccurs="unbounded"
+                                    dfdl:occursCountKind="expression" dfdl:occursCount="{ ../../../tns:header/tns:elements }"/>
+                      </xs:sequence></xs:complexType>
+                    </xs:element>
+                    <!-- A binary table: NAXIS2 rows of NAXIS1 bytes, then the heap (PCOUNT bytes). -->
+                    <xs:element name="binary_table" dfdl:choiceBranchKey="BINTABLE" dfdl:lengthKind="implicit">
+                      <xs:complexType><xs:sequence>
+                        <xs:element name="row" type="xs:hexBinary" minOccurs="0" maxOccurs="unbounded"
+                                    dfdl:length="{ ../../../tns:header/tns:naxisn[1]/tns:value }"
+                                    dfdl:occursCountKind="expression" dfdl:occursCount="{ ../../../tns:header/tns:naxisn[2]/tns:value }"/>
+                        <xs:element name="heap" type="xs:hexBinary"
+                                    dfdl:length="{ ../../../tns:header/tns:pcount[1]/tns:value }"/>
+                      </xs:sequence></xs:complexType>
+                    </xs:element>
+                    <!-- An ASCII table: NAXIS2 rows of NAXIS1 characters. -->
+                    <xs:element name="ascii_table" dfdl:choiceBranchKey="TABLE" dfdl:lengthKind="implicit">
+                      <xs:complexType><xs:sequence>
+                        <xs:element name="row" type="xs:string" dfdl:representation="text" minOccurs="0" maxOccurs="unbounded"
+                                    dfdl:length="{ ../../../tns:header/tns:naxisn[1]/tns:value }"
+                                    dfdl:occursCountKind="expression" dfdl:occursCount="{ ../../../tns:header/tns:naxisn[2]/tns:value }"/>
+                      </xs:sequence></xs:complexType>
+                    </xs:element>
+                    <!-- Any other extension: its data as bytes. -->
+                    <xs:element name="bytes" type="xs:hexBinary" dfdl:choiceBranchKey="OTHER"
+                                dfdl:length="{ ../../tns:header/tns:data_bytes }"/>
+                  </xs:choice>
+                </xs:complexType>
+              </xs:element>
+              <!-- Zeros filling the data's last 2880-byte block. -->
+              <xs:element name="fill" type="xs:hexBinary"
+                          dfdl:length="{ (2880 - (xs:integer(../tns:header/tns:data_bytes) mod 2880)) mod 2880 }"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>
