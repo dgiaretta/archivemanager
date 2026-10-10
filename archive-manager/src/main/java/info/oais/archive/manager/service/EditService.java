@@ -72,6 +72,22 @@ public class EditService {
         return true;
     }
 
+    /**
+     * Adds {@code model}'s statements unless {@code iri} is already there --
+     * for shared Representation Information that comes with the app, such
+     * as the FITS keyword dictionary.
+     *
+     * @return whether they were added
+     */
+    public boolean addIfAbsent(String iri, org.apache.jena.rdf.model.Model model) {
+        Model m = store.dataModel();
+        if (m.listStatements(m.getResource(iri), null, (org.apache.jena.rdf.model.RDFNode) null).hasNext()) {
+            return false;
+        }
+        m.add(model);
+        return true;
+    }
+
     public void addType(String iri, String typeIri) {
         Model m = store.dataModel();
         m.getResource(iri).addProperty(RDF.type, m.createResource(typeIri));

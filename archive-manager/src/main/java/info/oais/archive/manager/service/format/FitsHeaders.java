@@ -39,8 +39,27 @@ public final class FitsHeaders {
      * @param groups    whether it holds random groups (GROUPS = T, NAXIS1 = 0)
      * @param name      its EXTNAME, if it has one
      * @param dataBytes the size of its data, without fill
+     * @param offset    where it starts in the file
+     * @param records   its header's keyword records, up to and including END (80 characters each)
+     * @param keywords  the values of its header's keywords, by keyword: the first of each, strings unquoted
      */
-    public record Hdu(String type, int bitpix, long[] axes, boolean groups, String name, long dataBytes) {
+    public record Hdu(String type, int bitpix, long[] axes, boolean groups, String name, long dataBytes,
+                      long offset, List<String> records, Map<String, String> keywords) {
+
+        /** The size of its header, filled to a whole number of blocks. */
+        public long headerBytes() {
+            return (records.size() * 80L + BLOCK - 1) / BLOCK * BLOCK;
+        }
+
+        /** Where its data starts in the file. */
+        public long dataOffset() {
+            return offset + headerBytes();
+        }
+
+        /** The value of {@code keyword}, if its header has it. */
+        public String keyword(String keyword) {
+            return keywords.get(keyword);
+        }
 
         /** A table with at least one row. */
         public boolean isTable() {
@@ -71,6 +90,7 @@ public final class FitsHeaders {
         long offset = 0;
         while (hdus.size() < MAX_HDUS) {
             Map<String, String> keywords = new LinkedHashMap<>();
+            List<String> records = new ArrayList<>();
             String first = null;
             int blocks = 0;
             boolean ended = false;
@@ -90,6 +110,7 @@ public final class FitsHeaders {
                             return hdus;
                         }
                     }
+                    records.add(record);
                     if (keyword.equals("END")) {
                         ended = true;
                         break;
@@ -102,7 +123,7 @@ public final class FitsHeaders {
             if (!ended) {
                 return hdus;
             }
-            Hdu hdu = hdu(first, keywords);
+            Hdu hdu = hdu(first, keywords, offset, records);
             if (hdu == null) {
                 return hdus;
             }
@@ -112,7 +133,7 @@ public final class FitsHeaders {
         return hdus;
     }
 
-    private static Hdu hdu(String first, Map<String, String> k) {
+    private static Hdu hdu(String first, Map<String, String> k, long offset, List<String> records) {
         try {
             int bitpix = Integer.parseInt(k.get("BITPIX"));
             int naxis = Integer.parseInt(k.get("NAXIS"));
@@ -130,10 +151,41 @@ public final class FitsHeaders {
             }
             long dataBytes = Math.abs(bitpix) / 8 * gcount * (pcount + elements);
             String type = extension ? k.getOrDefault("XTENSION", "").strip() : "PRIMARY";
-            return new Hdu(type, bitpix, axes, groups, k.get("EXTNAME"), dataBytes);
+            return new Hdu(type, bitpix, axes, groups, k.get("EXTNAME"), dataBytes, offset, List.copyOf(records),
+                    java.util.Collections.unmodifiableMap(k));
         } catch (RuntimeException e) {
             return null;
         }
+    }
+
+    /** The value of a keyword record ("KEYWORD = value / comment"), as {@link Hdu#keywords()} has it; null if none. */
+    public static String recordValue(String record) {
+        return record.length() > 10 && record.startsWith("= ", 8) ? value(record.substring(10)) : null;
+    }
+
+    /**
+     * The comment of a keyword record: after the value's "/" for a record
+     * with a value, else the text after the keyword (COMMENT, HISTORY, blank).
+     */
+    public static String recordComment(String record) {
+        if (record.length() <= 8) {
+            return "";
+        }
+        if (!record.startsWith("= ", 8)) {
+            return record.substring(8).strip();
+        }
+        String v = record.substring(10);
+        int i = 0;
+        boolean quoted = false;
+        for (; i < v.length(); i++) {
+            char c = v.charAt(i);
+            if (c == '\'') {
+                quoted = !quoted;
+            } else if (c == '/' && !quoted) {
+                return v.substring(i + 1).strip();
+            }
+        }
+        return "";
     }
 
     /** A keyword's value: a string without its quotes, or the text before any comment. */

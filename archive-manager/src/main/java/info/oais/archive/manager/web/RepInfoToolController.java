@@ -14,7 +14,11 @@ import info.oais.archive.manager.service.format.DrbPythonSampleRunner;
 import info.oais.archive.manager.service.format.DrbSampleRunner;
 import info.oais.archive.manager.service.format.FormatDescriptionRdfService;
 import info.oais.archive.manager.service.format.FormatTemplates;
+import info.oais.archive.manager.service.format.DataObjectViewService;
+import info.oais.archive.manager.service.format.FitsDescriber;
+import info.oais.archive.manager.service.format.FitsHeaders;
 import info.oais.archive.manager.service.format.HandWrittenDescriptions;
+import info.oais.archive.manager.service.format.StorageFetcher;
 import info.oais.archive.manager.service.format.WriteBackResult;
 import info.oais.archive.manager.service.format.KaitaiGenerator;
 import info.oais.archive.manager.service.format.KaitaiSampleRunner;
@@ -91,12 +95,17 @@ public class RepInfoToolController {
     private final DrbSampleRunner drbSampleRunner;
     private final KaitaiSampleRunner kaitaiSampleRunner;
     private final EastSampleRunner eastSampleRunner;
+    private final DataObjectViewService views;
+    private final StorageFetcher fetcher;
 
     public RepInfoToolController(ArchiveService archive, KaitaiGenerator kaitaiGenerator, DfdlGenerator dfdlGenerator,
                                   DrbGenerator drbGenerator, FormatDescriptionRdfService rdfService,
                                   DfdlSampleRunner dfdlSampleRunner, DrbPythonSampleRunner drbPythonSampleRunner,
                                   DrbSampleRunner drbSampleRunner, KaitaiSampleRunner kaitaiSampleRunner,
-                                  EastSampleRunner eastSampleRunner) {
+                                  EastSampleRunner eastSampleRunner, DataObjectViewService views,
+                                  StorageFetcher fetcher) {
+        this.views = views;
+        this.fetcher = fetcher;
         this.archive = archive;
         this.kaitaiGenerator = kaitaiGenerator;
         this.dfdlGenerator = dfdlGenerator;
@@ -206,6 +215,78 @@ public class RepInfoToolController {
         }
         session.setAttribute(SESSION_KEY, def);
         return "redirect:/repinfo-tools/edit";
+    }
+
+    /**
+     * Describes an uploaded FITS file from its headers (see {@link FitsDescriber}):
+     * a description of that file in particular, its columns and pixels typed,
+     * named and given their meanings. Only its headers are read.
+     */
+    @PostMapping("/start-fits")
+    public String startFits(@RequestParam(required = false) MultipartFile file, HttpSession session, Model model)
+            throws IOException {
+        if (file == null || file.isEmpty()) {
+            model.addAttribute("fitsError", "Choose a FITS file first.");
+            return start(session, model);
+        }
+        java.nio.file.Path copy = java.nio.file.Files.createTempFile("fits-", ".fits");
+        try {
+            file.transferTo(copy);
+            try (java.io.RandomAccessFile in = new java.io.RandomAccessFile(copy.toFile(), "r")) {
+                FitsHeaders.Reader reader = (offset, length) -> {
+                    byte[] bytes = new byte[(int) Math.max(0, Math.min(length, in.length() - offset))];
+                    in.seek(offset);
+                    in.readFully(bytes);
+                    return bytes;
+                };
+                return startFits(fileName(file.getOriginalFilename()), reader, null, session, model);
+            }
+        } finally {
+            java.nio.file.Files.deleteIfExists(copy);
+        }
+    }
+
+    /**
+     * Describes a Data Object's FITS file from its headers, read from its
+     * storage location with a few ranged requests, to be saved for it.
+     */
+    @PostMapping("/start-fits-object")
+    public String startFitsObject(@RequestParam String dataObjectId, HttpSession session, Model model)
+            throws IOException {
+        java.util.Optional<java.net.URI> location = views.storageLocation(archive.decodeId(dataObjectId));
+        if (location.isEmpty()) {
+            model.addAttribute("fitsError", "That Data Object has no storage location for its bits.");
+            return start(session, model);
+        }
+        java.net.URI uri = location.get();
+        try {
+            return startFits(fileName(uri.getPath()), (offset, length) -> fetcher.fetchRange(uri, offset, length),
+                    dataObjectId, session, model);
+        } catch (IOException e) {
+            model.addAttribute("fitsError", "Its headers couldn't be read from " + uri + ": " + e.getMessage());
+            return start(session, model);
+        }
+    }
+
+    private String startFits(String fileName, FitsHeaders.Reader reader, String dataObjectId, HttpSession session,
+                             Model model) throws IOException {
+        FormatDefinition def;
+        try {
+            def = FitsDescriber.describe(fileName, reader);
+        } catch (IllegalArgumentException e) {
+            model.addAttribute("fitsError", e.getMessage());
+            return start(session, model);
+        }
+        def.setForDataObject(dataObjectId);
+        session.setAttribute(SESSION_KEY, def);
+        return "redirect:/repinfo-tools/edit";
+    }
+
+    /** The last part of a file's name or path; "file" if there's none. */
+    private static String fileName(String name) {
+        String n = name == null ? "" : name.replace('\\', '/');
+        n = n.substring(n.lastIndexOf('/') + 1);
+        return n.isBlank() ? "file" : n;
     }
 
     /** The tree written as EAST, or why it can't be, as for the other languages' features. */

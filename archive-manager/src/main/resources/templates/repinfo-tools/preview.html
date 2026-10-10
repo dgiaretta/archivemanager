@@ -306,7 +306,7 @@
                 <input type="text" class="select-filter" data-target="dataObject-select" placeholder="Type to filter entities..."/>
                 <select name="dataObjectId" id="dataObject-select">
                     <option value="">-- create a new Data Object --</option>
-                    <option th:each="e : ${allEntities}" th:value="${e.id}" th:text="${e.title} + ' (' + ${e.typeLocalName} + ')'">target</option>
+                    <option th:each="e : ${allEntities}" th:value="${e.id}" th:selected="${e.id == def.forDataObject}" th:text="${e.title} + ' (' + ${e.typeLocalName} + ')'">target</option>
                 </select>
             </label>
             <label th:if="${kaitai != null}">

@@ -2,6 +2,7 @@ package info.oais.archive.manager;
 
 import com.sun.net.httpserver.HttpServer;
 import info.oais.archive.manager.rdf.Ns;
+import info.oais.archive.manager.service.format.FitsDictionary;
 import info.oais.archive.manager.rdf.QueryRunner;
 import info.oais.archive.manager.rdf.RdfStore;
 import info.oais.archive.manager.security.EditAuthInterceptor;
@@ -344,6 +345,33 @@ class ViewersTest {
             mockMvc.perform(get("/api/graph/{id}", tableId))
                     .andExpect(jsonPath("$.nodes[?(@.id == '" + objects[0] + "')].viewers[*].id").value(
                             org.hamcrest.Matchers.contains("topcat")));
+
+            // Described from its headers and saved, the file is decoded by the archive itself: its columns named,
+            // its keywords' meanings from the FITS keyword dictionary, and still FITS to the viewers.
+            org.springframework.mock.web.MockHttpSession session = new org.springframework.mock.web.MockHttpSession();
+            session.setAttribute(info.oais.archive.manager.security.EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
+            mockMvc.perform(get("/resource/{id}", tableId))
+                    .andExpect(content().string(containsString("Describe this FITS file from its headers")));
+            mockMvc.perform(post("/repinfo-tools/start-fits-object").param("dataObjectId", tableId).session(session))
+                    .andExpect(status().is3xxRedirection());
+            mockMvc.perform(get("/repinfo-tools/preview").session(session)).andExpect(status().isOk())
+                    .andExpect(content().string(containsString("FITS file table.fits")))
+                    .andExpect(content().string(containsString("hdu2_row")));
+            mockMvc.perform(post("/repinfo-tools/save").param("dataObjectId", tableId).param("formats", "dfdl", "kaitai")
+                    .session(session)).andExpect(status().is3xxRedirection());
+            mockMvc.perform(get("/api/data-objects/{id}/votable", tableId)).andExpect(status().isOk())
+                    .andExpect(content().string(containsString("name=\"flux\"")))
+                    .andExpect(content().string(containsString("Deneb")));
+            mockMvc.perform(get("/resource/{id}", tableId))
+                    .andExpect(content().string(containsString("data-samp-mtype=\"table.load.votable\"")))
+                    .andExpect(content().string(containsString("/api/data-objects/" + tableId + "/data.fits")));
+            assertThat(write(() -> {
+                org.apache.jena.rdf.model.Model m = store.dataModel();
+                return m.contains(m.getResource(FitsDictionary.SCHEME), org.apache.jena.vocabulary.RDF.type,
+                        m.getResource(Ns.SKOS + "ConceptScheme"))
+                        && m.listSubjectsWithProperty(m.getProperty(Ns.IM + "representsConcept"),
+                                m.getResource(FitsDictionary.CONCEPTS + "NAXISn")).hasNext();
+            })).isTrue();
 
             String imageId = archive.encodeId(objects[1]);
             mockMvc.perform(get("/resource/{id}", imageId))

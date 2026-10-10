@@ -91,6 +91,12 @@ public class FormatDescriptionRdfService {
         edit.addLiteral(semanticRi, Ns.RDFS + "label", "Semantics of " + def.getName());
         edit.addLiteral(semanticRi, Ns.RDFS + "comment", semanticSummary(def));
         addFieldSemantics(def, semanticRi);
+        if (def.getSemanticDictionary() != null) {
+            if (def.getSemanticDictionary().equals(FitsDictionary.SCHEME)) {
+                edit.addIfAbsent(FitsDictionary.SCHEME, FitsDictionary.get().model());
+            }
+            edit.addRelationship(semanticRi, Ns.IM + "interpretedUsingRecurse", def.getSemanticDictionary());
+        }
 
         Map<String, String> structures = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : generatedByFormat.entrySet()) {
@@ -107,6 +113,9 @@ public class FormatDescriptionRdfService {
             edit.addLiteral(structureRi, Ns.IM + "specificationText", generatedText);
             if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
                 edit.addLiteral(structureRi, Ns.IM + "specificationLanguage", specificationLanguage(formatLabel));
+            }
+            if (def.getFormatRegistryIdentifier() != null) {
+                edit.addLiteral(structureRi, Ns.IM + "formatRegistryIdentifier", def.getFormatRegistryIdentifier());
             }
             structures.put(formatLabel, structureRi);
         }

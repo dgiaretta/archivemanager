@@ -50,6 +50,9 @@ public class FormatDefinition implements Serializable {
     private final Map<DescriptionLanguage, String> handWritten = new EnumMap<>(DescriptionLanguage.class);
     private final Map<DescriptionLanguage, String> generatedWhenWritten = new EnumMap<>(DescriptionLanguage.class);
     private final List<Hdf5Node> nodes = new ArrayList<>();
+    private String formatRegistryIdentifier;
+    private String semanticDictionary;
+    private String forDataObject;
 
     public String getName() {
         return name;
@@ -57,6 +60,41 @@ public class FormatDefinition implements Serializable {
 
     public void setName(String name) {
         this.name = name == null ? "" : name;
+    }
+
+    /**
+     * The format's identifier in a format registry, e.g. {@code PRONOM x-fmt/383}
+     * for FITS, saved on each structure description; null if none is given.
+     */
+    public String getFormatRegistryIdentifier() {
+        return formatRegistryIdentifier;
+    }
+
+    public void setFormatRegistryIdentifier(String formatRegistryIdentifier) {
+        this.formatRegistryIdentifier = formatRegistryIdentifier == null || formatRegistryIdentifier.isBlank() ? null
+                : formatRegistryIdentifier.strip();
+    }
+
+    /**
+     * Semantic Representation Information shared by every description of
+     * this kind -- e.g. the FITS keyword dictionary -- which the saved
+     * Semantic Representation Information is interpreted with; null if none.
+     */
+    public String getSemanticDictionary() {
+        return semanticDictionary;
+    }
+
+    public void setSemanticDictionary(String semanticDictionary) {
+        this.semanticDictionary = semanticDictionary;
+    }
+
+    /** The Data Object (its id) this was made from, to save it for by default; null if none. */
+    public String getForDataObject() {
+        return forDataObject;
+    }
+
+    public void setForDataObject(String forDataObject) {
+        this.forDataObject = forDataObject;
     }
 
     public String getNotes() {

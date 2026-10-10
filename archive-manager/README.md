@@ -792,6 +792,54 @@ wanted.
     read a number from a keyword record. Daffodil reads a large array slowly
     (an element per value: minutes for a million values).
 
+    **A FITS file in particular** is described from its own headers
+    (`FitsDescriber`): "Describe a FITS file from its headers" on RepInfo
+    Tools' start page (an upload), or "Describe this FITS file from its
+    headers" on the page of a Data Object whose Representation Information
+    says it's FITS (its headers fetched with Range requests). Only the
+    headers are read. Every HDU becomes, at the top level and in file order,
+    `hduN_header` -- its keyword records, 80-character text each, named by
+    keyword (`naxis1`, `date_obs`, `comment_2`, ...), each with its keyword's
+    definition and `im:representsConcept` its keyword in the FITS keyword
+    dictionary, and the blank fill -- then its data: an image as
+    `hduN_image` rows of NAXIS1 `pixel`s typed by `BITPIX`, with `BUNIT`,
+    `BSCALE`, `BZERO` and `BLANK` as units, scale, offset and fill value (a
+    cube's planes follow one another); a one-axis array as `hduN_data`
+    values; a BINTABLE as `hduN_row` records whose columns are typed by
+    `TFORMn` (vectors repeated, `A` as text, `X` as bytes, `P`/`Q` as
+    descriptor records, complex as value pairs) and named by `TTYPEn`, with
+    `TUNITn`, `TSCALn`, `TZEROn`, `TNULLn`, `TLMINn`, `TLMAXn` (and `TDIMn`
+    in the definition), then its heap; an ASCII TABLE's columns at `TBCOLn`
+    as text; random groups as `hduN_group` records of parameters named by
+    `PTYPEn` (scaled by `PSCALn`, `PZEROn`) and an `array` record; and
+    `hduN_fill` to the block. So the first table is the table view and the
+    first image the image view (`ViewerBundle.tableView` takes the first
+    repeated record with columns, so an image's rows are passed over), and
+    the archive decodes the file with DFDL, Kaitai Struct or DRB, shows its
+    table as VOTable with named columns and units, its image, its values a
+    page at a time, and what they mean. Saved, its structure descriptions
+    carry FITS's `im:formatRegistryIdentifier` (`PRONOM x-fmt/383`), so it's
+    still FITS to the viewers, and its Semantic Representation Information is
+    `im:interpretedUsingRecurse` the dictionary. A Data Object interpreted
+    using both a general description (of FITS) and one of its file in
+    particular is decoded, viewed and given meanings by the one with a table
+    or image view (`DataObjectViewService.preferred`). Tested by
+    `FitsDescriberTest`, and on the FITS Support Office's 11 sample files
+    (`-Dfits.samples=<folder>`): every one described, decoded by DFDL and
+    Kaitai Struct to the last byte.
+
+    **The FITS keyword dictionary** (`fits/fits-keywords.tsv`,
+    `FitsDictionary`) is the FITS Standard 4.0's keywords -- 148, from
+    `BITPIX` to the tile-compression `Z` keywords -- each with the section
+    defining it and its definition there, abridged. As Semantic
+    Representation Information it's a SKOS concept scheme,
+    `http://ontology.oais.info/fits/keywords`, a concept per keyword at
+    `http://ontology.oais.info/fits/keyword/<keyword>` named as in the
+    Standard (`NAXISn`, `CTYPEi`, `PCi_j`, `RADESYSa`; `NAXIS2` is an
+    instance of `NAXISn`). It's added to the archive the first time a FITS
+    description is saved; `-Dfits.dictionary.out=<file>` on
+    `FitsDescriberTest` writes it as Turtle, for "Import Turtle".
+
     **A sample test runs the description inside this application**, so
     hand-written text is checked first (`HandWrittenDescriptions.check`) and
     refused if it could reach beyond describing data: a DOCTYPE, or a schema

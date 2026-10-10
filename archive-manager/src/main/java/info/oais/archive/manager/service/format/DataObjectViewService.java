@@ -308,7 +308,7 @@ public class DataObjectViewService {
     private DescribedData describe(String iri, String name, URI data, List<Resource> roots,
                                    Function<String, URI> specificationUrl) {
         Model m = store.dataModel();
-        Set<Resource> reached = reached(roots);
+        Set<Resource> reached = reached(preferred(roots));
         List<StructureDescription> structures = new ArrayList<>();
         List<ViewDescription> views = new ArrayList<>();
         List<ElementMeaning> meanings = new ArrayList<>();
@@ -342,6 +342,32 @@ public class DataObjectViewService {
         structures.sort(Comparator.comparing(StructureDescription::iri));
         views.sort(Comparator.comparing(ViewDescription::iri));
         return new DescribedData(iri, name, data, structures, views, meanings);
+    }
+
+    /**
+     * Of a Data Object's Representation Information {@code roots}, those
+     * leading to a table or image view, if any do -- a description of this
+     * file in particular (e.g. a FITS file described from its headers) is
+     * preferred to one of its format in general -- else all of them.
+     */
+    private List<Resource> preferred(List<Resource> roots) {
+        if (roots.size() < 2) {
+            return roots;
+        }
+        Resource view = store.dataModel().createResource(Ns.IM + "ViewSpecification");
+        List<Resource> withViews = roots.stream()
+                .filter(r -> reached(List.of(r)).stream().anyMatch(x -> x.hasProperty(RDF.type, view))).toList();
+        return withViews.isEmpty() ? roots : withViews;
+    }
+
+    /** Where {@code dataObject}'s bits are, if it says. */
+    public Optional<URI> storageLocation(String dataObject) {
+        Model m = store.dataModel();
+        Statement storage = m.getResource(dataObject).getProperty(m.createProperty(Ns.IM + "hasStorageLocation"));
+        if (storage == null || !storage.getObject().isURIResource()) {
+            return Optional.empty();
+        }
+        return Optional.of(URI.create(storage.getObject().asResource().getURI()));
     }
 
     /** Everything the Representation Information {@code roots} lead to, through groups and recursion. */
@@ -387,7 +413,7 @@ public class DataObjectViewService {
         });
         Map<String, Semantics> byPath = new LinkedHashMap<>();
         Property inScheme = m.createProperty(Ns.SKOS + "inScheme");
-        for (Resource r : reached(roots)) {
+        for (Resource r : reached(preferred(roots))) {
             String path = literal(r, m.createProperty(Ns.IM + "structuralPath"));
             if (path == null) {
                 continue;

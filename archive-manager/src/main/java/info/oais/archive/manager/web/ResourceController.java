@@ -71,6 +71,7 @@ public class ResourceController {
         model.addAttribute("tableViewable", false);
         model.addAttribute("imageViewable", false);
         model.addAttribute("fitsViewable", false);
+        model.addAttribute("fitsDescribable", false);
         model.addAttribute("valueLanguages", List.of());
         views.describe(iri, java.net.URI::create).ifPresent(d -> {
             model.addAttribute("describedData", d);
@@ -83,9 +84,11 @@ public class ResourceController {
                     v.format().equals(info.oais.archive.manager.service.format.DataObjectViewService.VOTABLE)));
             model.addAttribute("imageViewable", viewers.stream().anyMatch(v ->
                     v.format().equals(info.oais.archive.manager.service.format.DataObjectViewService.FITS)));
-            // A FITS file, read by the applications themselves.
-            model.addAttribute("fitsViewable", viewers.stream().anyMatch(v ->
-                    v.format().equals(info.oais.archive.manager.service.format.DataObjectViewService.FITS_FILE)));
+            // A FITS file, read by the applications themselves (unless they're sent it decoded), and
+            // described from its headers in RepInfo Tools.
+            boolean fits = views.describedAsFits(iri);
+            model.addAttribute("fitsViewable", fits && !views.fitsViewers(iri).isEmpty());
+            model.addAttribute("fitsDescribable", fits);
         });
         return "resource/view";
     }

@@ -123,7 +123,8 @@
         <ul>
             <li><strong>Binary and self-describing formats</strong>: <a th:href="@{/repinfo-tools}">RepInfo
                 Tools</a> is a guided editor for building Kaitai Struct, DFDL and DRB descriptions of a data
-                format (with FITS, telemetry, CSV and HDF5 starting points). A byte layout is edited as a tree
+                format (with FITS, telemetry, CSV and HDF5 starting points, and any FITS file described from its
+                own headers). A byte layout is edited as a tree
                 of fields, records (including CSV-style delimited-text records) and choices; any element can
                 be optional under a condition or repeated a computed number of times, using small expressions
                 such as <code>sample_pairs * 2</code> or <code>packet_type = 2</code> that refer to fields read
@@ -402,7 +403,12 @@
                 pixel to see its value and units.</li>
             <li><strong>FITS files</strong>: when a Data Object's Representation Information says it's FITS (PRONOM
                 x-fmt/383), its own headers are read to see what it holds, and TOPCAT is offered for its tables, DS9
-                and Aladin for its images &mdash; they read the FITS file itself.</li>
+                and Aladin for its images &mdash; they read the FITS file itself. "Describe this FITS file from
+                its headers" makes Representation Information for that file in particular, in
+                <a th:href="@{/repinfo-tools}">RepInfo Tools</a>: its tables' columns typed, named and given their
+                units, scale, offset and fill value, its images as rows of pixels, and its header's keywords with
+                their meanings from the FITS keyword dictionary (FITS Standard 4.0). Saved, the archive decodes it
+                itself: its table as VOTable with named columns, its image, and its values a page at a time.</li>
             <li><strong>"See the values here"</strong>, for any data the server can decode: each value printed
                 in the page, with where it is in the bits and what it means (its meaning, a code's meaning, a
                 scaled value with its units), as RepInfo Tools prints a sample file's &mdash; a page at a time,

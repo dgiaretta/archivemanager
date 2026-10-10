@@ -64,6 +64,24 @@
         </form>
     </div>
 
+    <h2 id="fits">Or describe a FITS file from its headers</h2>
+    <p class="muted">
+        A FITS file describes itself: its headers say what each HDU holds. Its headers become a description of
+        that file in particular &mdash; each header a record of its keyword records, each pointing to the keyword's
+        meaning in the FITS keyword dictionary (FITS Standard 4.0); each image as rows of pixels, typed by BITPIX,
+        with BUNIT, BSCALE, BZERO and BLANK as their units, scale, offset and fill value; each table's columns
+        typed by TFORMn and named by TTYPEn, with TUNITn, TSCALn, TZEROn, TNULLn, TLMINn and TLMAXn. Then the
+        archive can decode it, show its table and image, and say what its columns mean. Only the headers are read.
+        A Data Object whose Representation Information says it's FITS can be described the same way from its page.
+    </p>
+    <div class="notice error" th:if="${fitsError}">
+        <strong>The FITS file couldn't be described.</strong> <span th:text="${fitsError}">...</span>
+    </div>
+    <form th:action="@{/repinfo-tools/start-fits}" method="post" enctype="multipart/form-data" class="form">
+        <label>FITS file <input type="file" name="file" accept=".fits,.fit,.fts"/></label>
+        <button type="submit">Describe it from its headers &rarr;</button>
+    </form>
+
     <h2 id="east">Or read a description in EAST</h2>
     <p class="muted">
         A Data Description Record in the CCSDS data description language EAST (CCSDS 644.0-B-3): its logical

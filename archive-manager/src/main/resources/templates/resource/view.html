@@ -93,8 +93,18 @@
         <p class="muted" th:if="${fitsViewable}">
             Its Representation Information says it's a FITS file (PRONOM x-fmt/383), and its headers say what it holds:
             TOPCAT is offered for its tables, DS9 and Aladin for its images. They read the FITS file itself, as it
-            is, sent to them running on your computer (over SAMP); the "FITS file" link works in any FITS reader.
+            is, sent to them running on your computer (over SAMP) &mdash; unless its Representation Information
+            describes this file in particular, with a table or image view: then they're sent it decoded on the
+            server, its columns named and with their units. The "FITS file" link works in any FITS reader.
         </p>
+        <form th:if="${fitsDescribable}" th:action="@{/repinfo-tools/start-fits-object}" method="post">
+            <input type="hidden" name="dataObjectId" th:value="${id}"/>
+            <button type="submit" class="button-secondary">Describe this FITS file from its headers &rarr;</button>
+            <span class="muted">in RepInfo Tools: its columns and pixels typed, named and given their units and
+                meanings, and its keywords' meanings from the FITS keyword dictionary &mdash; to save as Representation
+                Information of this Data Object, for the archive to decode it, view its table and image and print its
+                values.</span>
+        </form>
         <p class="muted" th:if="${tableViewable}">
             "View with TOPCAT" or "SPLAT" sends the data, decoded on the server as a VOTable, to that application
             running on your computer (over SAMP; it asks you to allow this page). SPLAT is offered when the table's
