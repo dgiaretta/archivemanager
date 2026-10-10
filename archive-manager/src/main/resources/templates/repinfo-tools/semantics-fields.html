@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.toLanguageTag()}" th:dir="${#locale.language == 'dv'} ? 'rtl' : 'ltr'">
 <body>
 <!-- The "Meaning" inputs, shared by the element editor (edit.html) and the column editor (known.html).
      sem: anything with the SemanticsForm accessors; values: whether to offer units, codes, scale, fill and range. -->

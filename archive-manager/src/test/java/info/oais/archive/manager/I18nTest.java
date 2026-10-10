@@ -18,9 +18,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * The interface in English (the default) and Brazilian Portuguese: the
- * language switcher's choice reaches the message bundles, every page has all
- * its messages in both, and the two bundles have the same keys.
+ * The interface in English (the default), Dhivehi, French, Italian,
+ * Brazilian Portuguese and Spanish: the language switcher's choice reaches
+ * the message bundles, every page has all its messages in each, every bundle
+ * has the same keys as the English, and Dhivehi pages are right to left.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -28,6 +29,9 @@ class I18nTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    /** The languages the interface's text is in. */
+    static final String[] LANGUAGES = {"en", "dv", "es", "fr", "it", "pt"};
 
     /** Every page that needs no particular entity, open or behind the login. */
     static final String[] PAGES = {"/", "/accession-register", "/activities", "/agents", "/catalogue",
@@ -49,20 +53,38 @@ class I18nTest {
                 .andExpect(content().string(containsString(">Catalogue<")));
         mockMvc.perform(get("/").session(in("pt"))).andExpect(status().isOk())
                 .andExpect(content().string(containsString(">Catálogo<")));
+        mockMvc.perform(get("/").session(in("it"))).andExpect(content().string(containsString(">Catalogo<")));
+        mockMvc.perform(get("/").session(in("es"))).andExpect(content().string(containsString(">Catálogo<")));
+        mockMvc.perform(get("/").session(in("fr"))).andExpect(content().string(containsString(">Se déconnecter<")));
+        mockMvc.perform(get("/").session(in("dv"))).andExpect(content().string(containsString(">ކެޓަލޮގް<")));
         // A language with labels in the ontology but no interface text of its own: English.
-        mockMvc.perform(get("/").session(in("fr"))).andExpect(content().string(containsString(">Catalogue<")));
+        mockMvc.perform(get("/").session(in("de"))).andExpect(content().string(containsString(">Catalogue<")));
     }
 
     @Test
-    void bothBundlesHaveTheSameKeys() throws Exception {
+    void dhivehiPagesAreRightToLeft() throws Exception {
+        mockMvc.perform(get("/").session(in("dv")))
+                .andExpect(content().string(containsString("lang=\"dv\" dir=\"rtl\"")));
+        mockMvc.perform(get("/help").session(in("dv")))
+                .andExpect(content().string(containsString("lang=\"dv\" dir=\"rtl\"")));
+        mockMvc.perform(get("/").session(in("fr")))
+                .andExpect(content().string(containsString("lang=\"fr\" dir=\"ltr\"")));
+    }
+
+    @Test
+    void everyBundleHasTheSameKeysAsTheEnglish() throws Exception {
         Properties en = load("/i18n/messages.properties");
-        Properties pt = load("/i18n/messages_pt.properties");
-        assertThat(pt.keySet()).containsExactlyInAnyOrderElementsOf(en.keySet());
+        for (String language : LANGUAGES) {
+            if (!language.equals("en")) {
+                Properties other = load("/i18n/messages_" + language + ".properties");
+                assertThat(other.keySet()).as(language).containsExactlyInAnyOrderElementsOf(en.keySet());
+            }
+        }
     }
 
     @Test
-    void everyPageHasAllItsMessagesInBothLanguages() throws Exception {
-        for (String language : new String[] {"en", "pt"}) {
+    void everyPageHasAllItsMessagesInEveryLanguage() throws Exception {
+        for (String language : LANGUAGES) {
             for (String page : PAGES) {
                 String html = mockMvc.perform(get(page).session(in(language))).andReturn().getResponse()
                         .getContentAsString();
@@ -77,9 +99,9 @@ class I18nTest {
     @Autowired
     private info.oais.archive.manager.rdf.RdfStore store;
 
-    /** The pages of one entity of each kind in the sample data, in both languages. */
+    /** The pages of one entity of each kind in the sample data, in every language. */
     @Test
-    void everyEntitysPagesHaveAllTheirMessagesInBothLanguages() throws Exception {
+    void everyEntitysPagesHaveAllTheirMessagesInEveryLanguage() throws Exception {
         java.util.List<String> pages = new java.util.ArrayList<>();
         store.beginTransaction(org.apache.jena.query.ReadWrite.READ);
         try {
@@ -93,7 +115,7 @@ class I18nTest {
             store.endTransaction(false);
         }
         assertThat(pages).isNotEmpty();
-        for (String language : new String[] {"en", "pt"}) {
+        for (String language : LANGUAGES) {
             for (String page : pages) {
                 String html = mockMvc.perform(get(page).session(in(language))).andExpect(status().isOk()).andReturn()
                         .getResponse().getContentAsString();
@@ -104,6 +126,19 @@ class I18nTest {
         mockMvc.perform(get("/help/engines/east").session(in("pt"))).andExpect(status().isOk())
                 .andExpect(content().string(containsString("Lendo EAST para a árvore de elementos")));
         mockMvc.perform(get("/help").session(in("pt"))).andExpect(content().string(containsString("Ajuda")));
+        // Each language's own Help page and engines' notes.
+        String[][] help = {{"it", "Che cos'è questa applicazione", "Leggere EAST nell'albero degli elementi"},
+                {"fr", "Ce qu'est cette application", "Lire EAST dans l'arbre des éléments"},
+                {"es", "Qué es esta aplicación", "Leer EAST en el árbol de elementos"},
+                {"dv", "މި އެޕްލިކޭޝަނަކީ ކޮބާ", "EAST އެލިމެންޓް ޓްރީއަށް ކިޔުން"}};
+        for (String[] h : help) {
+            mockMvc.perform(get("/help").session(in(h[0]))).andExpect(status().isOk())
+                    .andExpect(content().string(containsString(h[1])));
+            mockMvc.perform(get("/help/engines/east").session(in(h[0]))).andExpect(status().isOk())
+                    .andExpect(content().string(containsString(h[2])));
+        }
+        // German has no Help page of its own: the English.
+        mockMvc.perform(get("/help").session(in("de"))).andExpect(content().string(containsString("What this application is")));
     }
 
     private static Properties load(String resource) throws Exception {

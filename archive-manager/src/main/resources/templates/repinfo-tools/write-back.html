@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.toLanguageTag()}" th:dir="${#locale.language == 'dv'} ? 'rtl' : 'ltr'">
 <body>
 <!-- Shared by the "Write back" subsections of preview.html (Kaitai, DFDL, drb-python, DRB). -->
 <div th:fragment="writeBack(engine, note)" th:id="'write-back-' + ${engine}">

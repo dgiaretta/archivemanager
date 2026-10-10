@@ -1654,7 +1654,7 @@ English, then an untagged label, then whatever's available.
 
 The current language is a per-**session** preference (`LanguagePreference`,
 session-key `preferredLanguage`, default English), switchable from a small
-DE / DV / EN / ES / FR / PT control in the top nav (`GET /language/{lang}`, a
+DE / DV / EN / ES / FR / IT / PT control in the top nav (`GET /language/{lang}`, a
 plain link-driven GET since it only changes a display preference, not
 archive data, redirecting back via the Referer header rather than a
 passed-through URL parameter). It's read via `RequestContextHolder` rather
@@ -1670,27 +1670,31 @@ throwing.
 For the ontology, this only affects **labels** -- the dropdown's underlying `rico:`/`im:`
 IRIs and the bundled OAIS/stub schema (which only ever has untagged English
 labels) are unaffected either way; the language switcher only matters for them once
-the real, multilingual RiC-O file is loaded. **Dhivehi (DV) is listed but
-currently inert**: the mechanism is fully generic (any language code
-works, not a hard-coded set), but none of this project's bundled ontology
-files have an `@dv`-tagged `rdfs:label` yet -- accurately translating
-~150 ontology/technical terms needs a qualified native-speaker translator,
-not something to fabricate here. Selecting it today just falls back to
-English rather than erroring; the moment real `rdfs:label ...@dv` triples
-exist anywhere in the ontology graph, it starts working immediately, no
-code changes needed. This is entirely separate from whether *catalogue
-data itself* can be in Dhivehi, covered next -- it already fully can.
+the real, multilingual RiC-O file is loaded. None of the bundled ontology
+files has `@dv`-tagged labels, so in Dhivehi class and property names fall
+back to English; the moment real `rdfs:label ...@dv` triples exist anywhere
+in the ontology graph they're used, no code changes needed. This is
+entirely separate from whether *catalogue data itself* can be in Dhivehi,
+covered next -- it already fully can.
 
-### The interface in English and Brazilian Portuguese
+### The interface's languages
 
 The interface's own text -- every page's titles, labels, buttons, prompts,
 messages and explanations, and the scripts' text -- is in Spring message
 bundles: `src/main/resources/i18n/messages.properties` (English, the
-default) and `messages_pt.properties` (Brazilian Portuguese, pt-BR). The
+default), and `messages_dv.properties` (Dhivehi), `messages_es.properties`
+(Spanish), `messages_fr.properties` (French), `messages_it.properties`
+(Italian) and `messages_pt.properties` (Brazilian Portuguese, pt-BR). The
 session's language picks the bundle (`WebConfig.localeResolver`: `pt` is
-`pt-BR`); French, Spanish, German and Dhivehi have no bundle of their own,
-so they show the interface in English and use their language for the
-ontology's labels. Templates use `#{key}` (`th:utext` where a message holds
+`pt-BR`); German has no bundle of its own, so it shows the interface in
+English and uses German for the ontology's labels. **The translations other
+than English were made with machine assistance and need checking by native
+speakers -- Dhivehi especially**, where technical terms are mostly
+transliterated English. Dhivehi is written right to left: each page's
+`html` element has `lang` and `dir` from the interface's language
+(`dir="rtl"` for Dhivehi), the stylesheet uses start/end rather than
+left/right so the layout mirrors, and code, identifiers and examples stay
+left to right. Templates use `#{key}` (`th:utext` where a message holds
 markup, with links passed as arguments, e.g. `#{statistics.intro(@{/graph})}`,
 so the context path still applies); controllers use `Messages.get(key,
 args...)`; the pages' scripts get the messages whose keys start with `js.`
@@ -1704,17 +1708,25 @@ stay English in the services and are translated on the page by the `labels`
 bean (`${@labels.of('aip', p.name())}`), which looks up a key made from the
 English (`aip.content_information`) and shows the English when there's
 none. The Help page is long prose, so it's a page per language
-(`help.html`, `help_pt.html`), as are the engines' notes
-(`README-DFDL.md`, `README-DFDL.pt.md`, ... in each `oais-structure-*`
-module, bundled into the jar). `I18nTest` checks that both bundles have the
-same keys and that every page renders with no missing message in either
-language.
+(`help.html`, `help_dv.html`, `help_es.html`, `help_fr.html`,
+`help_it.html`, `help_pt.html`; `HelpController.HELP_LANGUAGES`), as are the
+engines' notes (`README-DFDL.md`, `README-DFDL.pt.md`, `README-DFDL.fr.md`,
+... in each `oais-structure-*` module, bundled into the jar); a language
+without its own gets the English. `I18nTest` checks that every bundle has
+the same keys as the English, that every page renders with no missing
+message in every language, and that Dhivehi pages are right to left.
+
+To add a language: a `messages_<code>.properties` with every key, a
+`help_<code>.html`, optionally `README-*.<code>.md` for each engine, its
+code and name in `LanguagePreference.AVAILABLE`, `HELP_LANGUAGES`, and
+`I18nTest.LANGUAGES`; for another right-to-left language, the `dir`
+expression on each page's `html` element.
 
 What stays in English: the archive's data (titles, descriptions, labels,
 the starter templates' example content, which becomes the user's own
-description), the ontologies' labels where they have no Portuguese, and
-diagnostics from the engines and validators (Daffodil, Kaitai Struct, DRB,
-EAST, the description validator), which are passed on as they come.
+description), the ontologies' labels where they have none in the language,
+and diagnostics from the engines and validators (Daffodil, Kaitai Struct,
+DRB, EAST, the description validator), which are passed on as they come.
 
 **Lists are in alphabetical order** where the order means nothing else --
 entities, records, agents, mandates and events (by title, ignoring case,

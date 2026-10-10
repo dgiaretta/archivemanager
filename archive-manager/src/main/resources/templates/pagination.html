@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.toLanguageTag()}" th:dir="${#locale.language == 'dv'} ? 'rtl' : 'ltr'">
 <body>
 <nav th:fragment="pagination(resultPage, baseUrl)" class="pagination" th:if="${resultPage != null and resultPage.totalPages() > 1}">
     <a th:if="${resultPage.hasPrevious()}" th:href="@{${baseUrl}(page=${resultPage.previousPage()})}" class="page-link" th:utext="'&larr; ' + #{page.previous}">&larr; Previous</a>

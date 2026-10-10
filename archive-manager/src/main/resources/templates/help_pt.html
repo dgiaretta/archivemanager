@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.toLanguageTag()}" th:dir="${#locale.language == 'dv'} ? 'rtl' : 'ltr'">
 <head th:replace="~{fragments :: head(#{nav.help})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <!-- Em português do Brasil; help.html é o mesmo em inglês (veja HelpController). Altere os dois. -->
+    <!-- In Brazilian Portuguese; help.html is the same in English (see HelpController). Change them all. -->
     <h1>Ajuda</h1>
 
     <section class="editor-section" id="about">

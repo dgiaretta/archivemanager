@@ -33,12 +33,19 @@ body {
  * attribute, just applied via CSS so it doesn't need to be added to every
  * template individually). Thaana is written right-to-left; this catalogue
  * mixes English and Dhivehi content record by record, so per-element
- * auto-detection is the right approach, not a single fixed page direction.
- * Again, no visible effect on English-only content.
+ * auto-detection is right for the content. The page's own direction
+ * follows the interface's language: right to left when it is Dhivehi (the
+ * dir attribute on each page's html element), so the layout mirrors; the
+ * rules below use start/end, not left/right, so they mirror with it.
+ * Code, identifiers and descriptions stay left to right whatever the page.
  */
 h1, h2, h3, p, td, th, .pill, .card .label, .oais-comment, .bridge-note p,
 input[type="text"], textarea, .page-info, .breadcrumb, .muted {
   unicode-bidi: plaintext;
+}
+[dir="rtl"] code, [dir="rtl"] pre, [dir="rtl"] textarea.code, [dir="rtl"] input[type="url"] {
+  direction: ltr;
+  unicode-bidi: isolate;
 }
 
 .topnav {
@@ -53,7 +60,7 @@ input[type="text"], textarea, .page-info, .breadcrumb, .muted {
 
 .topnav .brand {
   font-weight: 700;
-  margin-right: 1rem;
+  margin-inline-end: 1rem;
   color: var(--ink);
   text-decoration: none;
 }
@@ -80,7 +87,7 @@ input[type="text"], textarea, .page-info, .breadcrumb, .muted {
 }
 .nav-link-btn:hover { text-decoration: underline; }
 
-.lang-switcher { display: flex; gap: 0.5rem; margin-right: 0.5rem; }
+.lang-switcher { display: flex; gap: 0.5rem; margin-inline-end: 0.5rem; }
 .lang-link {
   color: var(--muted);
   text-decoration: none;
@@ -120,7 +127,7 @@ code {
   padding: 0.15rem 0.65rem;
   font-size: 0.78rem;
   font-weight: 600;
-  margin-right: 0.3rem;
+  margin-inline-end: 0.3rem;
 }
 
 .pill-oais {
@@ -148,7 +155,7 @@ table.listing, table.attrs {
 
 table.listing th, table.listing td,
 table.attrs td {
-  text-align: left;
+  text-align: start;
   padding: 0.5rem 0.6rem;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
@@ -260,7 +267,7 @@ table.attrs td.rationale { color: var(--muted); font-size: 0.85rem; }
 }
 
 .oais-node {
-  border-left: 3px solid var(--oais-accent);
+  border-inline-start: 3px solid var(--oais-accent);
   padding: 0.6rem 0 0.6rem 1rem;
   margin: 0.6rem 0;
 }
@@ -270,8 +277,8 @@ table.attrs td.rationale { color: var(--muted); font-size: 0.85rem; }
 .oais-node-head .prop.oais-incoming { font-style: italic; }
 .oais-comment { color: var(--muted); font-size: 0.9rem; margin: 0.35rem 0; }
 .oais-ric-links { font-size: 0.85rem; }
-.oais-ric-links ul { margin: 0.2rem 0; padding-left: 1.2rem; }
-.oais-children { margin-left: 0.5rem; }
+.oais-ric-links ul { margin: 0.2rem 0; padding-inline-start: 1.2rem; }
+.oais-children { margin-inline-start: 0.5rem; }
 
 .muted { color: var(--muted); font-size: 0.9rem; }
 
@@ -348,7 +355,7 @@ main.container-narrow {
   background: white;
   color: var(--accent);
   border: 1px solid var(--accent);
-  margin-left: 0.5rem;
+  margin-inline-start: 0.5rem;
 }
 
 .card-accent .count { color: var(--oais-accent); }
@@ -452,7 +459,7 @@ main.container-narrow {
   padding: 0.45rem 0.9rem;
   border: none;
   background: none;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
   color: var(--ink);
   white-space: nowrap;
@@ -511,11 +518,11 @@ main.container-narrow {
   margin-top: 0.4rem;
   padding: 0.4rem 0.6rem;
   background: var(--oais-soft);
-  border-left: 2px solid var(--oais-accent);
+  border-inline-start: 2px solid var(--oais-accent);
   border-radius: 4px;
   font-size: 0.8rem;
 }
-.bridge-note .pill { margin-right: 0.3rem; }
+.bridge-note .pill { margin-inline-end: 0.3rem; }
 .bridge-note p { margin: 0.3rem 0 0; }
 
 .pill-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
@@ -639,7 +646,7 @@ main.container-narrow {
   display: inline-block; min-width: 4.2rem; font-size: 0.72rem; text-transform: uppercase;
   letter-spacing: 0.04em; color: var(--muted);
 }
-.structure-tree .problems { margin: 0.3rem 0 0; padding-left: 1.1rem; color: #8e2a1f; font-size: 0.82rem; }
+.structure-tree .problems { margin: 0.3rem 0 0; padding-inline-start: 1.1rem; color: #8e2a1f; font-size: 0.82rem; }
 .structure-tree .row-actions { white-space: nowrap; }
 .form fieldset { border: 1px solid var(--border); border-radius: 6px; padding: 0.9rem 1rem 1rem; display: flex; flex-direction: column; gap: 0.9rem; }
 .form legend { font-weight: 600; color: var(--ink); padding: 0 0.3rem; }

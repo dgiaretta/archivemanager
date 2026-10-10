@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.toLanguageTag()}" th:dir="${#locale.language == 'dv'} ? 'rtl' : 'ltr'">
 <body>
 <!-- Shared by the "Test against a sample file" sections of preview.html (Kaitai, DFDL, drb-python, DRB). -->
 <div th:fragment="sampleResult(result)">

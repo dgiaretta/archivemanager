@@ -219,27 +219,27 @@
            licence texts go into the jar too (META-INF/third-party/), for
            deployments that copy only the jar. -->
       <!-- The structure adapters' README files, rendered on the Help page
-           (/help/engines/{dfdl,kaitai,drb,east}, see HelpController), in English and Brazilian
-           Portuguese (README-*.pt.md). -->
+           (/help/engines/{dfdl,kaitai,drb,east}, see HelpController), in English and in the
+           interface's other languages (README-*.pt.md, README-*.fr.md, ...). -->
       <resource>
         <directory>${project.basedir}/../oais-structure-dfdl</directory>
         <targetPath>docs/engines</targetPath>
-        <includes><include>README-DFDL.md</include><include>README-DFDL.pt.md</include></includes>
+        <includes><include>README-DFDL.md</include><include>README-DFDL.*.md</include></includes>
       </resource>
       <resource>
         <directory>${project.basedir}/../oais-structure-kaitai</directory>
         <targetPath>docs/engines</targetPath>
-        <includes><include>README-KAITAI.md</include><include>README-KAITAI.pt.md</include></includes>
+        <includes><include>README-KAITAI.md</include><include>README-KAITAI.*.md</include></includes>
       </resource>
       <resource>
         <directory>${project.basedir}/../oais-structure-drb</directory>
         <targetPath>docs/engines</targetPath>
-        <includes><include>README-DRB.md</include><include>README-DRB.pt.md</include></includes>
+        <includes><include>README-DRB.md</include><include>README-DRB.*.md</include></includes>
       </resource>
       <resource>
         <directory>${project.basedir}/../oais-structure-east</directory>
         <targetPath>docs/engines</targetPath>
-        <includes><include>README-EAST.md</include><include>README-EAST.pt.md</include></includes>
+        <includes><include>README-EAST.md</include><include>README-EAST.*.md</include></includes>
       </resource>
       <resource>
         <directory>${project.basedir}/../third-party</directory>

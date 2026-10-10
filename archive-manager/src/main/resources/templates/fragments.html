@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" th:lang="${#locale.toLanguageTag()}" th:dir="${#locale.language == 'dv'} ? 'rtl' : 'ltr'">
 <head th:fragment="head(pageTitle)">
     <meta charset="UTF-8"/>
     <title th:text="${pageTitle} + ' - ' + #{app.name}">Archive Manager</title>
