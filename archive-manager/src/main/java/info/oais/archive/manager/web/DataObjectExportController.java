@@ -80,6 +80,22 @@ public class DataObjectExportController {
     }
 
     /** A Data Object's bits, fetched from its storage location: e.g. to transform with another application. */
+    /**
+     * A FITS Data Object's bits as they are, as a FITS file: what TOPCAT, DS9
+     * and Aladin are given for one whose Representation Information says it's
+     * FITS (see {@code DataObjectViewService#fitsViewers}).
+     */
+    @GetMapping("/api/data-objects/{id}/data.fits")
+    public ResponseEntity<byte[]> fitsFile(@PathVariable String id) {
+        ResponseEntity<byte[]> bits = dataObjectBits(id);
+        if (!bits.getStatusCode().is2xxSuccessful()) {
+            return bits;
+        }
+        return ResponseEntity.ok().contentType(FITS)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + bitsFileName(archive.decodeId(id)) + "\"")
+                .body(bits.getBody());
+    }
+
     @GetMapping("/api/data-objects/{id}/bits")
     public ResponseEntity<byte[]> dataObjectBits(@PathVariable String id) {
         String iri = archive.decodeId(id);

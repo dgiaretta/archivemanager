@@ -69,6 +69,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -283,6 +284,77 @@ class ViewersTest {
             removeReachable(telemetry);
             removeReachable(readings);
         }
+    }
+
+    /**
+     * A FITS Data Object -- its Representation Information has FITS's PRONOM identifier -- is offered to the
+     * applications that read FITS themselves, as its headers say: TOPCAT for a table, DS9 and Aladin for an image.
+     */
+    @Test
+    void offersFitsFilesToTheApplicationsThatReadThemAsTheirHeadersSay() throws Exception {
+        byte[] table = FitsDescriptionsTest.binaryTable();
+        byte[] image = FitsDescriptionsTest.multiExtension();
+        HttpServer server = HttpServer.create(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), 0);
+        server.createContext("/", exchange -> {
+            byte[] body = exchange.getRequestURI().getPath().endsWith("table.fits") ? table : image;
+            String range = exchange.getRequestHeaders().getFirst("Range");
+            if (range != null && exchange.getRequestURI().getPath().endsWith("image.fits")) {
+                // Ranges, for the image; the table's server sends the whole file instead.
+                String[] fromTo = range.substring("bytes=".length()).split("-");
+                int from = Integer.parseInt(fromTo[0]);
+                if (from >= body.length) {
+                    exchange.sendResponseHeaders(416, -1);
+                    exchange.close();
+                    return;
+                }
+                int to = Math.min(Integer.parseInt(fromTo[1]), body.length - 1);
+                body = java.util.Arrays.copyOfRange(body, from, to + 1);
+                exchange.sendResponseHeaders(206, body.length);
+            } else {
+                exchange.sendResponseHeaders(200, body.length);
+            }
+            exchange.getResponseBody().write(body);
+            exchange.close();
+        });
+        server.start();
+        String[] objects;
+        try {
+            String base = "http://127.0.0.1:" + server.getAddress().getPort();
+            objects = write(() -> {
+                String fits = edit.createEntity(Ns.IM + "StructureRepresentationInformation");
+                edit.addLiteral(fits, Ns.IM + "formatRegistryIdentifier", "PRONOM x-fmt/383");
+                String tableObject = edit.createEntity(Ns.IM + "DigitalObject");
+                edit.addRelationship(tableObject, Ns.IM + "hasStorageLocation", base + "/table.fits");
+                edit.addRelationship(tableObject, Ns.IM + "interpretedUsing", fits);
+                String imageObject = edit.createEntity(Ns.IM + "DigitalObject");
+                edit.addRelationship(imageObject, Ns.IM + "hasStorageLocation", base + "/image.fits");
+                edit.addRelationship(imageObject, Ns.IM + "interpretedUsing", fits);
+                return new String[] {tableObject, imageObject, fits};
+            });
+            String tableId = archive.encodeId(objects[0]);
+            mockMvc.perform(get("/resource/{id}", tableId))
+                    .andExpect(content().string(containsString("View with TOPCAT")))
+                    .andExpect(content().string(containsString("data-samp-mtype=\"table.load.fits\"")))
+                    .andExpect(content().string(containsString("/api/data-objects/" + tableId + "/data.fits")))
+                    .andExpect(content().string(org.hamcrest.Matchers.not(containsString("View with DS9"))))
+                    .andExpect(content().string(containsString("/js/samp-send.js")));
+            mockMvc.perform(get("/api/data-objects/{id}/data.fits", tableId)).andExpect(status().isOk())
+                    .andExpect(header().string("Content-Type", containsString("application/fits")))
+                    .andExpect(content().bytes(table));
+            mockMvc.perform(get("/api/graph/{id}", tableId))
+                    .andExpect(jsonPath("$.nodes[?(@.id == '" + objects[0] + "')].viewers[*].id").value(
+                            org.hamcrest.Matchers.contains("topcat")));
+
+            String imageId = archive.encodeId(objects[1]);
+            mockMvc.perform(get("/resource/{id}", imageId))
+                    .andExpect(content().string(containsString("View with TOPCAT")))
+                    .andExpect(content().string(containsString("View with DS9")))
+                    .andExpect(content().string(containsString("data-samp-mtype=\"image.load.fits\"")));
+        } finally {
+            server.stop(0);
+        }
+        removeReachable(objects[0]);
+        removeReachable(objects[1]);
     }
 
     @Test

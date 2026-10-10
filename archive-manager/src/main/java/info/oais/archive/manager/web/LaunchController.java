@@ -66,11 +66,14 @@ public class LaunchController {
     @GetMapping("/launch/{id}/topcat.jnlp")
     public ResponseEntity<String> topcat(@PathVariable String id) {
         String iri = archive.decodeId(id);
-        if (!launch.topcat() || !views.viewers(iri).contains(DataObjectViewService.TOPCAT)) {
+        // TOPCAT is given the data decoded as VOTable, or a FITS file as it is.
+        java.util.Optional<DataObjectViewService.Viewer> topcat = views.viewers(iri).stream()
+                .filter(v -> v.id().equals("topcat")).findFirst();
+        if (!launch.topcat() || topcat.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
         return jnlp("topcat", launch.topcatJnlp(codebase(), id + "/topcat.jnlp", archive.label(iri),
-                data(id, "votable")));
+                data(id, topcat.get().format())));
     }
 
     @GetMapping("/launch/{id}/splat.jnlp")
@@ -121,7 +124,7 @@ public class LaunchController {
     /** What the page offers: which launches are available for a Data Object with these viewers. */
     public static List<String> available(LaunchService launch, List<DataObjectViewService.Viewer> viewers) {
         List<String> found = new java.util.ArrayList<>();
-        if (launch.topcat() && viewers.contains(DataObjectViewService.TOPCAT)) {
+        if (launch.topcat() && viewers.stream().anyMatch(v -> v.id().equals("topcat"))) {
             found.add("topcat");
         }
         if (launch.splat() && viewers.contains(DataObjectViewService.SPLAT)) {

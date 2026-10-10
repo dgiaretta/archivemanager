@@ -66,7 +66,7 @@ class FitsDescriptionsTest {
      * header takes two blocks; an IMAGE extension of four 32-bit floats; and an
      * ASCII TABLE extension of two rows.
      */
-    static byte[] multiExtension() {
+    public static byte[] multiExtension() {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         java.util.List<String> primary = new java.util.ArrayList<>(List.of(card("SIMPLE", "T", "conforms to FITS"),
                 card("BITPIX", "16", "16-bit integers"), card("NAXIS", "2", null), card("NAXIS1", "3", null),
@@ -100,7 +100,7 @@ class FitsDescriptionsTest {
     }
 
     /** A binary table, written by STIL: an empty primary HDU, then a BINTABLE of three rows. */
-    static byte[] binaryTable() throws Exception {
+    public static byte[] binaryTable() throws Exception {
         RowListStarTable table = new RowListStarTable(new ColumnInfo[] {
                 new ColumnInfo("NAME", String.class, "star"), new ColumnInfo("FLUX", Double.class, "flux"),
                 new ColumnInfo("COUNT", Integer.class, "count")});
@@ -110,6 +110,40 @@ class FitsDescriptionsTest {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         new FitsTableWriter().writeStarTable(table, out);
         return out.toByteArray();
+    }
+
+    // ---- What a FITS file holds, from its headers ----
+
+    @Test
+    void readsWhatEachHduHoldsFromTheHeadersAlone() throws Exception {
+        byte[] fits = multiExtension();
+        java.util.List<Long> reads = new java.util.ArrayList<>();
+        List<info.oais.archive.manager.service.format.FitsHeaders.Hdu> hdus =
+                info.oais.archive.manager.service.format.FitsHeaders.read((offset, length) -> {
+                    reads.add(offset);
+                    return java.util.Arrays.copyOfRange(fits, (int) Math.min(offset, fits.length),
+                            (int) Math.min(offset + length, fits.length));
+                });
+        assertThat(hdus).extracting(info.oais.archive.manager.service.format.FitsHeaders.Hdu::type)
+                .containsExactly("PRIMARY", "IMAGE", "TABLE");
+        assertThat(hdus.get(0).isImage()).isTrue();
+        assertThat(hdus.get(0).dataBytes()).isEqualTo(12);
+        assertThat(hdus.get(1).isImage()).isFalse(); // one axis: not an image
+        assertThat(hdus.get(2).isTable()).isTrue();
+        // Only header blocks are read -- two for the primary header, one for each extension's, then the end of
+        // the file -- the data blocks between them (at 5760 and 11520) are jumped over.
+        assertThat(reads).containsExactly(0L, 2880L, 8640L, 14400L, 20160L);
+
+        List<info.oais.archive.manager.service.format.FitsHeaders.Hdu> table =
+                info.oais.archive.manager.service.format.FitsHeaders.read((offset, length) -> {
+                    byte[] b = assertBinary();
+                    return java.util.Arrays.copyOfRange(b, (int) Math.min(offset, b.length),
+                            (int) Math.min(offset + length, b.length));
+                });
+        assertThat(table).extracting(info.oais.archive.manager.service.format.FitsHeaders.Hdu::type)
+                .containsExactly("PRIMARY", "BINTABLE");
+        assertThat(table.get(1).isTable()).isTrue();
+        assertThat(info.oais.archive.manager.service.format.FitsHeaders.read((o, l) -> "not FITS".getBytes())).isEmpty();
     }
 
     // ---- DFDL ----

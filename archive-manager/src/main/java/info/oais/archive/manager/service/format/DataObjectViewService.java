@@ -94,6 +94,17 @@ public class DataObjectViewService {
     /** Aladin Desktop: an image. */
     public static final Viewer ALADIN = new Viewer("aladin", "View with Aladin", "image.load.fits", "aladin", FITS);
 
+    /** The original bits of a FITS Data Object, as they are: {@code /api/data-objects/{id}/data.fits}. */
+    public static final String FITS_FILE = "data.fits";
+    /** TOPCAT, reading a FITS file's table itself. */
+    public static final Viewer TOPCAT_FITS = new Viewer("topcat", "View with TOPCAT", "table.load.fits", "topcat",
+            FITS_FILE);
+    /** SAOImage DS9, reading a FITS file's image itself. */
+    public static final Viewer DS9_FITS = new Viewer("ds9", "View with DS9", "image.load.fits", "ds9", FITS_FILE);
+    /** Aladin Desktop, reading a FITS file's image itself. */
+    public static final Viewer ALADIN_FITS = new Viewer("aladin", "View with Aladin", "image.load.fits", "aladin",
+            FITS_FILE);
+
     private static final java.util.regex.Pattern COLUMN_TYPE =
             java.util.regex.Pattern.compile("<column\\b[^>]*\\btype=\"([^\"]+)\"");
     private static final Set<String> NUMERIC = Set.of("int", "long", "short", "byte", "float", "double",
@@ -109,6 +120,84 @@ public class DataObjectViewService {
      * view is enough for DS9 and Aladin.
      */
     public List<Viewer> viewers(String dataObject) {
+        List<Viewer> viewers = new ArrayList<>(decodedViewers(dataObject));
+        if (describedAsFits(dataObject)) {
+            for (Viewer v : fitsViewers(dataObject)) {
+                if (viewers.stream().noneMatch(x -> x.id().equals(v.id()))) {
+                    viewers.add(v);
+                }
+            }
+        }
+        return viewers;
+    }
+
+    /**
+     * Whether {@code dataObject}'s Representation Information says it's FITS:
+     * something it leads to has FITS's PRONOM identifier ({@value FitsHeaders#PRONOM_ID})
+     * as its {@code im:formatRegistryIdentifier}.
+     */
+    public boolean describedAsFits(String dataObject) {
+        Model m = store.dataModel();
+        List<Resource> roots = new ArrayList<>();
+        m.getResource(dataObject).listProperties(m.createProperty(Ns.IM + "interpretedUsing")).forEachRemaining(s -> {
+            if (s.getObject().isResource()) {
+                roots.add(s.getObject().asResource());
+            }
+        });
+        Property registryId = m.createProperty(Ns.IM + "formatRegistryIdentifier");
+        for (Resource r : reached(roots)) {
+            String id = literal(r, registryId);
+            if (id != null && id.toLowerCase(java.util.Locale.ROOT).contains(FitsHeaders.PRONOM_ID)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private record FitsLook(String location, List<Viewer> viewers, long at) {
+    }
+
+    private final Map<String, FitsLook> fitsLooks = new java.util.concurrent.ConcurrentHashMap<>();
+    private static final long FITS_LOOK_MILLIS = 30 * 60_000L;
+
+    /**
+     * The applications that read a FITS Data Object's file themselves, from
+     * what its headers say it holds (see {@link FitsHeaders}): TOPCAT for a
+     * table, DS9 and Aladin for an image. Its headers are read with a few
+     * ranged requests and the answer kept for a while; empty if they can't be
+     * read.
+     */
+    public List<Viewer> fitsViewers(String dataObject) {
+        Model m = store.dataModel();
+        Statement storage = m.getResource(dataObject).getProperty(m.createProperty(Ns.IM + "hasStorageLocation"));
+        if (storage == null || !storage.getObject().isURIResource()) {
+            return List.of();
+        }
+        String location = storage.getObject().asResource().getURI();
+        FitsLook look = fitsLooks.get(dataObject);
+        if (look != null && look.location().equals(location) && System.currentTimeMillis() - look.at() < FITS_LOOK_MILLIS) {
+            return look.viewers();
+        }
+        List<Viewer> viewers = new ArrayList<>();
+        try {
+            URI uri = URI.create(location);
+            List<FitsHeaders.Hdu> hdus = FitsHeaders.read((offset, length) -> fetcher.fetchRange(uri, offset, length));
+            if (hdus.stream().anyMatch(FitsHeaders.Hdu::isTable)) {
+                viewers.add(TOPCAT_FITS);
+            }
+            if (hdus.stream().anyMatch(FitsHeaders.Hdu::isImage)) {
+                viewers.add(DS9_FITS);
+                viewers.add(ALADIN_FITS);
+            }
+        } catch (IOException | RuntimeException e) {
+            // Not readable now: no viewers, and tried again later.
+        }
+        fitsLooks.put(dataObject, new FitsLook(location, List.copyOf(viewers), System.currentTimeMillis()));
+        return viewers;
+    }
+
+    /** The viewers of data the server decodes itself, with a table or image view. */
+    private List<Viewer> decodedViewers(String dataObject) {
         Optional<DescribedData> described = decodable(dataObject);
         if (described.isEmpty()) {
             return List.of();

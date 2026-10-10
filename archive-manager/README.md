@@ -1091,6 +1091,20 @@ wanted.
     cursor. Aladin Lite isn't used because it places images on the sky, and
     refuses one whose FITS has no sky coordinates (WCS) -- which the archive's
     images don't, since Representation Information can't yet describe them.
+  - **FITS files** are given to the applications that read FITS themselves.
+    A Data Object is FITS when its Representation Information leads to FITS's
+    PRONOM identifier (`im:formatRegistryIdentifier` containing `x-fmt/383`).
+    Since FITS describes itself, what such a file holds is then read from its
+    own headers (`FitsHeaders`): each header block is fetched with an HTTP
+    Range request (`StorageFetcher.fetchRange`, reading through when a server
+    ignores ranges) and each HDU's data jumped over, as the Standard's Eqs. 1,
+    2 and 4 size it -- a few small requests, even for a large file. TOPCAT is
+    offered for a file with a table (`table.load.fits`), DS9 and Aladin for
+    one with an image of two or more axes (`image.load.fits`); they're sent
+    the file as it is (`/api/data-objects/{id}/data.fits`, `application/fits`),
+    as is a launched TOPCAT. What each file holds is kept for 30 minutes. This
+    is besides the archive's own decoding: a FITS Data Object with a table or
+    image view is still offered as VOTable or decoded FITS.
   - **"See the values here"**: the Data Object's data values printed in the
     page (`static/js/values-viewer.js`), as RepInfo Tools prints a sample's --
     each element's name, kind, value, position in the bits, and meaning --

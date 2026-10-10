@@ -83,15 +83,85 @@ public class StorageFetcher {
             return Files.copy(stored.get(), Files.createTempFile(directory, "data-", ".bin"),
                     StandardCopyOption.REPLACE_EXISTING);
         }
+        HttpResponse<InputStream> response = open(location, null);
+        Path file = Files.createTempFile(directory, "data-", ".bin");
+        try (InputStream in = response.body(); OutputStream out = Files.newOutputStream(file)) {
+            byte[] buffer = new byte[64 * 1024];
+            long total = 0;
+            for (int n; (n = in.read(buffer)) > 0; ) {
+                total += n;
+                if (total > maxBytes) {
+                    throw new IOException(location + " is larger than " + maxBytes + " bytes, the most this "
+                            + "server fetches (archive.fetch.max-bytes)");
+                }
+                out.write(buffer, 0, n);
+            }
+        }
+        return file;
+    }
+
+    /**
+     * Up to {@code length} bytes of {@code location} from {@code offset} (fewer
+     * at its end): asked for with an HTTP Range request, or read through to
+     * {@code offset} when the server sends the whole file instead.
+     *
+     * @throws IOException saying why they weren't fetched
+     */
+    public byte[] fetchRange(URI location, long offset, int length) throws IOException {
+        Optional<Path> stored = bitStore == null ? Optional.empty() : bitStore.file(location);
+        if (stored.isPresent()) {
+            try (java.nio.channels.SeekableByteChannel in = Files.newByteChannel(stored.get())) {
+                in.position(offset);
+                java.nio.ByteBuffer buffer = java.nio.ByteBuffer.allocate(length);
+                while (buffer.hasRemaining() && in.read(buffer) > 0) {
+                    // read until full or at the end
+                }
+                return java.util.Arrays.copyOf(buffer.array(), buffer.position());
+            }
+        }
+        HttpResponse<InputStream> response = open(location, "bytes=" + offset + "-" + (offset + length - 1));
+        try (InputStream in = response.body()) {
+            if (response.statusCode() == 416) {
+                return new byte[0]; // the range starts past the end
+            }
+            if (response.statusCode() == 200) {
+                long skipped = 0;
+                while (skipped < offset) {
+                    long n = in.skip(offset - skipped);
+                    if (n <= 0) {
+                        if (in.read() < 0) {
+                            return new byte[0];
+                        }
+                        n = 1;
+                    }
+                    skipped += n;
+                    if (skipped > maxBytes) {
+                        throw new IOException(location + " is larger than " + maxBytes + " bytes, the most this "
+                                + "server fetches (archive.fetch.max-bytes)");
+                    }
+                }
+            }
+            return in.readNBytes(length);
+        }
+    }
+
+    /**
+     * An open response for {@code location} (with {@code range}, if not null),
+     * after the safety checks, following redirects: 200, or 206 for a range.
+     */
+    private HttpResponse<InputStream> open(URI location, String range) throws IOException {
         HttpClient client = HttpClient.newBuilder().connectTimeout(timeout)
                 .followRedirects(HttpClient.Redirect.NEVER).build();
         URI current = direct(location);
         for (int hop = 0; hop <= MAX_REDIRECTS; hop++) {
             check(current);
+            HttpRequest.Builder request = HttpRequest.newBuilder(current).timeout(timeout).GET();
+            if (range != null) {
+                request.header("Range", range);
+            }
             HttpResponse<InputStream> response;
             try {
-                response = client.send(HttpRequest.newBuilder(current).timeout(timeout).GET().build(),
-                        HttpResponse.BodyHandlers.ofInputStream());
+                response = client.send(request.build(), HttpResponse.BodyHandlers.ofInputStream());
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IOException("Interrupted while fetching " + current);
@@ -102,7 +172,7 @@ public class StorageFetcher {
                 current = current.resolve(response.headers().firstValue("Location").get());
                 continue;
             }
-            if (status != 200) {
+            if (status != 200 && !((status == 206 || status == 416) && range != null)) {
                 response.body().close();
                 throw new IOException("Fetching " + current + " failed: HTTP " + status);
             }
@@ -114,20 +184,7 @@ public class StorageFetcher {
                         + "downloads the file: for Dropbox, ending dl=1; for Google Drive, "
                         + "https://drive.google.com/uc?export=download&id=...; for GitHub, the raw file's link.");
             }
-            Path file = Files.createTempFile(directory, "data-", ".bin");
-            try (InputStream in = response.body(); OutputStream out = Files.newOutputStream(file)) {
-                byte[] buffer = new byte[64 * 1024];
-                long total = 0;
-                for (int n; (n = in.read(buffer)) > 0; ) {
-                    total += n;
-                    if (total > maxBytes) {
-                        throw new IOException(location + " is larger than " + maxBytes + " bytes, the most this "
-                                + "server fetches (archive.fetch.max-bytes)");
-                    }
-                    out.write(buffer, 0, n);
-                }
-            }
-            return file;
+            return response;
         }
         throw new IOException("Fetching " + location + " was redirected more than " + MAX_REDIRECTS + " times");
     }

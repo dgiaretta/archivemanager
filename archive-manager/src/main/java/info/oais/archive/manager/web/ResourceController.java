@@ -70,6 +70,7 @@ public class ResourceController {
         // which refuses a missing (null) value.
         model.addAttribute("tableViewable", false);
         model.addAttribute("imageViewable", false);
+        model.addAttribute("fitsViewable", false);
         model.addAttribute("valueLanguages", List.of());
         views.describe(iri, java.net.URI::create).ifPresent(d -> {
             model.addAttribute("describedData", d);
@@ -82,6 +83,9 @@ public class ResourceController {
                     v.format().equals(info.oais.archive.manager.service.format.DataObjectViewService.VOTABLE)));
             model.addAttribute("imageViewable", viewers.stream().anyMatch(v ->
                     v.format().equals(info.oais.archive.manager.service.format.DataObjectViewService.FITS)));
+            // A FITS file, read by the applications themselves.
+            model.addAttribute("fitsViewable", viewers.stream().anyMatch(v ->
+                    v.format().equals(info.oais.archive.manager.service.format.DataObjectViewService.FITS_FILE)));
         });
         return "resource/view";
     }

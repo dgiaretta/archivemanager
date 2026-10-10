@@ -82,12 +82,18 @@
             the <code>oais-structure-topcat</code> reader, format <code>OAIS-RepInfo</code>) and SPLAT
             open it by that address.
         </p>
-        <p th:if="${tableViewable or imageViewable}">
+        <p th:if="${tableViewable or imageViewable or fitsViewable}">
             <button type="button" th:each="v : ${viewers}" th:text="${v.label()}"
                     th:attr="data-samp-url=@{/api/data-objects/{id}/{format}(id=${id},format=${v.format()})},data-samp-name=${describedData.name()},data-samp-mtype=${v.mtype()},data-samp-client=${v.clientName()},data-samp-label=${#strings.replace(v.label(), 'View with ', '')}">View with TOPCAT</button>
             <a class="button button-secondary" th:if="${tableViewable}" th:href="@{/api/data-objects/{id}/votable(id=${id})}">VOTable &rarr;</a>
             <a class="button button-secondary" th:if="${imageViewable}" th:href="@{/api/data-objects/{id}/fits(id=${id})}">FITS &rarr;</a>
+            <a class="button button-secondary" th:if="${fitsViewable}" th:href="@{/api/data-objects/{id}/data.fits(id=${id})}">FITS file &rarr;</a>
             <span class="muted" data-samp-status></span>
+        </p>
+        <p class="muted" th:if="${fitsViewable}">
+            Its Representation Information says it's a FITS file (PRONOM x-fmt/383), and its headers say what it holds:
+            TOPCAT is offered for its tables, DS9 and Aladin for its images. They read the FITS file itself, as it
+            is, sent to them running on your computer (over SAMP); the "FITS file" link works in any FITS reader.
         </p>
         <p class="muted" th:if="${tableViewable}">
             "View with TOPCAT" or "SPLAT" sends the data, decoded on the server as a VOTable, to that application
@@ -203,7 +209,7 @@
                 convention, as DS9 and Aladin show FITS images.
             </p>
         </div>
-        <p class="muted" th:unless="${tableViewable or imageViewable}">
+        <p class="muted" th:unless="${tableViewable or imageViewable or fitsViewable}">
             It has no DFDL or DRB SDF description with a table or image view to decode it by on the server;
             saving its description again from RepInfo Tools adds one.
         </p>
@@ -259,7 +265,7 @@
     </div>
 </main>
 <div th:replace="~{fragments :: footer}"></div>
-<script th:if="${tableViewable or imageViewable}" th:src="@{/js/samp-send.js}"></script>
+<script th:if="${tableViewable or imageViewable or fitsViewable}" th:src="@{/js/samp-send.js}"></script>
 <script th:if="${imageViewable}" th:src="@{/js/image-viewer.js}"></script>
 <script th:if="${valueLanguages != null and !valueLanguages.isEmpty()}" th:src="@{/js/values-viewer.js}"></script>
 </body>
