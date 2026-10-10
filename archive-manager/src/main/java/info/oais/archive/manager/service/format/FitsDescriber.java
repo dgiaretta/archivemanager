@@ -98,8 +98,7 @@ public final class FitsDescriber {
             top.addAll(data(hdu, prefix, what));
             long fill = blocks(hdu.dataBytes()) - hdu.dataBytes();
             if (fill > 0 && (hdu != last || lastFilled)) {
-                top.add(bytes(prefix + "_fill", fill, Semantics.of("Fill", "Fill after the data of " + what
-                        + ", to a whole number of 2880-byte blocks.", null)));
+                top.add(padding(prefix + "_fill", fill));
             }
         }
         notes.append("\n\nEach header is a record of its keyword records, 80 characters each, with what each keyword "
@@ -114,6 +113,7 @@ public final class FitsDescriber {
         def.setNotes(notes.toString());
         def.setFormatRegistryIdentifier(REGISTRY_ID);
         def.setSemanticDictionary(FitsDictionary.SCHEME);
+        def.setOnlyDescribedFields(true); // its padding means nothing
         def.setRoot(new RecordDescription(FormatDefinition.ROOT_ID, "format", top, null, Occurrence.ONCE,
                 Semantics.NONE));
         return def;
@@ -176,8 +176,7 @@ public final class FitsDescriber {
         }
         long fill = hdu.headerBytes() - hdu.records().size() * 80L;
         if (fill > 0) {
-            records.add(bytes(names.unique("fill"), fill, Semantics.of("Fill", "Blank records after END, filling "
-                    + "the header to a whole number of 2880-byte blocks.", null)));
+            records.add(padding(names.unique("fill"), fill));
         }
         return new RecordDescription(ElementDescription.newId(), prefix + "_header", records, null, Occurrence.ONCE,
                 Semantics.of("Header of " + what, "The header of " + what + ": " + hdu.records().size()
@@ -333,8 +332,7 @@ public final class FitsDescriber {
                     + "more than NAXIS1 = " + width + ".");
         }
         if (used < width) {
-            columns.add(bytes(names.unique("spare"), width - used, Semantics.of("Spare", "Bytes at the end of each "
-                    + "row that no column uses.", null)));
+            columns.add(padding(names.unique("spare"), width - used));
         }
         List<ElementDescription> out = new ArrayList<>();
         if (rows > 0 && width > 0) {
@@ -458,9 +456,7 @@ public final class FitsDescriber {
                         + c.n() + ") overlaps another column or the end of the row.");
             }
             if (c.start() > at) {
-                children.add(new FieldDescription(ElementDescription.newId(), names.unique("gap_" + c.n()),
-                        PrimitiveType.STRING, new Expression.IntLiteral(c.start() - at), null, Occurrence.ONCE,
-                        Semantics.of("Gap", "Characters before column " + c.n() + " that no column uses.", null)));
+                children.add(padding(names.unique("gap_" + c.n()), c.start() - at));
             }
             String kind = switch (c.form().charAt(0)) {
                 case 'A' -> "characters";
@@ -477,9 +473,7 @@ public final class FitsDescriber {
             at = c.start() + c.width();
         }
         if (at < width) {
-            children.add(new FieldDescription(ElementDescription.newId(), names.unique("spare"), PrimitiveType.STRING,
-                    new Expression.IntLiteral(width - at), null, Occurrence.ONCE,
-                    Semantics.of("Spare", "Characters at the end of each row that no column uses.", null)));
+            children.add(padding(names.unique("spare"), width - at));
         }
         if (rows == 0 || width == 0) {
             return List.of();
@@ -524,6 +518,16 @@ public final class FitsDescriber {
             }
         }
         return null;
+    }
+
+    /**
+     * Bytes that are there only to lay the data out -- the fill to a block,
+     * characters between an ASCII table's columns, spare bytes at the end of
+     * a row: raw bytes with no meaning, so they have no Semantic
+     * Representation Information and aren't a table's columns.
+     */
+    private static FieldDescription padding(String name, long length) {
+        return bytes(name, length, Semantics.NONE);
     }
 
     private static FieldDescription bytes(String name, long length, Semantics s) {

@@ -8,6 +8,7 @@ import info.oais.archive.manager.rdf.Ns;
 import info.oais.archive.manager.service.EditService;
 import info.oais.infomodel.structure.description.ChoiceDescription;
 import info.oais.infomodel.structure.description.ElementDescription;
+import info.oais.infomodel.structure.description.FieldDescription;
 import info.oais.infomodel.structure.description.FormatDescription;
 import info.oais.infomodel.structure.description.RecordDescription;
 import info.oais.infomodel.structure.description.Semantics;
@@ -319,7 +320,7 @@ public class FormatDescriptionRdfService {
         Map<String, String> unitsByLabel = new LinkedHashMap<>();
         if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
             for (ElementDescription child : def.getRoot().children()) {
-                addElementSemantics(child, "", semanticRi, unitsByLabel);
+                addElementSemantics(child, "", semanticRi, unitsByLabel, def.isOnlyDescribedFields());
             }
         } else {
             for (Hdf5Node node : def.getNodes()) {
@@ -335,16 +336,19 @@ public class FormatDescriptionRdfService {
     }
 
     private void addElementSemantics(ElementDescription e, String parentPath, String parentRi,
-                                     Map<String, String> unitsByLabel) {
+                                     Map<String, String> unitsByLabel, boolean onlyDescribed) {
         String path = parentPath.isEmpty() ? e.name() : parentPath + "." + e.name();
+        if (onlyDescribed && e instanceof FieldDescription && e.semantics().isEmpty()) {
+            return; // nothing to say about it, e.g. padding
+        }
         String ri = semanticIndividual(e.name(), path, e.semantics(), parentRi, unitsByLabel);
         if (e instanceof RecordDescription r) {
             for (ElementDescription child : r.children()) {
-                addElementSemantics(child, path, ri, unitsByLabel);
+                addElementSemantics(child, path, ri, unitsByLabel, onlyDescribed);
             }
         } else if (e instanceof ChoiceDescription c) {
             for (ChoiceDescription.Branch b : c.branches()) {
-                addElementSemantics(b.record(), path, ri, unitsByLabel);
+                addElementSemantics(b.record(), path, ri, unitsByLabel, onlyDescribed);
             }
         }
     }
@@ -542,7 +546,7 @@ public class FormatDescriptionRdfService {
         sb.append('\n');
         if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
             for (ElementDescription child : def.getRoot().children()) {
-                summarise(child, "", sb);
+                summarise(child, "", sb, def.isOnlyDescribedFields());
             }
         } else {
             for (Hdf5Node node : def.getNodes()) {
@@ -557,14 +561,17 @@ public class FormatDescriptionRdfService {
         return sb.toString();
     }
 
-    private static void summarise(ElementDescription e, String parentPath, StringBuilder sb) {
+    private static void summarise(ElementDescription e, String parentPath, StringBuilder sb, boolean onlyDescribed) {
         String path = parentPath.isEmpty() ? e.name() : parentPath + "." + e.name();
+        if (onlyDescribed && e instanceof FieldDescription && e.semantics().isEmpty()) {
+            return;
+        }
         String meaning = KaitaiGenerator.describe(e.semantics());
         sb.append("- ").append(path).append(": ").append(meaning.isEmpty() ? "(no definition)" : meaning).append('\n');
         if (e instanceof RecordDescription r) {
-            r.children().forEach(child -> summarise(child, path, sb));
+            r.children().forEach(child -> summarise(child, path, sb, onlyDescribed));
         } else if (e instanceof ChoiceDescription c) {
-            c.branches().forEach(b -> summarise(b.record(), path, sb));
+            c.branches().forEach(b -> summarise(b.record(), path, sb, onlyDescribed));
         }
     }
 }

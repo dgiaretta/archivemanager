@@ -53,6 +53,7 @@ public class FormatDefinition implements Serializable {
     private String formatRegistryIdentifier;
     private String semanticDictionary;
     private String forDataObject;
+    private boolean onlyDescribedFields;
 
     public String getName() {
         return name;
@@ -86,6 +87,20 @@ public class FormatDefinition implements Serializable {
 
     public void setSemanticDictionary(String semanticDictionary) {
         this.semanticDictionary = semanticDictionary;
+    }
+
+    /**
+     * Whether only the fields with semantics get Semantic Representation
+     * Information when saved -- for a description whose other fields are
+     * there only to lay the bytes out (e.g. a FITS file's fill), which mean
+     * nothing. Otherwise every field gets one, to be described later if not now.
+     */
+    public boolean isOnlyDescribedFields() {
+        return onlyDescribedFields;
+    }
+
+    public void setOnlyDescribedFields(boolean onlyDescribedFields) {
+        this.onlyDescribedFields = onlyDescribedFields;
     }
 
     /** The Data Object (its id) this was made from, to save it for by default; null if none. */

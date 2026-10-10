@@ -116,6 +116,7 @@ class FitsDescriberTest {
         // The ASCII table's columns at TBCOLn, named by TTYPEn.
         assertThat(((RecordDescription) child(format.root(), "hdu3_row")).children())
                 .extracting(ElementDescription::name).containsExactly("name", "gap_2", "mag");
+        assertThat(((RecordDescription) child(format.root(), "hdu3_row")).children().get(1).semantics().isEmpty()).isTrue();
 
         assertThat(ViewerBundle.imageView(format)).contains("name=\"hdu1_image\"", "name=\"pixel\"");
         // The image's rows have no columns, so the table's rows are the table view's.

@@ -432,6 +432,47 @@ public class ArchiveService {
         return null;
     }
 
+    /**
+     * {@code iri}'s types and properties, each value exactly as stored, or
+     * only those of {@code property} if given; empty if there's nothing about it.
+     */
+    public java.util.Optional<info.oais.archive.manager.model.api.EntityProperties> properties(String iri,
+                                                                                            String property) {
+        org.apache.jena.rdf.model.Model m = store.queryModel();
+        org.apache.jena.rdf.model.Resource r = m.getResource(iri);
+        if (!m.listStatements(r, null, (org.apache.jena.rdf.model.RDFNode) null).hasNext()) {
+            return java.util.Optional.empty();
+        }
+        List<String> types = new ArrayList<>();
+        List<info.oais.archive.manager.model.api.EntityProperties.Property> properties = new ArrayList<>();
+        for (org.apache.jena.rdf.model.Statement s : r.listProperties().toList()) {
+            String p = s.getPredicate().getURI();
+            org.apache.jena.rdf.model.RDFNode o = s.getObject();
+            if (p.equals(org.apache.jena.vocabulary.RDF.type.getURI()) && o.isURIResource()) {
+                types.add(o.asResource().getURI());
+                continue;
+            }
+            if (property != null && !property.equals(p)) {
+                continue;
+            }
+            if (o.isLiteral()) {
+                org.apache.jena.rdf.model.Literal l = o.asLiteral();
+                properties.add(new info.oais.archive.manager.model.api.EntityProperties.Property(p,
+                        l.getLexicalForm(), false, null, l.getDatatypeURI(),
+                        l.getLanguage().isEmpty() ? null : l.getLanguage()));
+            } else if (o.isURIResource()) {
+                String target = o.asResource().getURI();
+                properties.add(new info.oais.archive.manager.model.api.EntityProperties.Property(p, target, true,
+                        encodeId(target), null, null));
+            }
+        }
+        properties.sort(java.util.Comparator.comparing(
+                info.oais.archive.manager.model.api.EntityProperties.Property::property));
+        java.util.Collections.sort(types);
+        return java.util.Optional.of(new info.oais.archive.manager.model.api.EntityProperties(iri, encodeId(iri),
+                label(iri), types, properties));
+    }
+
     public List<String> types(String iri) {
         String sparql = Ns.PREFIXES + "SELECT ?t WHERE { <%s> a ?t } ".formatted(iri);
         List<String> out = new ArrayList<>();

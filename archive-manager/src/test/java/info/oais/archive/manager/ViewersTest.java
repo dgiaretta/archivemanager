@@ -370,7 +370,12 @@ class ViewersTest {
                 return m.contains(m.getResource(FitsDictionary.SCHEME), org.apache.jena.vocabulary.RDF.type,
                         m.getResource(Ns.SKOS + "ConceptScheme"))
                         && m.listSubjectsWithProperty(m.getProperty(Ns.IM + "representsConcept"),
-                                m.getResource(FitsDictionary.CONCEPTS + "NAXISn")).hasNext();
+                                m.getResource(FitsDictionary.CONCEPTS + "NAXISn")).hasNext()
+                        // Padding, there only to lay the bytes out, means nothing.
+                        && !m.listSubjectsWithProperty(m.getProperty(Ns.IM + "structuralPath"), "hdu1_header.fill")
+                                .hasNext()
+                        && m.listSubjectsWithProperty(m.getProperty(Ns.IM + "structuralPath"), "hdu1_header.naxis")
+                                .hasNext();
             })).isTrue();
 
             String imageId = archive.encodeId(objects[1]);

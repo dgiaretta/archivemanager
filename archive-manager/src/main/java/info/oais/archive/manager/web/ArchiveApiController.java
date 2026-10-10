@@ -7,6 +7,7 @@ import info.oais.archive.manager.model.api.AddRelationshipRequest;
 import info.oais.archive.manager.model.api.AddTypeRequest;
 import info.oais.archive.manager.model.api.CreateEntityRequest;
 import info.oais.archive.manager.model.api.CreateRecordRequest;
+import info.oais.archive.manager.model.api.EntityProperties;
 import info.oais.archive.manager.model.api.RemovePropertyRequest;
 import info.oais.archive.manager.model.api.RemoveRelationshipRequest;
 import info.oais.archive.manager.model.api.RemoveTypeRequest;
@@ -105,6 +106,25 @@ public class ArchiveApiController {
         }
         String iri = edit.createEntity(resolved);
         return archiveService.summarize(iri);
+    }
+
+    /**
+     * One entity: its types and its properties, each value exactly as stored
+     * (see {@link EntityProperties}); with {@code property}, only that
+     * property's values. Open, like the entity's page. 404 if nothing is
+     * known about it.
+     */
+    @GetMapping("/entities/{id}")
+    public EntityProperties entity(@PathVariable String id, @RequestParam(required = false) String property) {
+        String resolvedProperty = blankToNull(property) == null ? null : ontology.resolveIri(property);
+        String iri;
+        try {
+            iri = archiveService.decodeId(id);
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Not an entity id: " + id);
+        }
+        return archiveService.properties(iri, resolvedProperty)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Nothing is known about " + id));
     }
 
     @DeleteMapping("/entities/{id}")

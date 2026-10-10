@@ -1338,6 +1338,29 @@ reached while logged out (not a flow the UI itself produces, since you'd
 already have had to get past the GET page it's submitted from) is refused
 outright with 403 rather than trying to replay the request after login.
 
+**The REST API** (`ArchiveApiController`, under `/api`) follows the same
+rule: reading is open, and changing needs the session cookie a `POST` of
+the edit password to `/login` gives. Entities are named by their id (the
+IRI in URL-safe base64, without padding):
+
+- `GET /api/entities?type=&page=&size=` -- entities, a page at a time.
+- `GET /api/entities/{id}` -- one entity: its `iri`, `id`, `title`, `types`
+  (full IRIs) and `properties`, each with its `property` IRI and `value`
+  exactly as stored, whether it's a `resource` (then `value` is its IRI and
+  `targetId` its id) or a literal (with its `datatype`, and `language` if
+  tagged). `?property=` (an IRI or prefixed name, e.g. `rdfs:comment`)
+  gives only that property's values. 404 if nothing is known about it, 400
+  if the id isn't one. A literal's `value` is what
+  `DELETE .../properties` takes to remove it.
+- `POST /api/entities` (`{"classIri": ...}`), `DELETE /api/entities/{id}`
+  (with every statement about it, and every link to it).
+- `POST`/`DELETE /api/entities/{id}/types`, `/properties`
+  (`{"property": ..., "value": ...}` to add, `{"propertyIri": ...,
+  "value": ...}` to remove) and `/relationships` (`{"property": ...,
+  "customTarget": ...}` or `"targetId"` to add, `{"propertyIri": ...,
+  "otherIri": ..., "direction": "incoming"}`, the direction optional, to
+  remove).
+
 **What this is not**, to be clear about what a "plain password" gate does
 and doesn't buy you:
 
