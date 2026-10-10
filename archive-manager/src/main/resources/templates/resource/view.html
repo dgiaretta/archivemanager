@@ -14,6 +14,7 @@
         <a class="button" th:href="@{/graph/{id}(id=${id})}" th:utext="#{action.viewInGraph} + ' &rarr;'">View in graph &rarr;</a>
         <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}" th:utext="#{action.edit} + ' &rarr;'">Edit &rarr;</a>
     </p>
+    <p class="notice" th:if="${aipMessage != null}" th:text="${aipMessage}">AIP created.</p>
 
     <section class="editor-section" th:if="${packageLocation != null}">
         <h3 th:text="#{resource.package}">Its package</h3>
@@ -200,6 +201,57 @@
             Properties, and record the result as a new Data Object in an AIP Version.
         </p>
         <p><a class="button" th:href="@{/transform/{id}(id=${id})}" th:utext="#{resource.transformAction} + '&hellip;'">Transform&hellip;</a></p>
+    </section>
+
+    <section class="editor-section" th:if="${isDataObject}" id="aip">
+        <h3 th:text="#{aip.title}">Its Archival Information Package</h3>
+        <th:block th:unless="${dataObjectAips.isEmpty()}">
+            <p th:text="#{aip.isIn}">It is the Content Data Object of:</p>
+            <ul><li th:each="a : ${dataObjectAips}"><a th:href="@{/resource/{id}(id=${a.id})}" th:text="${a.title}">AIP</a></li></ul>
+            <p class="muted" th:text="#{aip.isInNote}">Its page shows whether it has every component OAIS requires.</p>
+        </th:block>
+        <th:block th:if="${dataObjectAips.isEmpty()}">
+            <p class="muted" th:text="#{aip.note}">
+                Make an AIP around this Data Object, with as much of what OAIS requires as the archive knows or can
+                work out.
+            </p>
+            <form th:action="@{/data-objects/{id}/aip(id=${id})}" method="post" class="form">
+                <label>
+                    <span th:text="#{aip.community}">Designated Community</span>
+                    <select name="designatedCommunity">
+                        <option value="" th:text="#{aip.community.new}">-- a new one, named below (or none yet) --</option>
+                        <option th:each="c : ${communities}" th:value="${c.iri()}" th:text="${c.label()}">Astronomers</option>
+                    </select>
+                </label>
+                <div class="form-row">
+                    <label>
+                        <span th:text="#{aip.community.name}">New Designated Community's name</span>
+                        <input type="text" name="newCommunity" th:placeholder="#{aip.community.nameExample}"/>
+                    </label>
+                    <label>
+                        <span th:text="#{aip.community.description}">What it knows, and needs</span>
+                        <input type="text" name="communityDescription" th:placeholder="#{aip.community.descriptionExample}"/>
+                    </label>
+                </div>
+                <label>
+                    <span th:text="#{aip.objective}">Preservation Objective: what the Designated Community must be able to do with it</span>
+                    <input type="text" name="preservationObjective" th:placeholder="#{aip.objectiveExample}"/>
+                </label>
+                <label>
+                    <span th:text="#{aip.accessRights}">Access Rights: who may use it, and how</span>
+                    <input type="text" name="accessRights" th:placeholder="#{aip.accessRightsExample}"/>
+                </label>
+                <label>
+                    <span th:text="#{aip.context}">Context: how it relates to other information (the archive adds what it finds)</span>
+                    <textarea name="context" rows="2"></textarea>
+                </label>
+                <label>
+                    <span th:text="#{aip.recordedBy}">Made by</span>
+                    <input type="text" name="recordedBy" th:placeholder="#{upload.yourName}"/>
+                </label>
+                <button type="submit" th:text="#{aip.create}">Create the AIP</button>
+            </form>
+        </th:block>
     </section>
 
     <div class="grid">

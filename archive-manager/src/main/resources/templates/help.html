@@ -229,6 +229,19 @@
             <li>a <strong>Package Description</strong> (at least one): for finding the package.</li>
         </ul>
         <p>
+            <strong>Making an AIP from a Data Object.</strong> A Data Object's page has <strong>Create the
+            AIP</strong>, which makes an AIP around it with everything the archive knows or can work out: its
+            Content Information (the Data Object and the Representation Information it's interpreted using);
+            Fixity Information, the SHA-256 and size of its bits, fetched from their storage location then;
+            Reference Information (its identifiers and where its bits are); Provenance Information (when, and
+            by whom, the AIP was made from it); Context Information (what it's interpreted using and what links
+            to it, and anything you add); and a Package Description. What only the archive can decide is asked
+            for on the same form &mdash; the Designated Community (an existing one, or a new one) and its
+            Preservation Objective, the Access Rights &mdash; and left out if not given, never made up.
+            Packaging Information comes with the BagIt bag. The AIP's page then shows what's still missing. A
+            Data Object already in an AIP links to it instead.
+        </p>
+        <p>
             Build an AIP with the editor: create an Archival Information Package and add these relationships
             in turn, creating each component as you go. As OAIS requires, also say who the information must
             remain understandable to and by what tests: a <strong>Designated Community</strong>, linked to the

@@ -1308,6 +1308,31 @@ wanted.
   }
   ```
 
+## Making an AIP from a Data Object
+
+A Data Object's page (`/resource/{id}`) has "Create the AIP" (`POST
+/data-objects/{id}/aip`, `AipController`, behind the edit password), which
+makes an Archival Information Package around it (`AipBuilder`) with as much
+of what OAIS requires (`AipComponents`) as the archive knows or can work
+out: Content Information (`im:hasDataObject`, and
+`im:hasRepresentationInformation` for each `im:interpretedUsing`); a PDI
+with Fixity Information (SHA-256 and size of the bits, fetched from
+`im:hasStorageLocation` through `StorageFetcher`), Reference Information
+(the Data Object's IRI, its `...identifier` literals, the storage
+location), Provenance Information (made from it, when, by whom) and Context
+Information (what it's interpreted using, what links to it, anything
+given); and a Package Description (`im:describedBy`, `im:derivedFrom`).
+The form asks for what only the archive can decide: a Designated Community
+(an existing one, in alphabetical order, or a new one,
+`im:hasDesignatedCommunity`), its Preservation Objective
+(`im:hasPreservationObjective`, `im:carriedOutUsing` the Content
+Information), Access Rights Information -- each left out if not given,
+never made up -- and who's making it. Packaging Information is provided by
+the BagIt bag. If the bits can't be fetched, the AIP is still made, without
+Fixity Information, and says why. A Data Object already in an AIP isn't
+packaged again: its page lists the AIP, and asking again shows it. Tested
+by `AipBuilderTest`.
+
 ## Login / editing password
 
 **`application.yml` currently has a real password checked into it**

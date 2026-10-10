@@ -28,13 +28,16 @@ public class ResourceController {
     private final info.oais.archive.manager.service.AipComponents components;
     private final info.oais.archive.manager.service.LaunchService launch;
     private final info.oais.archive.manager.service.packages.PackageMappingService packages;
+    private final info.oais.archive.manager.service.AipBuilder aips;
 
     public ResourceController(ArchiveService archive,
                               info.oais.archive.manager.service.format.DataObjectViewService views,
                               info.oais.archive.manager.service.PackageExportService exports,
                               info.oais.archive.manager.service.AipComponents components,
                               info.oais.archive.manager.service.LaunchService launch,
-                              info.oais.archive.manager.service.packages.PackageMappingService packages) {
+                              info.oais.archive.manager.service.packages.PackageMappingService packages,
+                              info.oais.archive.manager.service.AipBuilder aips) {
+        this.aips = aips;
         this.archive = archive;
         this.views = views;
         this.exports = exports;
@@ -56,6 +59,13 @@ public class ResourceController {
         // What it can be written out as: an AIP as a BagIt bag, Representation Information (or a
         // Data Object interpreted using some) as its data description.
         model.addAttribute("packageLocation", packages.packageLocation(iri).map(java.net.URI::toString).orElse(null));
+        // A Data Object: the AIPs it's in, or what's needed to make one around it.
+        boolean dataObject = aips.isDataObject(iri);
+        model.addAttribute("isDataObject", dataObject);
+        if (dataObject) {
+            model.addAttribute("dataObjectAips", aips.aipsOf(iri).stream().map(archive::summarize).toList());
+            model.addAttribute("communities", aips.communities());
+        }
         boolean isPackage = exports.isPackage(iri);
         model.addAttribute("isPackage", isPackage);
         if (isPackage) {

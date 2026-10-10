@@ -125,6 +125,10 @@ public class EditAuthInterceptor implements HandlerInterceptor {
         // The REST counterparts of the rules above (ArchiveApiController) -- same
         // shared-path-with-an-open-GET-sibling situation as /entities and /records
         // themselves, so the same explicit method-aware matching is needed here too.
+        // Making an AIP around a Data Object (AipController).
+        if (path.matches("^/data-objects/[^/]+/aip$") && method.equals("POST")) {
+            return true;
+        }
         if (path.equals("/api/records") && method.equals("POST")) {
             return true;
         }
