@@ -1,48 +1,45 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Entities')}"></head>
+<head th:replace="~{fragments :: head(#{nav.entities})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <h1>Entities</h1>
-    <p class="muted">Every individual in the data graph, regardless of vocabulary or class.</p>
+    <h1 th:text="#{nav.entities}">Entities</h1>
+    <p class="muted" th:text="#{entities.intro}">Every individual in the data graph, regardless of vocabulary or class.</p>
     <p>
-        <a class="button" th:href="@{/entities/new}">+ New entity</a>
-        <a class="button button-secondary" th:href="@{/entities/import}">Import Turtle data</a>
+        <a class="button" th:href="@{/entities/new}" th:text="'+ ' + #{entities.new}">+ New entity</a>
+        <a class="button button-secondary" th:href="@{/entities/import}" th:text="#{import.title}">Import Turtle data</a>
         <span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span>
     </p>
 
     <form th:action="@{/entities}" method="get" class="inline-add-form">
         <select name="type" onchange="this.form.submit()">
-            <option value="">All types</option>
+            <option value="" th:text="#{entities.allTypes}">All types</option>
             <option th:each="t : ${typesInUse}" th:value="${t.iri}" th:selected="${t.iri == selectedType}"
                     th:text="${t.label} + ' (' + ${t.count} + ')'">rico:Record (1234)</option>
         </select>
-        <noscript><button type="submit">Filter</button></noscript>
-        <a th:if="${selectedType != null and !selectedType.isEmpty()}" th:href="@{/entities}" class="page-link">Clear filter</a>
+        <noscript><button type="submit" th:text="#{entities.filter}">Filter</button></noscript>
+        <a th:if="${selectedType != null and !selectedType.isEmpty()}" th:href="@{/entities}" class="page-link" th:text="#{entities.clearFilter}">Clear filter</a>
     </form>
 
     <table class="listing">
-        <thead><tr><th>Type</th><th>Title</th><th></th></tr></thead>
+        <thead><tr><th th:text="#{col.type}">Type</th><th th:text="#{col.title}">Title</th><th></th></tr></thead>
         <tbody>
         <tr th:each="r : ${resultPage.items}">
             <td><span class="pill" th:text="${r.typeLocalName}">Type</span></td>
             <td><a th:href="@{/resource/{id}(id=${r.id})}" th:text="${r.title}">Title</a></td>
-            <td><a th:href="@{/entities/{id}/edit(id=${r.id})}">Edit</a></td>
+            <td><a th:href="@{/entities/{id}/edit(id=${r.id})}" th:text="#{action.edit}">Edit</a></td>
         </tr>
         </tbody>
     </table>
-    <p th:if="${resultPage.items.isEmpty()}" class="muted">No entities match that filter.</p>
+    <p th:if="${resultPage.items.isEmpty()}" class="muted" th:text="#{entities.noMatch}">No entities match that filter.</p>
 
     <div class="pagination" th:if="${resultPage.totalPages() > 1}">
-        <a th:if="${resultPage.hasPrevious()}" th:href="@{/entities(type=${selectedType}, page=${resultPage.previousPage()})}" class="page-link">&larr; Previous</a>
-        <span th:unless="${resultPage.hasPrevious()}" class="page-link disabled">&larr; Previous</span>
-        <span class="page-info">
-            Page <span th:text="${resultPage.page}">1</span> of <span th:text="${resultPage.totalPages()}">1</span>
-            (<span th:text="${resultPage.totalCount}">0</span> total)
-        </span>
-        <a th:if="${resultPage.hasNext()}" th:href="@{/entities(type=${selectedType}, page=${resultPage.nextPage()})}" class="page-link">Next &rarr;</a>
-        <span th:unless="${resultPage.hasNext()}" class="page-link disabled">Next &rarr;</span>
+        <a th:if="${resultPage.hasPrevious()}" th:href="@{/entities(type=${selectedType}, page=${resultPage.previousPage()})}" class="page-link" th:utext="'&larr; ' + #{page.previous}">&larr; Previous</a>
+        <span th:unless="${resultPage.hasPrevious()}" class="page-link disabled" th:utext="'&larr; ' + #{page.previous}">&larr; Previous</span>
+        <span class="page-info" th:text="#{page.info(${resultPage.page}, ${resultPage.totalPages()}, ${resultPage.totalCount})}">Page 1 of 1 (0 total)</span>
+        <a th:if="${resultPage.hasNext()}" th:href="@{/entities(type=${selectedType}, page=${resultPage.nextPage()})}" class="page-link" th:utext="#{page.next} + ' &rarr;'">Next &rarr;</a>
+        <span th:unless="${resultPage.hasNext()}" class="page-link disabled" th:utext="#{page.next} + ' &rarr;'">Next &rarr;</span>
     </div>
 </main>
 <div th:replace="~{fragments :: footer}"></div>

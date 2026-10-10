@@ -41,21 +41,30 @@ final class DescriptionEditorView {
                List<String> problems, boolean root, boolean container, boolean first, boolean last) {
     }
 
-    /** @param targets the languages the description is meant for: problems include features they can't express */
-    static List<Row> rows(FormatDescription format, Collection<DescriptionLanguage> targets) {
+    /** The interface's text: a message by key, with its arguments (see {@code i18n/messages.properties}). */
+    interface Text {
+        String get(String key, Object... args);
+    }
+
+    /**
+     * @param targets the languages the description is meant for: problems include features they can't express
+     * @param t       the summaries' wording, in the interface's language
+     */
+    static List<Row> rows(FormatDescription format, Collection<DescriptionLanguage> targets, Text t) {
         Map<String, List<String>> problems = DescriptionValidator.validate(format, targets).stream()
                 .collect(Collectors.groupingBy(p -> p.elementId() == null ? "" : p.elementId(), LinkedHashMap::new,
                         Collectors.mapping(DescriptionValidator.Problem::message, Collectors.toList())));
         List<Row> rows = new ArrayList<>();
         RecordDescription root = format.root();
-        rows.add(new Row(root.id(), 0, "record", root.name(), "the whole file" + textSummary(root),
-                semanticsSummary(root.semantics()), problems.getOrDefault(root.id(), List.of()), true, true, true, true));
-        addChildren(rows, root, 1, format, problems);
+        rows.add(new Row(root.id(), 0, "record", root.name(), t.get("summary.wholeFile") + textSummary(root, t),
+                semanticsSummary(root.semantics(), t), problems.getOrDefault(root.id(), List.of()), true, true, true,
+                true));
+        addChildren(rows, root, 1, format, problems, t);
         return rows;
     }
 
     private static void addChildren(List<Row> rows, RecordDescription record, int depth, FormatDescription format,
-                                    Map<String, List<String>> problems) {
+                                    Map<String, List<String>> problems, Text t) {
         List<ElementDescription> children = record.children();
         for (int i = 0; i < children.size(); i++) {
             ElementDescription e = children.get(i);
@@ -63,86 +72,87 @@ final class DescriptionEditorView {
             boolean last = i == children.size() - 1;
             List<String> own = problems.getOrDefault(e.id(), List.of());
             if (e instanceof FieldDescription f) {
-                rows.add(new Row(f.id(), depth, "field", f.name(), fieldSummary(f, record.isText(), format),
-                        semanticsSummary(f.semantics()), own, false, false, first, last));
+                rows.add(new Row(f.id(), depth, "field", f.name(), fieldSummary(f, record.isText(), format, t),
+                        semanticsSummary(f.semantics(), t), own, false, false, first, last));
             } else if (e instanceof RecordDescription r) {
-                rows.add(new Row(r.id(), depth, "record", r.name(), "record" + textSummary(r) + recordExtras(r)
-                        + occurrenceSummary(r.occurrence()), semanticsSummary(r.semantics()), own, false, true, first, last));
-                addChildren(rows, r, depth + 1, format, problems);
+                rows.add(new Row(r.id(), depth, "record", r.name(), t.get("kind.record") + textSummary(r, t)
+                        + recordExtras(r, t) + occurrenceSummary(r.occurrence(), t), semanticsSummary(r.semantics(), t),
+                        own, false, true, first, last));
+                addChildren(rows, r, depth + 1, format, problems, t);
             } else if (e instanceof ChoiceDescription c) {
-                rows.add(new Row(c.id(), depth, "choice", c.name(), "one of the branches below, chosen by "
-                        + c.discriminator().text() + occurrenceSummary(c.occurrence()),
-                        semanticsSummary(c.semantics()), own, false, false, first, last));
+                rows.add(new Row(c.id(), depth, "choice", c.name(), t.get("summary.choice", c.discriminator().text())
+                        + occurrenceSummary(c.occurrence(), t), semanticsSummary(c.semantics(), t), own, false, false,
+                        first, last));
                 List<ChoiceDescription.Branch> branches = c.branches();
                 for (int b = 0; b < branches.size(); b++) {
                     ChoiceDescription.Branch branch = branches.get(b);
                     RecordDescription br = branch.record();
-                    rows.add(new Row(br.id(), depth + 1, "branch", br.name(), "when " + c.discriminator().text()
-                            + " = " + branch.key(), semanticsSummary(br.semantics()),
+                    rows.add(new Row(br.id(), depth + 1, "branch", br.name(), t.get("summary.branch",
+                            c.discriminator().text(), branch.key()), semanticsSummary(br.semantics(), t),
                             problems.getOrDefault(br.id(), List.of()), false, true, b == 0, b == branches.size() - 1));
-                    addChildren(rows, br, depth + 2, format, problems);
+                    addChildren(rows, br, depth + 2, format, problems, t);
                 }
             }
         }
     }
 
-    static String fieldSummary(FieldDescription f, boolean inText, FormatDescription format) {
+    static String fieldSummary(FieldDescription f, boolean inText, FormatDescription format, Text t) {
         StringBuilder sb = new StringBuilder(f.type().name());
         if (inText) {
-            sb.append(", as text");
+            sb.append(t.get("summary.asText"));
             if (f.numberFormat() != null) {
-                sb.append(" like ").append(f.numberFormat().pattern());
+                sb.append(t.get("summary.like", f.numberFormat().pattern()));
             }
             if (f.nilValue() != null) {
-                sb.append(f.nilValue().isEmpty() ? ", empty means no value" : ", \"" + f.nilValue() + "\" means no value");
+                sb.append(f.nilValue().isEmpty() ? t.get("summary.emptyNoValue") : t.get("summary.noValue", f.nilValue()));
             }
         } else if (f.type() == info.oais.infomodel.structure.description.PrimitiveType.BITS && f.length() != null) {
-            sb.append(", ").append(f.length().text()).append(" bits");
+            sb.append(t.get("summary.bits", f.length().text()));
         } else if (f.length() != null) {
-            sb.append(", ").append(f.length() instanceof Expression.IntLiteral lit
-                    ? lit.value() + " bytes" : "length " + f.length().text());
+            sb.append(f.length() instanceof Expression.IntLiteral lit ? t.get("summary.bytes", String.valueOf(lit.value()))
+                    : t.get("summary.length", f.length().text()));
         } else if (f.type().fixedWidth() > 1) {
             ByteOrder order = f.byteOrder() == null ? format.defaultByteOrder() : f.byteOrder();
-            sb.append(order == ByteOrder.LITTLE_ENDIAN ? ", little-endian" : ", big-endian");
+            sb.append(order == ByteOrder.LITTLE_ENDIAN ? t.get("summary.littleEndian") : t.get("summary.bigEndian"));
         }
         if (f.offset() != null) {
-            sb.append(", at offset ").append(f.offset().text());
+            sb.append(t.get("summary.atOffset", f.offset().text()));
         }
-        return sb + occurrenceSummary(f.occurrence());
+        return sb + occurrenceSummary(f.occurrence(), t);
     }
 
-    private static String textSummary(RecordDescription r) {
-        return r.isText() ? ", delimited text: fields separated by " + show(r.text().fieldSeparator())
-                + ", ended by " + show(r.text().recordTerminator())
-                + (r.text().quote() == null ? "" : ", values may be quoted with " + show(r.text().quote())) : "";
+    private static String textSummary(RecordDescription r, Text t) {
+        return r.isText() ? t.get("summary.delimited", show(r.text().fieldSeparator(), t),
+                show(r.text().recordTerminator(), t))
+                + (r.text().quote() == null ? "" : t.get("summary.quoted", show(r.text().quote(), t))) : "";
     }
 
-    private static String recordExtras(RecordDescription r) {
+    private static String recordExtras(RecordDescription r, Text t) {
         StringBuilder sb = new StringBuilder();
         if (r.size() != null) {
-            sb.append(r.size() instanceof Expression.IntLiteral lit ? ", " + lit.value() + " bytes"
-                    : ", size " + r.size().text());
+            sb.append(r.size() instanceof Expression.IntLiteral lit ? t.get("summary.bytes", String.valueOf(lit.value()))
+                    : t.get("summary.size", r.size().text()));
         }
         if (r.compression() != null) {
-            sb.append(", zlib-compressed");
+            sb.append(t.get("summary.zlib"));
         }
         if (r.offset() != null) {
-            sb.append(", at offset ").append(r.offset().text());
+            sb.append(t.get("summary.atOffset", r.offset().text()));
         }
         return sb.toString();
     }
 
-    static String occurrenceSummary(Occurrence o) {
+    static String occurrenceSummary(Occurrence o, Text t) {
         if (o instanceof Occurrence.Optional opt) {
-            return ", only if " + opt.condition().text();
+            return t.get("summary.onlyIf", opt.condition().text());
         }
         if (o instanceof Occurrence.Repeated r) {
-            return ", repeated " + r.count().text() + " times";
+            return t.get("summary.repeated", r.count().text());
         }
-        return o instanceof Occurrence.UntilEnd ? ", repeated to the end of the data" : "";
+        return o instanceof Occurrence.UntilEnd ? t.get("summary.toTheEnd") : "";
     }
 
-    static String semanticsSummary(Semantics s) {
+    static String semanticsSummary(Semantics s, Text t) {
         List<String> parts = new ArrayList<>();
         if (s.semanticName() != null) {
             parts.add(s.semanticName());
@@ -154,25 +164,25 @@ final class DescriptionEditorView {
             parts.add(s.definition().length() > 80 ? s.definition().substring(0, 77) + "..." : s.definition());
         }
         if (!s.codes().isEmpty()) {
-            parts.add(s.codes().size() + " coded value" + (s.codes().size() == 1 ? "" : "s"));
+            parts.add(s.codes().size() == 1 ? t.get("summary.oneCode") : t.get("summary.codes", s.codes().size()));
         }
         if (s.isScaled()) {
-            parts.add("scaled");
+            parts.add(t.get("summary.scaled"));
         }
         return String.join(" ", parts);
     }
 
     /** A separator or terminator as a person would name it. */
-    static String show(String delimiter) {
+    static String show(String delimiter, Text t) {
         return switch (delimiter) {
-            case "\n" -> "a newline";
-            case "\t" -> "a tab";
-            case "," -> "a comma";
-            case ";" -> "a semicolon";
-            case "|" -> "a vertical bar";
-            case " " -> "a space";
-            case "\"" -> "double quotes";
-            case "'" -> "single quotes";
+            case "\n" -> t.get("delimiter.newline");
+            case "\t" -> t.get("delimiter.tab");
+            case "," -> t.get("delimiter.comma");
+            case ";" -> t.get("delimiter.semicolon");
+            case "|" -> t.get("delimiter.bar");
+            case " " -> t.get("delimiter.space");
+            case "\"" -> t.get("delimiter.doubleQuotes");
+            case "'" -> t.get("delimiter.singleQuotes");
             default -> "\"" + delimiter + "\"";
         };
     }

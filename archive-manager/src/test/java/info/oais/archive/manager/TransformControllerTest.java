@@ -72,7 +72,7 @@ class TransformControllerTest {
             MockHttpSession session = new MockHttpSession();
             session.setAttribute(EditAuthInterceptor.SESSION_KEY, Boolean.TRUE);
 
-            mockMvc.perform(get("/resource/" + id)).andExpect(content().string(containsString("Transform&hellip;")));
+            mockMvc.perform(get("/resource/" + id)).andExpect(content().string(containsString("Transform…")));
             mockMvc.perform(get("/transform/" + id).session(session))
                     .andExpect(status().isOk())
                     .andExpect(content().string(containsString("Test star positions (as used by Test positions)")));

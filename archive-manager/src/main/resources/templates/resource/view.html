@@ -11,142 +11,112 @@
     </p>
 
     <p>
-        <a class="button" th:href="@{/graph/{id}(id=${id})}">View in graph &rarr;</a>
-        <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}">Edit &rarr;</a>
+        <a class="button" th:href="@{/graph/{id}(id=${id})}" th:utext="#{action.viewInGraph} + ' &rarr;'">View in graph &rarr;</a>
+        <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}" th:utext="#{action.edit} + ' &rarr;'">Edit &rarr;</a>
     </p>
 
     <section class="editor-section" th:if="${packageLocation != null}">
-        <h3>Its package</h3>
+        <h3 th:text="#{resource.package}">Its package</h3>
         <p>
-            It is stored as a package, <a th:href="${packageLocation}" th:text="${#strings.substringAfter(packageLocation, '://')}">package</a>.
-            <a class="button" th:href="@{/packages/{id}/contents(id=${id})}">Map its package to the AIP components &rarr;</a>
+            <span th:text="#{resource.storedAs}">It is stored as a package,</span> <a th:href="${packageLocation}" th:text="${#strings.substringAfter(packageLocation, '://')}">package</a>.
+            <a class="button" th:href="@{/packages/{id}/contents(id=${id})}" th:utext="#{resource.mapPackage} + ' &rarr;'">Map its package to the AIP components &rarr;</a>
         </p>
-        <p class="muted">
+        <p class="muted" th:text="#{resource.mapPackageNote}">
             Opens the package, checks its bag, and shows where each component OAIS requires of an AIP is in it
             &mdash; the upload spreadsheet, METS/PREMIS, checksums &mdash; and what it says there.
         </p>
     </section>
 
     <section class="editor-section" th:if="${isPackage or hasDescription}">
-        <h3>Write it out</h3>
+        <h3 th:text="#{resource.writeOut}">Write it out</h3>
         <p th:if="${isPackage}">
-            <a class="button" th:href="@{/api/packages/{id}/bagit.zip(id=${id})}">Download as BagIt &rarr;</a>
-            <a class="button button-secondary" th:href="@{/api/packages/{id}/bagit.zip(id=${id},bits='refer')}">BagIt, referring to the bits &rarr;</a>
-            <span class="muted">
-                This Archival Information Package as a BagIt bag (RFC 8493), zipped: <code>data/aip.ttl</code>
-                describes the AIP and everything it's made of, with its Data Objects' bits, each description as a
-                file, and the OAIS ontologies, all with SHA-256 checksums &mdash; complete, to hand to another
-                archive. Or refer to the Data Objects' bits rather than include them: <code>fetch.txt</code> gives
-                the URL to fetch each from (its storage location), for large data or bits kept where the receiver
-                can fetch them; the manifest still has their checksums, so the bag is complete once they're fetched.
+            <a class="button" th:href="@{/api/packages/{id}/bagit.zip(id=${id})}" th:utext="#{resource.bagit} + ' &rarr;'">Download as BagIt &rarr;</a>
+            <a class="button button-secondary" th:href="@{/api/packages/{id}/bagit.zip(id=${id},bits='refer')}" th:utext="#{resource.bagitRefer} + ' &rarr;'">BagIt, referring to the bits &rarr;</a>
+            <span class="muted" th:utext="#{resource.bagitNote}">
+                This Archival Information Package as a BagIt bag (RFC 8493), zipped.
             </span>
         </p>
         <th:block th:if="${isPackage}">
             <p>
-                <strong th:text="${aipComplete} ? 'This AIP has every component OAIS requires.' : 'This AIP is missing components OAIS requires.'">Complete.</strong>
-                <span class="muted">The bag names each one in <code>oais-aip-components.txt</code> and says what's
-                missing in <code>bag-info.txt</code>. Add what's missing with the
-                <a th:href="@{/entities/{id}/edit(id=${id})}">editor</a>.</span>
-                <span class="muted" th:if="${packageLocation != null and !aipComplete}">These are the components described
-                in the archive; this AIP's package may hold the rest &mdash;
-                <a th:href="@{/packages/{id}/contents(id=${id})}">see what's in it</a>.</span>
+                <strong th:text="${aipComplete} ? #{resource.aipComplete} : #{resource.aipIncomplete}">Complete.</strong>
+                <span class="muted" th:utext="#{resource.aipNote(@{/entities/{id}/edit(id=${id})})}">The bag names each one in <code>oais-aip-components.txt</code>.</span>
+                <span class="muted" th:if="${packageLocation != null and !aipComplete}" th:utext="#{resource.aipMayHold(@{/packages/{id}/contents(id=${id})})}">These are the components described
+                in the archive; this AIP's package may hold the rest.</span>
             </p>
             <table class="listing">
-                <thead><tr><th>Component</th><th>Required</th><th>Status</th><th>Individuals</th></tr></thead>
+                <thead><tr><th th:text="#{resource.col.component}">Component</th><th th:text="#{resource.col.required}">Required</th>
+                    <th th:text="#{resource.col.status}">Status</th><th th:text="#{resource.col.individuals}">Individuals</th></tr></thead>
                 <tbody>
                 <tr th:each="p : ${aipParts}">
-                    <td th:style="${'padding-left:' + (0.4 + 1.2 * p.depth()) + 'rem'}" th:text="${p.name()}">Content Information</td>
-                    <td th:text="${p.requirement()}">exactly one</td>
-                    <td><strong th:text="${p.status().text()}" th:style="${p.missing()} ? 'color:#c0392b' : ''">present</strong>
-                        <div class="muted" th:if="${p.note() != null}" th:text="${p.note()}">note</div></td>
+                    <td th:style="${'padding-left:' + (0.4 + 1.2 * p.depth()) + 'rem'}" th:text="${@labels.of('aip', p.name())}">Content Information</td>
+                    <td th:text="${@labels.of('aip', p.requirement())}">exactly one</td>
+                    <td><strong th:text="${@labels.of('aip', p.status().text())}" th:style="${p.missing()} ? 'color:#c0392b' : ''">present</strong>
+                        <div class="muted" th:if="${p.note() != null}" th:text="${@labels.of('aip', p.note())}">note</div></td>
                     <td><code th:each="i : ${p.iris()}" th:text="${i}" style="display:block">iri</code></td>
                 </tr>
                 </tbody>
             </table>
         </th:block>
         <p th:if="${hasDescription}">
-            <a class="button button-secondary" th:href="@{/api/descriptions/{id}/description.zip(id=${id})}">Download the data description &rarr;</a>
-            <span class="muted">
-                Its Representation Information, with all it needs, as a zip: <code>description.ttl</code> and each
-                structure description and view specification (DFDL, Kaitai Struct, DRB, ...) as a file.
+            <a class="button button-secondary" th:href="@{/api/descriptions/{id}/description.zip(id=${id})}" th:utext="#{resource.downloadDescription} + ' &rarr;'">Download the data description &rarr;</a>
+            <span class="muted" th:utext="#{resource.downloadDescriptionNote}">
+                Its Representation Information, with all it needs, as a zip.
             </span>
         </p>
     </section>
 
     <section class="editor-section" th:if="${describedData != null}">
-        <h3>Open the data</h3>
-        <p class="muted">
+        <h3 th:text="#{resource.openData}">Open the data</h3>
+        <p class="muted" th:utext="#{resource.openDataNote(@{/api/data-objects/{id}/repinfo.ttl(id=${id})})}">
             This Data Object's bits have a storage location, and its Representation Information says
-            how to read them. Its <a th:href="@{/api/data-objects/{id}/repinfo.ttl(id=${id})}">Representation
-            Information manifest</a> (Turtle) names the data and each description explicitly; TOPCAT (with
-            the <code>oais-structure-topcat</code> reader, format <code>OAIS-RepInfo</code>) and SPLAT
-            open it by that address.
+            how to read them.
         </p>
         <p th:if="${tableViewable or imageViewable or fitsViewable}">
-            <button type="button" th:each="v : ${viewers}" th:text="${v.label()}"
-                    th:attr="data-samp-url=@{/api/data-objects/{id}/{format}(id=${id},format=${v.format()})},data-samp-name=${describedData.name()},data-samp-mtype=${v.mtype()},data-samp-client=${v.clientName()},data-samp-label=${#strings.replace(v.label(), 'View with ', '')}">View with TOPCAT</button>
+            <button type="button" th:each="v : ${viewers}" th:with="app=${#strings.replace(v.label(), 'View with ', '')}" th:text="#{viewer.viewWith(${app})}"
+                    th:attr="data-samp-url=@{/api/data-objects/{id}/{format}(id=${id},format=${v.format()})},data-samp-name=${describedData.name()},data-samp-mtype=${v.mtype()},data-samp-client=${v.clientName()},data-samp-label=${app}">View with TOPCAT</button>
             <a class="button button-secondary" th:if="${tableViewable}" th:href="@{/api/data-objects/{id}/votable(id=${id})}">VOTable &rarr;</a>
             <a class="button button-secondary" th:if="${imageViewable}" th:href="@{/api/data-objects/{id}/fits(id=${id})}">FITS &rarr;</a>
-            <a class="button button-secondary" th:if="${fitsViewable}" th:href="@{/api/data-objects/{id}/data.fits(id=${id})}">FITS file &rarr;</a>
+            <a class="button button-secondary" th:if="${fitsViewable}" th:href="@{/api/data-objects/{id}/data.fits(id=${id})}" th:utext="#{resource.fitsFile} + ' &rarr;'">FITS file &rarr;</a>
             <span class="muted" data-samp-status></span>
         </p>
-        <p class="muted" th:if="${fitsViewable}">
-            Its Representation Information says it's a FITS file (PRONOM x-fmt/383), and its headers say what it holds:
-            TOPCAT is offered for its tables, DS9 and Aladin for its images. They read the FITS file itself, as it
-            is, sent to them running on your computer (over SAMP) &mdash; unless its Representation Information
-            describes this file in particular, with a table or image view: then they're sent it decoded on the
-            server, its columns named and with their units. The "FITS file" link works in any FITS reader.
+        <p class="muted" th:if="${fitsViewable}" th:text="#{resource.fitsNote}">
+            Its Representation Information says it's a FITS file (PRONOM x-fmt/383), and its headers say what it holds.
         </p>
         <form th:if="${fitsDescribable}" th:action="@{/repinfo-tools/start-fits-object}" method="post">
             <input type="hidden" name="dataObjectId" th:value="${id}"/>
-            <button type="submit" class="button-secondary">Describe this FITS file from its headers &rarr;</button>
-            <span class="muted">in RepInfo Tools: its columns and pixels typed, named and given their units and
-                meanings, and its keywords' meanings from the FITS keyword dictionary &mdash; to save as Representation
-                Information of this Data Object, for the archive to decode it, view its table and image and print its
-                values.</span>
+            <button type="submit" class="button-secondary" th:utext="#{resource.describeFits} + ' &rarr;'">Describe this FITS file from its headers &rarr;</button>
+            <span class="muted" th:text="#{resource.describeFitsNote}">in RepInfo Tools: its columns and pixels typed, named and given their units and
+                meanings.</span>
         </form>
-        <p class="muted" th:if="${tableViewable}">
+        <p class="muted" th:if="${tableViewable}" th:text="#{resource.tableNote}">
             "View with TOPCAT" or "SPLAT" sends the data, decoded on the server as a VOTable, to that application
-            running on your computer (over SAMP; it asks you to allow this page). SPLAT is offered when the table's
-            columns are all numeric, as a spectrum's are. The VOTable link works in any VO tool. The same choices
-            are on the Data Object's right-click menu in the graph.
+            running on your computer.
         </p>
-        <p class="muted" th:if="${imageViewable}">
-            Its Representation Information also says how to see it as an image. "View with DS9" or "Aladin" sends
-            the image, decoded on the server as FITS, to that application running on your computer (over SAMP).
-            Fiji/ImageJ doesn't use SAMP: open the FITS link's file in it, or give it the link's address with
-            File &rsaquo; Import &rsaquo; URL. The FITS header carries the pixels' units and meaning.
+        <p class="muted" th:if="${imageViewable}" th:utext="#{resource.imageNote}">
+            Its Representation Information also says how to see it as an image.
         </p>
         <th:block th:if="${launches != null and !launches.isEmpty()}">
             <p>
-                <a class="button" th:if="${launches.contains('topcat')}" th:href="@{/launch/{id}/topcat.jnlp(id=${id})}">Launch TOPCAT &rarr;</a>
-                <a class="button" th:if="${launches.contains('splat')}" th:href="@{/launch/{id}/splat.jnlp(id=${id})}">Launch SPLAT &rarr;</a>
+                <a class="button" th:if="${launches.contains('splat')}" th:href="@{/launch/{id}/splat.jnlp(id=${id})}" th:utext="#{resource.launch('SPLAT')} + ' &rarr;'">Launch SPLAT &rarr;</a>
+                <a class="button" th:if="${launches.contains('topcat')}" th:href="@{/launch/{id}/topcat.jnlp(id=${id})}" th:utext="#{resource.launch('TOPCAT')} + ' &rarr;'">Launch TOPCAT &rarr;</a>
             </p>
-            <p class="muted">
-                No TOPCAT or SPLAT on your computer? "Launch" starts the application with this data already loaded,
-                downloaded from the archive, with nothing to install or connect &mdash; once you have
-                <a href="https://openwebstart.com/" target="_blank" rel="noopener">OpenWebStart</a> (free, installed once;
-                it opens the <code>.jnlp</code> file the link downloads). The application is signed with this archive's
-                own <a th:href="@{/launch/certificate.cer}">self-signed certificate</a>: the first time, OpenWebStart
-                asks whether to trust it; choose to always trust this publisher, and later launches won't ask.
+            <p class="muted" th:utext="#{resource.launchNote(@{/launch/certificate.cer})}">
+                No TOPCAT or SPLAT on your computer? "Launch" starts the application with this data already loaded.
             </p>
         </th:block>
         <div th:if="${valueLanguages != null and !valueLanguages.isEmpty()}" class="values-viewer"
              th:attr="data-values=@{/api/data-objects/{id}/values.json(id=${id})}">
-            <h3>See the values here</h3>
-            <p class="muted">
-                Decodes the data on the server through its Representation Information and prints each value, with
-                where it is in the bits and what it means (its meaning, a code's meaning, a scaled value with its
-                units), as RepInfo Tools does for a sample file &mdash; a page at a time, so a large file doesn't
-                swamp the browser. The first page of a large file takes a while to decode; the pages after it don't.
+            <h3 th:text="#{values.title}">See the values here</h3>
+            <p class="muted" th:text="#{values.note}">
+                Decodes the data on the server through its Representation Information and prints each value.
             </p>
             <p class="values-controls">
-                <button type="button" data-values-show>Show the values</button>
-                <label th:if="${valueLanguages.size() > 1}">decoded with its
+                <button type="button" data-values-show th:text="#{values.show}">Show the values</button>
+                <label th:if="${valueLanguages.size() > 1}"><span th:text="#{values.decodedWith}">decoded with its</span>
                     <select data-values-language>
                         <option th:each="l : ${valueLanguages}" th:value="${l}" th:text="${l}">DFDL</option>
-                    </select> description</label>
-                <label>rows per page
+                    </select></label>
+                <label><span th:text="#{values.rowsPerPage}">rows per page</span>
                     <select data-values-size>
                         <option>50</option><option selected>100</option><option>250</option><option>1000</option>
                     </select></label>
@@ -154,93 +124,94 @@
             <div data-values-panel hidden>
                 <p class="notice error" data-values-error hidden></p>
                 <p class="values-pager" data-values-pager hidden>
-                    <button type="button" class="button-secondary" data-values-first>&laquo; First</button>
-                    <button type="button" class="button-secondary" data-values-previous>&lsaquo; Previous</button>
-                    <label>Page <input type="number" min="1" value="1" size="6" data-values-page/>
-                        of <span data-values-pages>1</span></label>
-                    <button type="button" class="button-secondary" data-values-next>Next &rsaquo;</button>
-                    <button type="button" class="button-secondary" data-values-last>Last &raquo;</button>
+                    <button type="button" class="button-secondary" data-values-first th:utext="'&laquo; ' + #{values.first}">&laquo; First</button>
+                    <button type="button" class="button-secondary" data-values-previous th:utext="'&lsaquo; ' + #{page.previous}">&lsaquo; Previous</button>
+                    <label><span th:text="#{values.page}">Page</span> <input type="number" min="1" value="1" size="6" data-values-page/>
+                        <span th:text="#{values.of}">of</span> <span data-values-pages>1</span></label>
+                    <button type="button" class="button-secondary" data-values-next th:utext="#{page.next} + ' &rsaquo;'">Next &rsaquo;</button>
+                    <button type="button" class="button-secondary" data-values-last th:utext="#{values.last} + ' &raquo;'">Last &raquo;</button>
                     <span class="muted" data-values-status></span>
                 </p>
                 <table class="listing" data-values-table hidden>
                     <thead>
-                    <tr><th>Element</th><th>Kind</th><th>Value</th><th>Meaning</th><th>Position</th></tr>
+                    <tr><th th:text="#{sample.col.element}">Element</th><th th:text="#{sample.col.kind}">Kind</th><th th:text="#{sample.col.value}">Value</th>
+                        <th th:text="#{sample.col.meaning}">Meaning</th><th th:text="#{sample.col.position}">Position</th></tr>
                     </thead>
                     <tbody data-values-rows></tbody>
                 </table>
             </div>
         </div>
         <div th:if="${imageViewable}" class="image-viewer" th:attr="data-pixels=@{/api/data-objects/{id}/pixels.json(id=${id})}">
-            <h3>See the image here</h3>
-            <p><button type="button" data-image-show>Show the image</button>
-                <span class="muted">decoded on the server through its Representation Information; large images take a while</span></p>
+            <h3 th:text="#{image.title}">See the image here</h3>
+            <p><button type="button" data-image-show th:text="#{image.show}">Show the image</button>
+                <span class="muted" th:text="#{image.showNote}">decoded on the server through its Representation Information; large images take a while</span></p>
             <div data-image-panel hidden>
                 <div class="image-controls">
-                    <label>Stretch
+                    <label><span th:text="#{image.stretch}">Stretch</span>
                         <select data-image-stretch>
-                            <option value="linear">linear</option>
-                            <option value="sqrt">square root</option>
-                            <option value="log">logarithmic</option>
                             <option value="asinh">asinh</option>
+                            <option value="linear" selected th:text="#{image.stretch.linear}">linear</option>
+                            <option value="log" th:text="#{image.stretch.log}">logarithmic</option>
+                            <option value="sqrt" th:text="#{image.stretch.sqrt}">square root</option>
                         </select>
                     </label>
-                    <label>Limits
+                    <label><span th:text="#{image.limits}">Limits</span>
                         <select data-image-limits>
-                            <option value="100">min to max</option>
+                            <option value="100" th:text="#{image.limits.all}">min to max</option>
                             <option value="99.5" selected>99.5%</option>
                             <option value="99">99%</option>
                             <option value="95">95%</option>
                         </select>
                     </label>
-                    <label>Colours
+                    <label><span th:text="#{image.colours}">Colours</span>
                         <select data-image-colours>
-                            <option value="grey">grey</option>
-                            <option value="heat">heat</option>
-                            <option value="cool">cool</option>
-                            <option value="rainbow">rainbow</option>
+                            <option value="cool" th:text="#{image.colours.cool}">cool</option>
+                            <option value="grey" selected th:text="#{image.colours.grey}">grey</option>
+                            <option value="heat" th:text="#{image.colours.heat}">heat</option>
+                            <option value="rainbow" th:text="#{image.colours.rainbow}">rainbow</option>
                         </select>
                     </label>
-                    <label>Zoom
+                    <label><span th:text="#{image.zoom}">Zoom</span>
                         <select data-image-zoom>
-                            <option value="fit">fit</option>
+                            <option value="fit" th:text="#{image.zoom.fit}">fit</option>
                             <option value="1">1&times;</option>
                             <option value="2">2&times;</option>
                             <option value="4">4&times;</option>
                             <option value="8">8&times;</option>
                         </select>
                     </label>
-                    <label><input type="checkbox" data-image-flip checked/> First row at the bottom</label>
+                    <label><input type="checkbox" data-image-flip checked/> <span th:text="#{image.flip}">First row at the bottom</span></label>
                 </div>
                 <canvas data-image-canvas width="512" height="512"></canvas>
-                <p class="muted" data-image-readout>Point at the image to see a pixel's value.</p>
+                <p class="muted" data-image-readout th:text="#{image.readout}">Point at the image to see a pixel's value.</p>
             </div>
-            <p class="muted">
+            <p class="muted" th:text="#{image.note}">
                 Drag to pan, or use the mouse wheel to zoom. "First row at the bottom" follows the astronomical
                 convention, as DS9 and Aladin show FITS images.
             </p>
         </div>
-        <p class="muted" th:unless="${tableViewable or imageViewable or fitsViewable}">
+        <p class="muted" th:unless="${tableViewable or imageViewable or fitsViewable}" th:text="#{resource.notViewable}">
             It has no DFDL or DRB SDF description with a table or image view to decode it by on the server;
             saving its description again from RepInfo Tools adds one.
         </p>
-        <h3>Preserve it by Transformation</h3>
-        <p class="muted">
+        <h3 th:text="#{resource.transform}">Preserve it by Transformation</h3>
+        <p class="muted" th:text="#{resource.transformNote}">
             Rewrite it in another format described in the archive, check its Transformation Information
             Properties, and record the result as a new Data Object in an AIP Version.
         </p>
-        <p><a class="button" th:href="@{/transform/{id}(id=${id})}">Transform&hellip;</a></p>
+        <p><a class="button" th:href="@{/transform/{id}(id=${id})}" th:utext="#{resource.transformAction} + '&hellip;'">Transform&hellip;</a></p>
     </section>
 
     <div class="grid">
         <section th:if="${!attributes.isEmpty()}">
-            <h3>Properties</h3>
+            <h3 th:text="#{section.properties}">Properties</h3>
             <table class="attrs">
                 <tr th:each="a : ${attributes}">
                     <td class="prop" th:text="${a.propertyLocalName}">prop</td>
                     <td>
                         <a th:if="${a.value != null and (a.value.startsWith('http://') or a.value.startsWith('https://'))}"
                            th:href="${a.value}" th:text="${a.value}"
-                           target="_blank" rel="noopener noreferrer" title="Opens in a new tab">value &#8599;</a>
+                           target="_blank" rel="noopener noreferrer" th:title="#{link.newTab}">value &#8599;</a>
                         <span th:unless="${a.value != null and (a.value.startsWith('http://') or a.value.startsWith('https://'))}" th:text="${a.value}">value</span>
                     </td>
                 </tr>
@@ -248,25 +219,25 @@
         </section>
 
         <section th:if="${!outgoing.isEmpty()}">
-            <h3>Links to</h3>
+            <h3 th:text="#{resource.linksTo}">Links to</h3>
             <ul>
                 <li th:each="l : ${outgoing}">
                     <span class="prop" th:text="${l.propertyLocalName}">prop</span>
                     &rarr;
                     <a th:unless="${l.isExternal()}" th:href="@{/resource/{id}(id=${l.resource.id})}" th:text="${l.resource.title}">target</a>
                     <a th:if="${l.isExternal()}" th:href="${l.resource.iri}" th:text="${l.resource.title}"
-                       target="_blank" rel="noopener noreferrer" title="Opens in a new tab">target &#8599;</a>
+                       target="_blank" rel="noopener noreferrer" th:title="#{link.newTab}">target &#8599;</a>
                 </li>
             </ul>
         </section>
 
         <section th:if="${!incoming.isEmpty()}">
-            <h3>Linked from</h3>
+            <h3 th:text="#{resource.linkedFrom}">Linked from</h3>
             <ul>
                 <li th:each="l : ${incoming}">
                     <a th:unless="${l.isExternal()}" th:href="@{/resource/{id}(id=${l.resource.id})}" th:text="${l.resource.title}">source</a>
                     <a th:if="${l.isExternal()}" th:href="${l.resource.iri}" th:text="${l.resource.title}"
-                       target="_blank" rel="noopener noreferrer" title="Opens in a new tab">source &#8599;</a>
+                       target="_blank" rel="noopener noreferrer" th:title="#{link.newTab}">source &#8599;</a>
                     &rarr;
                     <span class="prop" th:text="${l.propertyLocalName}">prop</span>
                 </li>

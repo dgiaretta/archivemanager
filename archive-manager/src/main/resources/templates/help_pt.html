@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments :: head(#{nav.help})}"></head>
+<body>
+<div th:replace="~{fragments :: nav}"></div>
+<main class="container">
+    <!-- Em português do Brasil; help.html é o mesmo em inglês (veja HelpController). Altere os dois. -->
+    <h1>Ajuda</h1>
+
+    <section class="editor-section" id="about">
+        <h2>O que é este aplicativo</h2>
+        <p>
+            Este é um arquivo <strong>protótipo</strong>. Ele recebe informações e documentos &mdash;
+            <em>entrada</em> (accession), em termos de gestão de documentos, <em>admissão</em> (ingest), em termos
+            do OAIS &mdash; e reúne duas disciplinas que costumam ficar em sistemas separados:
+        </p>
+        <ul>
+            <li><strong>Gestão de documentos</strong>, com o <strong>Records in Contexts</strong> (RiC-O, a
+                ontologia do Conselho Internacional de Arquivos). Ele <em>descreve</em> os documentos: o que são,
+                quem os criou, em que atividades e sob quais mandatos, e como se relacionam entre si, para que
+                possam ser encontrados e entendidos como prova.</li>
+            <li><strong>Preservação digital</strong>, com o <strong>OAIS</strong> (o modelo de referência Open
+                Archival Information System, ISO 14721 / CCSDS 650.0-M-3). Ele <em>preserva</em> a informação, para
+                que continue utilizável e compreensível à medida que o software, o hardware e o conhecimento mudam,
+                usando as três técnicas fundamentais de preservação do OAIS: acrescentar Informação de
+                Representação, a Transformação e a entrega de pacotes completos a outro arquivo.</li>
+        </ul>
+        <p>
+            Uma ontologia de ligação conecta as duas, de modo que um documento descrito com o RiC-O pode apontar
+            para o pacote OAIS que o preserva, e vice-versa. As duas ficam guardadas como dados ligados (RDF) em
+            um só armazenamento, para que tudo possa ser navegado, visto em grafo e consultado em conjunto.
+        </p>
+        <p>
+            Esta página acompanha a vida da informação: primeiro, como <a href="#working">recebê-la, descrevê-la,
+            criar sua Informação de Representação, ver como se relaciona e verificar se cada Pacote de Informação
+            de Arquivamento tem todos os componentes que o OAIS exige</a>; depois, as
+            <a href="#preservation">três técnicas de preservação</a>; e por fim, como
+            <a href="#viewing">ver e analisar os dados</a>.
+        </p>
+        <p class="notice">
+            <strong>Por que aplicativos de astronomia?</strong> Para mostrar que dados preservados podem de fato
+            ser usados, este protótipo os abre em ferramentas de astronomia: <strong>TOPCAT</strong> e
+            <strong>SPLAT</strong> para tabelas e espectros, <strong>DS9</strong> e <strong>Aladin</strong> para
+            imagens. Foram escolhidas porque são feitas para buscar dados em arquivos remotos e depois analisar,
+            comparar e combinar informações de muitas fontes diferentes (elas conversam entre si, e com os
+            arquivos, usando padrões do Observatório Virtual como VOTable e SAMP). É exatamente disso que os dados
+            de um arquivo precisam. Mas nada depende delas: o arquivo serve os dados em formatos padronizados,
+            descritos pela sua Informação de Representação, então outros aplicativos poderiam ser usados no lugar.
+        </p>
+    </section>
+
+    <h2 id="working">Trabalhando com o arquivo</h2>
+
+    <section class="editor-section">
+        <h3>Navegação &mdash; sem precisar entrar</h3>
+        <p>
+            Tudo pode ser consultado sem conta. O <a th:href="@{/catalogue}">Catálogo</a> e o
+            <a th:href="@{/accession-register}">Registro de Entradas</a> são visões públicas de pesquisa e
+            navegação. A partir de qualquer documento, <a th:href="@{/records}">Documentos</a>,
+            <a th:href="@{/agents}">Agentes</a>, <a th:href="@{/activities}">Eventos de proveniência</a> e
+            <a th:href="@{/mandates}">Mandatos</a> se ligam uns aos outros (a página de um agente lista o que ele
+            criou, e assim por diante), e <a th:href="@{/entities}">Entidades</a> lista tudo, de qualquer tipo.
+        </p>
+    </section>
+
+    <section class="editor-section" id="editing">
+        <h3>Entrar para receber ou alterar qualquer coisa</h3>
+        <p>
+            Receber informações, editar, criar Informação de Representação e preservar exigem a senha de edição
+            compartilhada: <a th:href="@{/login}">entre</a>. Navegar, visualizar e baixar continuam abertos a
+            todos.
+        </p>
+    </section>
+
+    <section class="editor-section" id="ingest">
+        <h3>Recebendo informações (entrada e admissão)</h3>
+        <ul>
+            <li><strong>Documentos, em lote</strong>: a <a th:href="@{/catalogue/upload}">Planilha de Envio em
+                Lote</a> (com link na página do Catálogo) importa de uma vez um CSV ou XLSX de documentos no
+                formato do NAM, criando cada documento, seu criador e identificadores, e um pacote OAIS
+                (Informação de Conteúdo e Informação de Descrição de Preservação) ligado a cada documento; o envio
+                como um todo é registrado como uma entrada no Registro de Entradas.</li>
+            <li><strong>Quaisquer dados ligados</strong>: <code>/entities/import</code> (com link em
+                <a th:href="@{/entities}">Entidades</a>) carrega um documento Turtle (RDF) colado &mdash;
+                documentos, pacotes OAIS, qualquer coisa &mdash; verificando-o por completo antes de acrescentar
+                qualquer coisa.</li>
+            <li><strong>Um item por vez</strong>: <a th:href="@{/entities}">Entidades</a> cria um indivíduo de
+                <em>qualquer</em> classe RiC-O ou OAIS; <a th:href="@{/records}">Documentos</a> cria
+                documentos.</li>
+            <li><strong>Dados e sua descrição</strong>: as <a th:href="@{/repinfo-tools}">Ferramentas de
+                RepInfo</a> salvam a descrição de um formato de dados no arquivo junto com um Objeto de Dados para
+                os dados (veja <a href="#repinfo">abaixo</a>).</li>
+            <li><strong>Os bits</strong>: o arquivo guarda descrições, não arquivos de dados. Um Objeto de Dados
+                aponta para onde seus bits estão guardados com <code>im:hasStorageLocation</code> &mdash; um link
+                do Dropbox ou de outro armazenamento na nuvem, por exemplo &mdash; de onde o arquivo os busca
+                quando precisa ler os dados. Os bits que o próprio arquivo produz, como o resultado de uma
+                Transformação, ficam no seu próprio armazenamento.</li>
+        </ul>
+    </section>
+
+    <section class="editor-section" id="describe">
+        <h3>Descrevendo documentos e editando propriedades e relacionamentos</h3>
+        <p>
+            Os documentos são descritos com o RiC-O: um <a th:href="@{/records}">Documento</a>, Parte de documento
+            ou Conjunto de documentos, seu título e descrição, quem o criou (um <a th:href="@{/agents}">Agente</a>),
+            as <a th:href="@{/activities}">atividades</a> de que veio, os <a th:href="@{/mandates}">mandatos</a>
+            que o regem, seus identificadores e datas, e os documentos de que faz parte.
+        </p>
+        <p>
+            A página de qualquer indivíduo tem <strong>Editar</strong>, que abre o editor genérico: acrescente ou
+            remova seus tipos, suas propriedades (texto, números, datas, links) e seus relacionamentos com outros
+            indivíduos, um por vez, escolhendo entre as propriedades que o RiC-O e o OAIS definem para ele. Ao
+            acrescentar um relacionamento, a lista de destinos oferece "+ Criar novo &hellip;", de modo que aquilo
+            para onde ele aponta não precisa existir antes &mdash; é criado e ligado no mesmo passo.
+        </p>
+    </section>
+
+    <section class="editor-section" id="repinfo">
+        <h3>Criando Informação de Representação</h3>
+        <p>
+            A Informação de Representação é o que é preciso para entender os bits de um Objeto de Dados: sua
+            <em>estrutura</em> (como os bits formam números, texto, registros e vetores), sua <em>semântica</em>
+            (o que cada valor significa, em que unidades) e <em>outra</em> Informação de Representação, como o
+            software que os lê.
+        </p>
+        <ul>
+            <li><strong>Formatos binários e autodescritivos</strong>: as <a th:href="@{/repinfo-tools}">Ferramentas
+                de RepInfo</a> são um editor guiado para construir descrições em Kaitai Struct, DFDL e DRB de um
+                formato de dados (com pontos de partida FITS, telemetria, CSV e HDF5, e qualquer arquivo FITS
+                descrito a partir dos seus próprios cabeçalhos). Um layout de bytes é editado como uma árvore de
+                campos, registros (inclusive registros de texto delimitado, como os de CSV) e escolhas; qualquer
+                elemento pode ser opcional sob uma condição ou repetido um número calculado de vezes, com pequenas
+                expressões como <code>sample_pairs * 2</code> ou <code>packet_type = 2</code> que se referem a
+                campos lidos antes. Dê a qualquer elemento sua semântica &mdash; um nome semântico, definição,
+                unidades (com um link para um vocabulário), uma lista de códigos, um fator de escala e um
+                deslocamento, um valor de preenchimento e um intervalo válido. Teste cada descrição gerada com um
+                arquivo de amostra antes de salvar: os testes com amostras mostram o significado de cada valor (o
+                significado de um código ou o valor escalonado com unidades), que ramo cada escolha tomou, e os
+                bytes que a descrição não cobre. Cada descrição também pode <em>regravar</em> uma amostra, para
+                verificar se o resultado é idêntico byte a byte (a descrição basta então para recriar o arquivo)
+                ou para gravar uma cópia com alguns valores alterados.</li>
+            <li><strong>Escolhendo as linguagens</strong>: gerar todas elas limita a descrição ao que todas as
+                linguagens conseguem expressar; escolher menos libera o que só elas conseguem descrever, como
+                campos de bits, registros de tamanho declarado, valores nulos, CSV entre aspas e formatos de número
+                (DFDL), ou elementos em uma posição absoluta e registros comprimidos com zlib (Kaitai Struct). Para
+                o que o editor não consegue expressar &mdash; checksums, cifragem, outras compressões &mdash;
+                escreva a descrição à mão, do zero ou estendendo a gerada. Para um layout de bytes, as saídas DRB
+                são um pacote de driver drb-python instalável e um esquema SDF do DRB para o DRB em Java da GAEL; o
+                driver pode levar complementos (semântica, metadados, verificações) e um complemento em Python
+                escrito à mão (executado nos testes com amostras só se o servidor permitir).</li>
+            <li><strong>EAST</strong>, a linguagem de descrição de dados do CCSDS (CCSDS 644.0-B-3), é gerada a
+                partir da árvore de elementos como as outras linguagens, e testada com um arquivo de amostra por um
+                interpretador EAST que lê tudo o que o EAST consegue dizer: marcadores, reais escritos em máquinas
+                VAX, MIL-STD-1750A, CDC e IBM, inteiros em partes, e mais. Um Registro de Descrição de Dados também
+                pode ser enviado ou colado: ele é mantido como escrito, e seus registros, vetores, enumerações e
+                variantes se tornam a árvore de elementos, a partir da qual as outras linguagens são geradas
+                &mdash; ou, quando a árvore não consegue expressá-lo, é mantido só em EAST.</li>
+            <li><strong>Formatos que algum software já lê</strong> (.xlsx, .xls, .ods, .csv): descreva só o que
+                cada coluna significa &mdash; as colunas podem ser tiradas de um arquivo de amostra. Isso é salvo
+                com um perfil de formato (o identificador do formato no registro, refinado com sua versão e, para
+                texto, a codificação de caracteres e o delimitador) e o software que o lê.</li>
+            <li><strong>Salvar</strong> acrescenta tudo ao arquivo como Informação de Representação de verdade,
+                ligada a um Objeto de Dados: Informação de Representação Estrutural (várias descrições
+                equivalentes, qualquer uma das quais serve) e uma Informação de Representação Semântica para cada
+                elemento, aninhadas como a descrição, com seu nome, definição, unidades e lista de códigos. Qualquer
+                outra coisa &mdash; um documento de especificação, um dicionário, outro software &mdash; pode ser
+                acrescentada com o editor.</li>
+            <li><strong>Exportá-la</strong>: antes de salvar, a página de pré-visualização baixa cada descrição
+                (.ksy, .dfdl.xsd, .drb.xsd, o pacote drb-python). Depois de salvar, <strong>Baixar a descrição dos
+                dados</strong>, na página do Objeto de Dados ou de qualquer Informação de Representação, entrega
+                tudo como um zip: <code>description.ttl</code> em RDF, e cada descrição e especificação de visão
+                como um arquivo próprio.</li>
+        </ul>
+    </section>
+
+    <section class="editor-section" id="relationships">
+        <h3>Vendo os relacionamentos</h3>
+        <p>
+            <strong>Documentos e seus pacotes OAIS.</strong> O RiC-O e o OAIS fazem perguntas diferentes sobre o
+            mesmo material: o RiC-O, quem criou algo, em que contexto, e como encontrá-lo de novo; o OAIS, o que
+            precisa ser guardado <em>junto</em> com os bits para que ainda façam sentido daqui a décadas. Suas
+            classes não se correspondem uma a uma, então a ontologia de ligação as conecta de duas formas:
+            correspondências no nível das classes com <code>closeMatch</code>/<code>broadMatch</code>/<code>relatedMatch</code>
+            do SKOS (de propósito mais fracas que <code>owl:equivalentClass</code> onde os conceitos não coincidem)
+            e ligações <code>bridge:hasOAISCounterpart</code> no nível dos indivíduos, de um documento para a
+            estrutura OAIS que o preserva. Abra qualquer documento e siga seu link "Mapeamento OAIS" para ver as
+            duas: quais classes OAIS correspondem ao(s) seu(s) tipo(s) RiC-O, e a estrutura OAIS de fato ligada a
+            ele.
+        </p>
+        <p>
+            <strong>O grafo.</strong> O <a th:href="@{/graph}">Grafo</a> mostra o arquivo inteiro como uma rede;
+            "Ver no grafo", em qualquer página, mostra uma visão focada em torno daquele item, com profundidade
+            ajustável (1&ndash;4 passos). Toda página de listagem, e os resultados do console SPARQL, também têm
+            "Ver esta página como grafo", que mostra em grafo exatamente os itens da tela.
+        </p>
+        <ul>
+            <li>A <strong>cor</strong> mostra a que ontologia pertence um nó (azul = RiC-O, marrom = OAIS,
+                cinza = outra); uma aresta vermelha tracejada é uma ligação feita pela ontologia de ligação.</li>
+            <li><strong>Mouse:</strong> role para o zoom, arraste o fundo para mover, arraste um nó para
+                deslocá-lo, clique duas vezes num nó para abrir sua página.</li>
+            <li><strong>Clique com o botão direito num nó</strong> para "Abrir a página de detalhes" (numa nova
+                aba), seus links &mdash; inclusive <code>im:hasStorageLocation</code>, para baixar os próprios bits
+                &mdash; e, para um Objeto de Dados cuja Informação de Representação diz como vê-lo, "Ver os dados"
+                (veja <a href="#viewing">abaixo</a>).</li>
+            <li><strong>Destaque</strong>: as caixas de seleção acima do grafo (tipos de entidade, propriedades dos
+                nós, tipos de relacionamento) esmaecem tudo o que não corresponde; combinar grupos restringe
+                mais.</li>
+            <li>Uma vizinhança muito grande pode ser <strong>truncada</strong> para continuar ágil &mdash; um
+                aviso informa; use uma visão focada ou uma profundidade menor.</li>
+        </ul>
+        <p>
+            <strong>Consultas.</strong> O <a th:href="@{/sparql}">console SPARQL</a> executa qualquer consulta
+            <code>SELECT</code> sobre os dados e as ontologias juntos &mdash; para perguntas que nenhuma página
+            responde, como quais pacotes não têm Informação de Fixidez.
+        </p>
+    </section>
+
+    <section class="editor-section" id="aip">
+        <h3>Os componentes de um Pacote de Informação de Arquivamento OAIS</h3>
+        <p>
+            Um Pacote de Informação de Arquivamento (AIP) é o que o OAIS preserva: tudo o que é preciso para que
+            sua informação continue compreensível, guardado junto. Pelo Modelo de Informação OAIS, um AIP tem:
+        </p>
+        <ul>
+            <li><strong>Informação de Conteúdo</strong> (exatamente uma): o <strong>Objeto de Dados de
+                Conteúdo</strong>, seus <strong>bits</strong> e a <strong>Informação de Representação</strong>
+                necessária para interpretá-los;</li>
+            <li><strong>Informação de Descrição de Preservação</strong> (exatamente uma), com Informação de
+                <strong>Referência</strong> (identificadores), de <strong>Proveniência</strong> (sua história), de
+                <strong>Contexto</strong> (como se relaciona com seu ambiente e com outras informações), de
+                <strong>Fixidez</strong> (verificações de que não mudou) e de <strong>Direitos de Acesso</strong>
+                (quem pode usá-la, e como);</li>
+            <li><strong>Informação de Empacotamento</strong> (exatamente uma): como os componentes estão unidos e
+                como extraí-los;</li>
+            <li>uma <strong>Descrição de Pacote</strong> (pelo menos uma): para encontrar o pacote.</li>
+        </ul>
+        <p>
+            Monte um AIP com o editor: crie um Pacote de Informação de Arquivamento e acrescente esses
+            relacionamentos um a um, criando cada componente pelo caminho. Como o OAIS exige, diga também para
+            quem a informação deve continuar compreensível e por quais testes: uma <strong>Comunidade
+            Designada</strong>, ligada ao(s) <strong>Objetivo(s) de Preservação</strong> com que é testada, e
+            quaisquer <strong>Propriedades de Informação de Transformação</strong> cujos valores devem sobreviver a
+            uma Transformação. Elas são definidas por um Agente (normalmente o arquivo), consultando a Comunidade
+            Designada, e não pela própria Comunidade.
+        </p>
+        <p>
+            <strong>Verificando.</strong> A página de um AIP mostra uma lista de verificação com cada componente
+            exigido: presente, ausente ou (no caso da Informação de Empacotamento) fornecido quando o AIP é
+            exportado como um bag BagIt. Acrescente o que falta com o editor. A página também lista tudo o que
+            está ligado ao AIP, e "Ver no grafo" mostra o pacote inteiro.
+        </p>
+        <p>
+            <strong>Um AIP armazenado como pacote.</strong> Muitas vezes os componentes não estão descritos no
+            próprio arquivo, e sim dentro do pacote em que o AIP está armazenado &mdash; por exemplo, um AIP feito
+            pelo Eternal, guardado como um arquivo <code>.7z</code> ou <code>.zip</code> e indicado pelo local de
+            armazenamento do AIP. Então a página do AIP oferece <strong>Mapear seu pacote para os componentes do
+            AIP</strong>: o arquivo busca o pacote, abre-o, verifica seu bag BagIt (o checksum de cada arquivo, e o
+            <code>Payload-Oxum</code>) e mostra, para cada componente, onde está no pacote e o que diz lá &mdash; a
+            planilha de envio que ele traz (<code>metadata.csv</code>, lida com as definições de colunas de
+            <code>metadata_definition.xml</code>), o PREMIS do arquivo METS (o formato de cada arquivo com seu
+            identificador PRONOM, seu checksum e eventos como a admissão e as verificações de vírus), a auditoria de
+            checksums e o arquivo de Informação de Descrição de Preservação. Cada componente também lista os itens
+            da planilha de envio que deveriam contê-lo &mdash; Semantics (muitas vezes o identificador de um AIP à
+            parte que contém a Informação de Representação Semântica, com link quando esse AIP está descrito neste
+            arquivo) e Language; FixityHashSHA256; Provenance, Creator, Publisher e Contributor; Relation para a
+            Informação de Contexto; Rights para a Informação de Direitos de Acesso; Format e FormatInfo; OtherRI
+            &mdash; e diz quais não estão preenchidos, e por quê: deixados em branco, ou a planilha usada não tem
+            essa coluna. Outra Informação de Representação é opcional. A tabela pode ser baixada como CSV.
+        </p>
+    </section>
+
+    <section class="editor-section" id="preservation">
+        <h2>Preservando a informação digital: as três técnicas do OAIS</h2>
+        <p>
+            Manter os bits em segurança não basta. O software, o hardware e o que as pessoas sabem mudam, então a
+            informação precisa continuar <em>compreensível por si mesma</em> para sua Comunidade Designada
+            &mdash; as pessoas que precisam conseguir usá-la &mdash; das formas que seus Objetivos de Preservação
+            estabelecem. O OAIS nomeia três formas fundamentais de conseguir isso. Cada uma é descrita abaixo,
+            com como fazê-la neste aplicativo.
+        </p>
+
+        <h3>1. Acrescentar Informação de Representação</h3>
+        <p>
+            Mantenha o Objeto de Dados exatamente como está e acrescente a Informação de Representação necessária
+            para entendê-lo. A Informação de Representação precisa, por sua vez, da sua própria Informação de
+            Representação, até que o que reste seja algo que a Comunidade Designada já entende. É a técnica a usar
+            primeiro: nada nos dados muda, então nada pode se perder.
+        </p>
+        <ul>
+            <li>Crie-a como descrito em <a href="#repinfo">Criando Informação de Representação</a>: descreva a
+                estrutura do formato e o significado de cada elemento nas Ferramentas de RepInfo, e acrescente
+                qualquer outra Informação de Representação com o editor.</li>
+            <li>Verifique se basta: um Objeto de Dados cujos bits têm um local de armazenamento pode ser aberto a
+                partir da sua página só por meio da sua Informação de Representação, como tabela, espectro ou
+                imagem (veja <a href="#viewing">Vendo e analisando os dados</a>). Se funciona, a descrição basta
+                para o software ler os dados.</li>
+            <li>Mantenha-a independente deste aplicativo: <strong>Baixar a descrição dos dados</strong> a exporta
+                em formas padronizadas (RDF, DFDL, Kaitai Struct, DRB).</li>
+        </ul>
+
+        <h3>2. Transformação</h3>
+        <p>
+            Quando acrescentar Informação de Representação não basta, ou um formato está ficando obsoleto,
+            regrave o Objeto de Dados em outro formato. Isso muda a Informação de Conteúdo, então precisa ser
+            verificado e registrado: decida quais valores devem sobreviver (suas <em>Propriedades de Informação de
+            Transformação</em>), verifique-os depois da Transformação e acrescente Informação de Proveniência
+            dizendo o que foi feito. O resultado é uma <em>Versão do AIP</em>, candidata a substituir o original.
+            Uma Transformação que não se consegue demonstrar reversível é uma <em>Transformação Não
+            Reversível</em>, em que essas verificações são a prova de que nada do que importa se perdeu.
+        </p>
+        <ul>
+            <li>Abra a página do Objeto de Dados e escolha <strong>Transformar&hellip;</strong>. É preciso um local
+                de armazenamento para os bits e uma descrição DFDL, DRB SDF ou Kaitai Struct para decodificá-los.</li>
+            <li><strong>Por mapeamento, no arquivo</strong>: escolha o novo formato &mdash; qualquer formato com
+                uma descrição DFDL no arquivo (descreva um novo nas Ferramentas de RepInfo antes, se preciso)
+                &mdash; e diga o que forma cada um dos seus elementos: repetido uma vez por ocorrência de um
+                elemento do formato antigo, copiado (com escala e deslocamento opcionais, ex.: de graus para
+                radianos), contado ou uma constante. Um primeiro palpite associa os elementos pelo nome e pelo
+                significado; o mapeamento também pode ser editado como texto. Escolha as Propriedades de Informação
+                de Transformação a verificar, com uma tolerância se os valores puderem mudar um pouco (ex.:
+                guardados com menos precisão).
+                <ul>
+                    <li><strong>Experimentar</strong>: os novos dados são gravados com a descrição do novo formato,
+                        decodificados de novo com essa mesma descrição, e os valores de cada propriedade são
+                        comparados com os do original. Você vê se cada uma foi preservada, se a Transformação é
+                        reversível, e pode baixar o novo arquivo. Nada é salvo.</li>
+                    <li><strong>Transformar</strong>: o novo arquivo é guardado no arquivo e registrado como um novo
+                        Objeto de Dados em uma Versão do AIP (ligada ao AIP original), com Informação de Fixidez (seu
+                        resumo SHA-256) e Informação de Proveniência registrando a Transformação &mdash; de onde
+                        partiu, o mapeamento que seguiu, quando, e cada verificação.</li>
+                </ul>
+            </li>
+            <li><strong>Com outro aplicativo</strong>: se um conversor, script ou outro programa faz a
+                Transformação, use "Ou transforme-o com outro aplicativo" na mesma página. Baixe os dados e a
+                descrição dos dados, transforme-os lá, depois envie o resultado e preencha o que foi feito: o
+                aplicativo e sua versão, quem fez e quando, os passos ou configurações, com o que o resultado é
+                interpretado, se é reversível, e como se saiu cada Propriedade de Informação de Transformação.
+                Quando você diz para qual elemento do novo formato foram os valores de uma propriedade, e o arquivo
+                consegue decodificar tanto os dados antigos quanto os novos, ele mesmo os verifica; senão, registra
+                o que você relata. A pessoa e o aplicativo ficam registrados na sua Informação de
+                Proveniência.</li>
+            <li>De qualquer forma, a Informação de Referência, de Contexto e de Direitos de Acesso do AIP original
+                passam para a Versão do AIP como cópias (a Informação de Referência também nomeando o novo Objeto de
+                Dados), e uma nova Descrição de Pacote diz o que ela é e como foi feita &mdash; então a Versão do AIP
+                tem todos os componentes de que um AIP precisa sempre que o original os tinha. O original fica como
+                está.</li>
+        </ul>
+
+        <h3>3. Entregar AIPs completos a outro arquivo</h3>
+        <p>
+            Se este arquivo não puder mais cuidar de alguma informação, outro arquivo pode assumir a
+            responsabilidade por ela. Isso só funciona se cada AIP estiver completo &mdash; com todos os
+            componentes listados em <a href="#aip">Os componentes de um Pacote de Informação de Arquivamento
+            OAIS</a> &mdash; para que o arquivo que o recebe possa continuar sem precisar perguntar nada.
+        </p>
+        <ul>
+            <li>Garanta que esteja completo: a página do AIP mostra quais componentes estão presentes e quais
+                faltam; acrescente o que falta com o editor, como descrito em <a href="#editing">Trabalhando com o
+                arquivo</a>. Para um AIP já empacotado em outro lugar (ex.: pelo Eternal), "Mapear seu pacote para os
+                componentes do AIP" mostra se o pacote tem todos os componentes, e verifica seu bag.</li>
+            <li>Entregue-o: na página do AIP, <strong>Baixar como BagIt</strong> o exporta como um bag
+                <a href="https://www.rfc-editor.org/rfc/rfc8493" target="_blank" rel="noopener">BagIt</a>
+                (RFC 8493, compactado), o formato de empacotamento que arquivos e bibliotecas usam para trocar
+                conteúdo. <code>data/aip.ttl</code> descreve o AIP e tudo de que é feito em RDF, com os termos do
+                Modelo de Informação OAIS; <code>data/objects/</code> contém os bits dos seus Objetos de Dados,
+                <code>data/descriptions/</code> cada descrição como um arquivo, e <code>data/ontologies/</code> as
+                ontologias que definem os termos. Manifestos SHA-256 permitem ao arquivo que o recebe verificar,
+                com qualquer ferramenta BagIt, que todos os arquivos chegaram completos e inalterados.</li>
+            <li>Para dados grandes, ou bits já guardados onde o arquivo que os recebe pode buscá-los,
+                <strong>BagIt, referindo-se aos bits</strong> deixa os bits fora do bag e os lista em
+                <code>fetch.txt</code>, a forma do BagIt de se referir a arquivos: a URL de onde buscar cada um e
+                onde ele vai no bag. O manifesto continua com o checksum de cada arquivo, então o bag fica completo,
+                e confere, depois que eles são buscados.</li>
+            <li>O bag nomeia cada componente do AIP em <code>oais-aip-components.txt</code> &mdash; se cada um está
+                presente, quais indivíduos de <code>aip.ttl</code> ele é, e quais arquivos o contêm &mdash; e
+                <code>bag-info.txt</code> diz se o AIP está completo e o que falta. O próprio bag é a Informação de
+                Empacotamento, então um AIP sem a sua ganha uma que descreve o bag.</li>
+            <li>Um arquivo que rode este aplicativo pode carregar a descrição do AIP com
+                <code>/entities/import</code>.</li>
+        </ul>
+    </section>
+
+    <section class="editor-section" id="viewing">
+        <h2>Vendo e analisando os dados</h2>
+        <p>
+            Um Objeto de Dados cujos bits têm um local de armazenamento, e cuja Informação de Representação diz
+            como lê-los, pode ser aberto a partir da sua página ou do seu menu de clique direito no grafo:
+        </p>
+        <ul>
+            <li><strong>Seu manifesto de Informação de Representação</strong> (Turtle), que nomeia os dados e cada
+                descrição explicitamente: o TOPCAT (com o leitor <code>oais-structure-topcat</code>, formato
+                <code>OAIS-RepInfo</code>) e o SPLAT o abrem pelo seu endereço.</li>
+            <li><strong>Seus dados como VOTable</strong> (uma tabela ou espectro) ou <strong>FITS</strong> (uma
+                imagem), decodificados no servidor por meio da sua Informação de Representação &mdash; formatos
+                padronizados que muitos aplicativos leem.</li>
+            <li><strong>"Ver com TOPCAT", "SPLAT", "DS9" ou "Aladin"</strong> envia os dados para esse aplicativo
+                rodando no seu computador, por SAMP (a página pede que você autorize). O Fiji/ImageJ não usa SAMP:
+                abra nele o arquivo FITS, ou dê a ele o endereço do link FITS.</li>
+            <li><strong>"Iniciar o TOPCAT" ou "Iniciar o SPLAT"</strong>, para quem prefere não baixar, iniciar e
+                conectar os aplicativos por conta própria: abre o aplicativo já com os dados carregados, baixado do
+                arquivo. Precisa do <a href="https://openwebstart.com/" target="_blank" rel="noopener">OpenWebStart</a>,
+                um iniciador gratuito instalado uma vez (o sucessor do Java Web Start, que o Java atual não tem
+                mais): o link baixa um arquivo <code>.jnlp</code>, que o OpenWebStart abre. O aplicativo é assinado
+                com o <a th:href="@{/launch/certificate.cer}">certificado</a> autoassinado do próprio arquivo: na
+                primeira vez, o OpenWebStart mostra o editor e pergunta se deve confiar nele &mdash; escolha confiar
+                sempre, e as próximas vezes passam direto. É oferecido quando o arquivo recebeu o aplicativo para
+                servir.</li>
+            <li><strong>"Ver a imagem aqui"</strong>, para uma imagem: o visualizador do próprio arquivo, na
+                página, sem nada a instalar. Escolha o contraste (linear, raiz quadrada, logarítmico, asinh), os
+                limites de exibição, as cores e o zoom; arraste para mover, use a roda do mouse para o zoom e aponte
+                para um pixel para ver seu valor e unidades.</li>
+            <li><strong>Arquivos FITS</strong>: quando a Informação de Representação de um Objeto de Dados diz que
+                é FITS (PRONOM x-fmt/383), seus próprios cabeçalhos são lidos para ver o que contém, e o TOPCAT é
+                oferecido para as tabelas, o DS9 e o Aladin para as imagens &mdash; eles leem o próprio arquivo FITS.
+                "Descrever este arquivo FITS a partir dos cabeçalhos" cria Informação de Representação para aquele
+                arquivo em particular, nas <a th:href="@{/repinfo-tools}">Ferramentas de RepInfo</a>: as colunas das
+                suas tabelas tipadas, nomeadas e com suas unidades, escala, deslocamento e valor de preenchimento,
+                suas imagens como linhas de pixels, e as palavras-chave do cabeçalho com seus significados do
+                dicionário de palavras-chave FITS (Padrão FITS 4.0). Depois de salvo, o próprio arquivo o
+                decodifica: sua tabela como VOTable com colunas nomeadas, sua imagem e seus valores, uma página por
+                vez.</li>
+            <li><strong>"Ver os valores aqui"</strong>, para quaisquer dados que o servidor consiga decodificar:
+                cada valor impresso na página, com onde está nos bits e o que significa (seu significado, o
+                significado de um código, um valor escalonado com suas unidades), como as Ferramentas de RepInfo
+                imprimem um arquivo de amostra &mdash; uma página por vez, para um arquivo grande não sobrecarregar
+                o navegador. Quando a Informação de Representação tem descrições em várias linguagens (DFDL, DRB,
+                EAST...), escolha qual delas o decodifica.</li>
+        </ul>
+        <p>
+            Como explicado <a href="#about">no início</a>, esses aplicativos de astronomia são usados porque foram
+            feitos para buscar dados em arquivos remotos e analisar, comparar e combinar informações de muitas
+            fontes; qualquer aplicativo que leia VOTable ou FITS poderia ser usado no lugar. Se você não os tem: o
+            <a href="https://www.star.bris.ac.uk/~mbt/topcat/" target="_blank" rel="noopener">TOPCAT</a>
+            (<code>topcat-full.jar</code>) ou o
+            <a href="https://github.com/mmpcn/splat-build/releases" target="_blank" rel="noopener">SPLAT-VO</a>
+            (<code>splat-vo-&lt;versão&gt;.jar</code>; veja
+            <a href="https://www.g-vo.org/pmwiki/About/SPLAT" target="_blank" rel="noopener">About SPLAT</a>),
+            cada um executado com <code>java -jar</code>; para imagens, o
+            <a href="https://ds9.si.edu/" target="_blank" rel="noopener">SAOImage DS9</a>, o
+            <a href="https://aladin.cds.unistra.fr/AladinDesktop/" target="_blank" rel="noopener">Aladin Desktop</a>
+            ou o <a href="https://fiji.sc/" target="_blank" rel="noopener">Fiji</a>. A página de pré-visualização
+            das Ferramentas de RepInfo também baixa um pacote para um arquivo de dados local: um manifesto que nomeia
+            seu arquivo e cada descrição, com uma visão de tabela gerada e, para uma imagem, uma visão de imagem.
+        </p>
+
+        <h3 id="viewers">Tabela, espectro ou imagem: quais visualizadores são oferecidos</h3>
+        <p>
+            As Ferramentas de RepInfo não perguntam que tipo de dados você tem: deduzem isso da forma do layout de
+            bytes que você descreve e salvam a resposta como <em>especificações de visão</em>
+            (<code>im:ViewSpecification</code>, com <code>im:viewKind</code> <code>"table"</code> ou
+            <code>"image"</code>) na Informação de Representação Semântica dos dados. O arquivo as lê de volta para
+            decidir o que oferecer.
+        </p>
+        <ul>
+            <li><strong>Tabela</strong> &mdash; as linhas são o <em>primeiro</em> registro diretamente na raiz que
+                se repete (um número declarado de vezes ou até o fim do arquivo) e tem campos para mostrar como
+                colunas, ex.: um <code>reading</code> ou <code>star</code> por linha (as linhas de pixels de uma
+                imagem são puladas); sem nenhum registro repetido, o arquivo inteiro é uma linha. As colunas são os
+                campos desse registro que ocorrem uma vez e contêm um número ou texto, cada um com suas unidades e
+                significado. Uma tabela é oferecida ao <strong>TOPCAT</strong> e servida como VOTable.</li>
+            <li><strong>Espectro</strong> &mdash; uma tabela cuja visão tem pelo menos duas colunas, todas números
+                (ex.: comprimento de onda, fluxo, erro), também é oferecida ao <strong>SPLAT</strong>. Uma coluna de
+                texto significa só o TOPCAT.</li>
+            <li><strong>Imagem</strong> &mdash; um registro diretamente na raiz que se repete (uma linha) e contém
+                exatamente um campo repetido de números (seus pixels, em ordem). As unidades e o significado do
+                campo de pixels passam a ser os da imagem. Uma imagem é oferecida ao <strong>DS9</strong> e ao
+                <strong>Aladin</strong>, e servida como FITS, com as unidades em <code>BUNIT</code> e o significado
+                e a origem no cabeçalho. As linhas ficam na ordem em que os dados as guardam: a primeira linha é a
+                linha 1 do FITS, que esses visualizadores mostram embaixo.</li>
+        </ul>
+        <p>
+            Uma descrição pode ser ao mesmo tempo tabela e imagem. Todo visualizador precisa de uma descrição DFDL
+            ou DRB SDF, com a qual o servidor decodifica os dados, e de um local de armazenamento para os bits. Como
+            as visões são especificações de visão comuns, a Informação de Representação escrita à mão pode dar as
+            suas próprias. A decodificação monta cada pixel como um elemento, então imagens muito grandes são
+            lentas: uma imagem de 128 &times; 128 leva alguns segundos.
+        </p>
+    </section>
+
+    <section class="editor-section" id="data-descriptions">
+        <h2>Linguagens de descrição de dados</h2>
+        <p>
+            Notas sobre cada uma das linguagens de descrição de dados com que as Ferramentas de RepInfo trabalham
+            &mdash; como um formato é descrito, como este aplicativo executa as descrições, o que cada mecanismo
+            relata (valores tipados, posições em bytes) e suas limitações conhecidas:
+        </p>
+        <ul>
+            <li><a th:href="@{/help/engines/dfdl}">DFDL</a> &mdash; a Data Format Description Language do Open Grid
+                Forum, executada pelo Apache Daffodil.</li>
+            <li><a th:href="@{/help/engines/drb}">DRB</a> &mdash; o Data Request Broker em Java da GAEL e seus
+                esquemas SDF.</li>
+            <li><a th:href="@{/help/engines/east}">EAST</a> &mdash; a linguagem de descrição de dados do CCSDS,
+                lida para a árvore de elementos, escrita a partir dela e interpretada diretamente.</li>
+            <li><a th:href="@{/help/engines/kaitai}">Kaitai Struct</a> &mdash; descrições <code>.ksy</code>
+                compiladas antecipadamente em código de leitura.</li>
+        </ul>
+    </section>
+
+    <section class="editor-section">
+        <h2>Documentação para desenvolvedores</h2>
+        <p>
+            <a class="button-link" href="/apidocs/index.html" target="_blank" rel="noopener noreferrer">
+                Referência da API em Javadoc &rarr;
+            </a>
+            &mdash; gerada a partir dos próprios comentários <code>/** ... */</code> do código-fonte
+            (<code>mvn javadoc:javadoc</code>), incluída neste aplicativo em execução, de modo que está sempre de
+            acordo com a versão de fato implantada. Abrange este aplicativo, o modelo OAIS central
+            (<code>oaiscore</code>) e os adaptadores de estrutura OAIS (<code>oais-structure-*</code>: DFDL,
+            Kaitai Struct, DRB, TOPCAT e a demonstração), agrupados em abas separadas (em inglês).
+        </p>
+        <p class="muted">
+            Os arquivos-fonte das ontologias podem ser baixados na <a th:href="@{/}">página inicial</a>, byte a
+            byte como carregados na inicialização. Para o quadro completo &mdash; armazenamento, o modelo de login,
+            limites de escala, internacionalização, como atualizar as ontologias &mdash; veja o
+            <code>README.md</code> do projeto (em inglês).
+        </p>
+    </section>
+</main>
+<div th:replace="~{fragments :: footer}"></div>
+</body>
+</html>

@@ -1,71 +1,71 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Explore the Catalogue')}"></head>
+<head th:replace="~{fragments :: head(#{explore.title})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <p class="breadcrumb"><a th:href="@{/catalogue}">&larr; Catalogue</a></p>
-    <h1>Explore</h1>
-    <p class="muted">
+    <p class="breadcrumb"><a th:href="@{/catalogue}" th:utext="'&larr; ' + #{nav.catalogue}">&larr; Catalogue</a></p>
+    <h1 th:text="#{explore.heading}">Explore</h1>
+    <p class="muted" th:text="#{explore.intro}">
         Ask more specific questions than a keyword search can answer, without needing to know
         SPARQL or the SPARQL console. Combine any of the filters below (all optional), or just
         browse the quick reports underneath to see the shape of the whole collection.
     </p>
 
     <div class="editor-section">
-        <h2>Filter search</h2>
+        <h2 th:text="#{explore.filterSearch}">Filter search</h2>
         <form th:action="@{/catalogue/explore}" method="get" class="form">
             <label>
-                Creator
-                <input type="text" name="creator" th:value="${creator}" placeholder="e.g. Ministry of Fisheries"/>
+                <span th:text="#{explore.creator}">Creator</span>
+                <input type="text" name="creator" th:value="${creator}" th:placeholder="#{explore.creatorExample}"/>
             </label>
             <label>
-                Type
-                <input type="text" name="type" th:value="${type}" placeholder="e.g. Text, Moving Image, Dataset"/>
+                <span th:text="#{col.type}">Type</span>
+                <input type="text" name="type" th:value="${type}" th:placeholder="#{explore.typeExample}"/>
             </label>
             <label>
-                Language
-                <input type="text" name="language" th:value="${language}" placeholder="e.g. Dhivehi, English"/>
+                <span th:text="#{explore.language}">Language</span>
+                <input type="text" name="language" th:value="${language}" th:placeholder="#{explore.languageExample}"/>
             </label>
             <label>
-                Subject
+                <span th:text="#{explore.subject}">Subject</span>
                 <input type="text" name="subject" th:value="${subject}"/>
             </label>
             <label>
-                Coverage
-                <input type="text" name="coverage" th:value="${coverage}" placeholder="e.g. a place or period"/>
+                <span th:text="#{explore.coverage}">Coverage</span>
+                <input type="text" name="coverage" th:value="${coverage}" th:placeholder="#{explore.coverageExample}"/>
             </label>
             <label>
-                Rights
+                <span th:text="#{explore.rights}">Rights</span>
                 <input type="text" name="rights" th:value="${rights}"/>
             </label>
             <label>
-                Date from
+                <span th:text="#{explore.dateFrom}">Date from</span>
                 <input type="text" name="dateFrom" th:value="${dateFrom}" placeholder="YYYY-MM-DD"/>
             </label>
             <label>
-                Date to
+                <span th:text="#{explore.dateTo}">Date to</span>
                 <input type="text" name="dateTo" th:value="${dateTo}" placeholder="YYYY-MM-DD"/>
             </label>
             <label>
-                Transferred record
+                <span th:text="#{explore.transferred}">Transferred record</span>
                 <select name="transferredRecord">
-                    <option value="" th:selected="${transferredRecord == null or transferredRecord.isEmpty()}">Any</option>
-                    <option value="Yes" th:selected="${transferredRecord == 'Yes'}">Yes</option>
-                    <option value="No" th:selected="${transferredRecord == 'No'}">No</option>
+                    <option value="" th:selected="${transferredRecord == null or transferredRecord.isEmpty()}" th:text="#{explore.any}">Any</option>
+                    <option value="Yes" th:selected="${transferredRecord == 'Yes'}" th:text="#{option.yes}">Yes</option>
+                    <option value="No" th:selected="${transferredRecord == 'No'}" th:text="#{option.no}">No</option>
                 </select>
             </label>
-            <button type="submit">Search</button>
-            <a th:if="${anyFilter}" th:href="@{/catalogue/explore}" class="page-link">Clear filters</a>
+            <button type="submit" th:text="#{action.search}">Search</button>
+            <a th:if="${anyFilter}" th:href="@{/catalogue/explore}" class="page-link" th:text="#{explore.clearFilters}">Clear filters</a>
         </form>
     </div>
 
     <div class="editor-section" th:if="${anyFilter}">
-        <h2>Results</h2>
+        <h2 th:text="#{explore.results}">Results</h2>
         <p><span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span></p>
         <table class="listing">
             <thead>
-            <tr><th>Type</th><th>Title</th></tr>
+            <tr><th th:text="#{col.type}">Type</th><th th:text="#{col.title}">Title</th></tr>
             </thead>
             <tbody>
             <tr th:each="r : ${resultPage.items}">
@@ -74,69 +74,66 @@
             </tr>
             </tbody>
         </table>
-        <p th:if="${resultPage.items.isEmpty()}" class="muted">No results match those filters.</p>
+        <p th:if="${resultPage.items.isEmpty()}" class="muted" th:text="#{explore.noResults}">No results match those filters.</p>
 
         <div class="pagination" th:if="${resultPage.totalPages() > 1}">
             <a th:if="${resultPage.hasPrevious()}"
                th:href="@{/catalogue/explore(creator=${creator}, type=${type}, language=${language}, subject=${subject}, coverage=${coverage}, rights=${rights}, dateFrom=${dateFrom}, dateTo=${dateTo}, transferredRecord=${transferredRecord}, page=${resultPage.previousPage()})}"
-               class="page-link">&larr; Previous</a>
-            <span th:unless="${resultPage.hasPrevious()}" class="page-link disabled">&larr; Previous</span>
-            <span class="page-info">
-                Page <span th:text="${resultPage.page}">1</span> of <span th:text="${resultPage.totalPages()}">1</span>
-                (<span th:text="${resultPage.totalCount}">0</span> total)
-            </span>
+               class="page-link" th:utext="'&larr; ' + #{page.previous}">&larr; Previous</a>
+            <span th:unless="${resultPage.hasPrevious()}" class="page-link disabled" th:utext="'&larr; ' + #{page.previous}">&larr; Previous</span>
+            <span class="page-info" th:text="#{page.info(${resultPage.page}, ${resultPage.totalPages()}, ${resultPage.totalCount})}">Page 1 of 1 (0 total)</span>
             <a th:if="${resultPage.hasNext()}"
                th:href="@{/catalogue/explore(creator=${creator}, type=${type}, language=${language}, subject=${subject}, coverage=${coverage}, rights=${rights}, dateFrom=${dateFrom}, dateTo=${dateTo}, transferredRecord=${transferredRecord}, page=${resultPage.nextPage()})}"
-               class="page-link">Next &rarr;</a>
-            <span th:unless="${resultPage.hasNext()}" class="page-link disabled">Next &rarr;</span>
+               class="page-link" th:utext="#{page.next} + ' &rarr;'">Next &rarr;</a>
+            <span th:unless="${resultPage.hasNext()}" class="page-link disabled" th:utext="#{page.next} + ' &rarr;'">Next &rarr;</span>
         </div>
     </div>
 
     <div class="editor-section">
-        <h2>Quick reports</h2>
-        <p class="muted">Computed live from what's actually in the catalogue right now, not canned examples.</p>
+        <h2 th:text="#{explore.reports}">Quick reports</h2>
+        <p class="muted" th:text="#{explore.reportsNote}">Computed live from what's actually in the catalogue right now, not canned examples.</p>
 
         <div class="cards">
             <div class="report-panel">
-                <h3>Records by creator</h3>
+                <h3 th:text="#{explore.byCreator}">Records by creator</h3>
                 <table class="attrs">
                     <tr th:each="f : ${byCreator}">
                         <td th:text="${f.label}">Creator</td>
                         <td th:text="${f.count}">0</td>
                     </tr>
                 </table>
-                <p th:if="${byCreator.isEmpty()}" class="muted">No data yet.</p>
+                <p th:if="${byCreator.isEmpty()}" class="muted" th:text="#{statistics.noData}">No data yet.</p>
             </div>
             <div class="report-panel">
-                <h3>Records by type</h3>
+                <h3 th:text="#{explore.byType}">Records by type</h3>
                 <table class="attrs">
                     <tr th:each="f : ${byType}">
                         <td th:text="${f.label}">Type</td>
                         <td th:text="${f.count}">0</td>
                     </tr>
                 </table>
-                <p th:if="${byType.isEmpty()}" class="muted">No data yet.</p>
+                <p th:if="${byType.isEmpty()}" class="muted" th:text="#{statistics.noData}">No data yet.</p>
             </div>
             <div class="report-panel">
-                <h3>Records by language</h3>
+                <h3 th:text="#{explore.byLanguage}">Records by language</h3>
                 <table class="attrs">
                     <tr th:each="f : ${byLanguage}">
                         <td th:text="${f.label}">Language</td>
                         <td th:text="${f.count}">0</td>
                     </tr>
                 </table>
-                <p th:if="${byLanguage.isEmpty()}" class="muted">No data yet.</p>
+                <p th:if="${byLanguage.isEmpty()}" class="muted" th:text="#{statistics.noData}">No data yet.</p>
             </div>
             <div class="report-panel">
-                <h3>Records by year</h3>
-                <p class="muted" style="font-size:0.75rem;">Approximate: assumes YYYY-... formatted dates.</p>
+                <h3 th:text="#{explore.byYear}">Records by year</h3>
+                <p class="muted" style="font-size:0.75rem;" th:text="#{explore.yearNote}">Approximate: assumes YYYY-... formatted dates.</p>
                 <table class="attrs">
                     <tr th:each="f : ${byYear}">
                         <td th:text="${f.label}">Year</td>
                         <td th:text="${f.count}">0</td>
                     </tr>
                 </table>
-                <p th:if="${byYear.isEmpty()}" class="muted">No data yet.</p>
+                <p th:if="${byYear.isEmpty()}" class="muted" th:text="#{statistics.noData}">No data yet.</p>
             </div>
         </div>
     </div>

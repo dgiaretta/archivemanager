@@ -128,6 +128,7 @@ public class DataObjectViewService {
                 }
             }
         }
+        viewers.sort(info.oais.archive.manager.model.Alphabetical.by(Viewer::label));
         return viewers;
     }
 

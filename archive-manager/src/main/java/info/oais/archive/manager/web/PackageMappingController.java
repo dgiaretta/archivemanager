@@ -28,7 +28,10 @@ public class PackageMappingController {
     private final ArchiveService archive;
     private final PackageMappingService packages;
 
-    public PackageMappingController(ArchiveService archive, PackageMappingService packages) {
+    private final info.oais.archive.manager.i18n.Messages messages;
+
+    public PackageMappingController(ArchiveService archive, PackageMappingService packages, info.oais.archive.manager.i18n.Messages messages) {
+        this.messages = messages;
         this.archive = archive;
         this.packages = packages;
     }
@@ -41,13 +44,13 @@ public class PackageMappingController {
         Optional<URI> location = packages.packageLocation(iri);
         model.addAttribute("location", location.map(URI::toString).orElse(null));
         if (location.isEmpty()) {
-            model.addAttribute("error", "This has no storage location that is a package (.7z, .zip, .tar or .tar.gz).");
+            model.addAttribute("error", messages.get("error.noPackage"));
             return "packages/contents";
         }
         try {
             model.addAttribute("inspection", packages.inspect(location.get()));
         } catch (IOException | RuntimeException e) {
-            model.addAttribute("error", "Couldn't look inside the package: " + e.getMessage());
+            model.addAttribute("error", messages.get("error.packageUnreadable", e.getMessage()));
         }
         return "packages/contents";
     }

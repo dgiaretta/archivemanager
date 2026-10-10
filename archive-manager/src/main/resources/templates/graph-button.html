@@ -15,7 +15,7 @@
       th:action="@{/graph/multi}" method="get" style="display:inline;">
     <input type="hidden" th:each="i : ${ids}" name="id" th:value="${i}"/>
     <input type="hidden" name="depth" value="1"/>
-    <button type="submit" class="button-secondary">View this page as a graph &rarr;</button>
+    <button type="submit" class="button-secondary" th:utext="#{graph.viewPage} + ' &rarr;'">View this page as a graph &rarr;</button>
 </form>
 </body>
 </html>

@@ -50,8 +50,11 @@ public class KnownFormatController {
     private final RdfStore store;
     private final QueryRunner q;
 
+    private final info.oais.archive.manager.i18n.Messages messages;
+
     public KnownFormatController(SpreadsheetReader reader, FormatDescriptionRdfService rdf, ArchiveService archive,
-                                 RdfStore store, QueryRunner q) {
+                                 RdfStore store, QueryRunner q, info.oais.archive.manager.i18n.Messages messages) {
+        this.messages = messages;
         this.reader = reader;
         this.rdf = rdf;
         this.archive = archive;
@@ -139,7 +142,7 @@ public class KnownFormatController {
             return "redirect:/repinfo-tools";
         }
         if (name.isBlank()) {
-            redirect.addFlashAttribute("error", "Give the sheet's name, as the workbook shows it.");
+            redirect.addFlashAttribute("error", messages.get("error.sheetName"));
         } else {
             d.addPart(new KnownFormatDescription.Part(KnownFormatDescription.newId(), name.strip(), Math.max(headerRow, 1),
                     List.of()));
@@ -176,7 +179,7 @@ public class KnownFormatController {
             return "redirect:/repinfo-tools";
         }
         if (header.isBlank()) {
-            redirect.addFlashAttribute("error", "Give the column's header, as it appears in the header row.");
+            redirect.addFlashAttribute("error", messages.get("error.columnHeader"));
             return "redirect:/repinfo-tools/known";
         }
         KnownFormatDescription.Item item = new KnownFormatDescription.Item(KnownFormatDescription.newId(), header.strip(),
@@ -197,7 +200,7 @@ public class KnownFormatController {
                     .orElseThrow(() -> new IllegalArgumentException("That column no longer exists."));
             String header = form.getOrDefault("header", "").isBlank() ? existing.header() : form.get("header").strip();
             d.replaceItem(id, new KnownFormatDescription.Item(id, header, SemanticsForm.parse(form)));
-            redirect.addFlashAttribute("message", "Saved '" + header + "'.");
+            redirect.addFlashAttribute("message", messages.get("message.saved", header));
         } catch (IllegalArgumentException e) {
             redirect.addFlashAttribute("error", e.getMessage());
         }
@@ -224,12 +227,13 @@ public class KnownFormatController {
         try {
             List<KnownFormatDescription.Part> parts = reader.propose(d, reader.read(d, sample.getBytes()));
             if (parts.isEmpty()) {
-                redirect.addFlashAttribute("error", "The sample has no rows to take column headers from.");
+                redirect.addFlashAttribute("error", messages.get("error.noRows"));
             } else {
                 d.setParts(parts);
-                redirect.addFlashAttribute("message", "Took " + parts.stream().mapToInt(p -> p.items().size()).sum()
-                        + " columns from " + parts.size() + (parts.size() == 1 ? " sheet" : " sheets") + " of "
-                        + sample.getOriginalFilename() + "; meanings already given are kept.");
+                int columns = parts.stream().mapToInt(p -> p.items().size()).sum();
+                redirect.addFlashAttribute("message", parts.size() == 1
+                        ? messages.get("message.tookColumnsOneSheet", columns, sample.getOriginalFilename())
+                        : messages.get("message.tookColumns", columns, parts.size(), sample.getOriginalFilename()));
             }
         } catch (IOException e) {
             redirect.addFlashAttribute("error", e.getMessage());

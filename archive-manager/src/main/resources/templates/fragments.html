@@ -2,7 +2,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head th:fragment="head(pageTitle)">
     <meta charset="UTF-8"/>
-    <title th:text="${pageTitle} + ' - Archive Manager'">Archive Manager</title>
+    <title th:text="${pageTitle} + ' - ' + #{app.name}">Archive Manager</title>
     <link rel="preconnect" href="https://fonts.googleapis.com"/>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thaana&display=swap"/>
@@ -10,35 +10,48 @@
 </head>
 <body>
 <nav th:fragment="nav" class="topnav">
-    <a class="brand" th:href="@{/}">Archive Manager</a>
-    <a th:href="@{/catalogue}">Catalogue</a>
-    <a th:href="@{/accession-register}">Accession Register</a>
-    <a th:href="@{/records}">Records</a>
-    <a th:href="@{/agents}">Agents</a>
-    <a th:href="@{/activities}">Provenance events</a>
-    <a th:href="@{/mandates}">Mandates &amp; access rights</a>
-    <a th:href="@{/entities}">Entities</a>
-    <a th:href="@{/graph}">Graph</a>
-    <a th:href="@{/repinfo-tools}">RepInfo Tools</a>
-    <a th:href="@{/statistics}">Statistics</a>
-    <a th:href="@{/sparql}">SPARQL console</a>
-    <a th:href="@{/help}">Help</a>
+    <a class="brand" th:href="@{/}" th:text="#{app.name}">Archive Manager</a>
+    <a th:href="@{/catalogue}" th:text="#{nav.catalogue}">Catalogue</a>
+    <a th:href="@{/accession-register}" th:text="#{nav.accessionRegister}">Accession Register</a>
+    <a th:href="@{/records}" th:text="#{nav.records}">Records</a>
+    <a th:href="@{/agents}" th:text="#{nav.agents}">Agents</a>
+    <a th:href="@{/activities}" th:text="#{nav.activities}">Provenance events</a>
+    <a th:href="@{/mandates}" th:text="#{nav.mandates}">Mandates &amp; access rights</a>
+    <a th:href="@{/entities}" th:text="#{nav.entities}">Entities</a>
+    <a th:href="@{/graph}" th:text="#{nav.graph}">Graph</a>
+    <a th:href="@{/repinfo-tools}" th:text="#{nav.repinfoTools}">RepInfo Tools</a>
+    <a th:href="@{/statistics}" th:text="#{nav.statistics}">Statistics</a>
+    <a th:href="@{/sparql}" th:text="#{nav.sparql}">SPARQL console</a>
+    <a th:href="@{/help}" th:text="#{nav.help}">Help</a>
     <span class="nav-spacer"></span>
     <span class="lang-switcher">
         <a th:each="entry : ${availableLanguages}"
            th:href="@{/language/{lang}(lang=${entry.key})}"
-           th:text="${entry.key}"
+           th:text="${entry.key}" th:title="${entry.value}"
            th:classappend="${entry.key == currentLanguage} ? ' active' : ''"
            class="lang-link">en</a>
     </span>
     <form th:if="${loggedIn}" th:action="@{/logout}" method="post" class="inline-form">
-        <button type="submit" class="nav-link-btn">Log out</button>
+        <button type="submit" class="nav-link-btn" th:text="#{nav.logout}">Log out</button>
     </form>
-    <a th:unless="${loggedIn}" th:href="@{/login}">Log in</a>
+    <a th:unless="${loggedIn}" th:href="@{/login}" th:text="#{nav.login}">Log in</a>
 </nav>
 
 <footer th:fragment="footer" class="footer">
-    <p>Built on RiC-O 1.1, the OAIS Information Model, and a custom bridging ontology connecting them.</p>
+    <p th:text="#{footer.builtOn}">Built on RiC-O 1.1, the OAIS Information Model, and a custom bridging ontology connecting them.</p>
+    <!-- The scripts' text in the interface's language: i18n('key', arg0, ...) fills in a message's {0}, {1}... -->
+    <script th:inline="javascript">
+        window.I18N = /*[[${jsMessages}]]*/ {};
+        window.i18n = function (key) {
+            var args = Array.prototype.slice.call(arguments, 1);
+            var text = window.I18N[key] || key;
+            if (args.length) {
+                text = text.replace(/\{(\d+)\}/g, function (m, i) { return args[i] === undefined ? m : args[i]; })
+                    .replace(/''/g, "'");
+            }
+            return text;
+        };
+    </script>
 </footer>
 </body>
 </html>

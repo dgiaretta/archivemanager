@@ -1,32 +1,30 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Describe a known format')}"></head>
+<head th:replace="~{fragments :: head(#{known.title})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <p class="breadcrumb"><a th:href="@{/repinfo-tools}">&larr; RepInfo Tools</a></p>
+    <p class="breadcrumb"><a th:href="@{/repinfo-tools}" th:utext="'&larr; ' + #{nav.repinfoTools}">&larr; RepInfo Tools</a></p>
     <h1 th:text="${d.name}">Readings workbook</h1>
     <p class="muted">
-        <span th:text="${format.label()}">Excel workbook (.xlsx)</span>: its structure is defined by
-        <a th:href="${format.specUrl()}" target="_blank" rel="noopener noreferrer" th:text="${format.specLabel()}">ECMA-376</a>,
-        and software exists to read it, so only the meaning of its content is described here &mdash;
-        one variable per column.
+        <span th:text="${@labels.of('format', format.label())}">Excel workbook (.xlsx)</span>: <span th:text="#{known.definedBy}">its structure is defined by</span>
+        <a th:href="${format.specUrl()}" target="_blank" rel="noopener noreferrer" th:text="${format.specLabel()}">ECMA-376</a><span th:text="#{known.definedByRest}">, and software exists to read it, so only the meaning of its content is described here &mdash; one variable per column.</span>
     </p>
     <p class="notice" th:if="${message != null}" th:text="${message}">Saved.</p>
     <p class="notice error" th:if="${error != null}" th:text="${error}">Problem.</p>
 
     <section class="editor-section">
-        <h2>Details and format profile</h2>
+        <h2 th:text="#{known.details}">Details and format profile</h2>
         <form th:action="@{/repinfo-tools/known/details}" method="post" class="form">
             <label>
-                Name
+                <span th:text="#{col.name}">Name</span>
                 <input type="text" name="name" th:value="${d.name}" required/>
             </label>
             <label>
-                Notes (anything a reader needs before the columns)
+                <span th:text="#{known.notes}">Notes (anything a reader needs before the columns)</span>
                 <textarea name="notes" rows="3" th:text="${d.notes}"></textarea>
             </label>
-            <p class="muted">
+            <p class="muted" th:text="#{known.profileNote}">
                 The format profile is saved as the Structure Representation Information. A registry
                 identifier alone isn't enough to read a file &mdash; PRONOM's identifier for CSV says
                 nothing about its character encoding or delimiter &mdash; so the profile adds what it
@@ -34,22 +32,22 @@
             </p>
             <div class="form-row">
                 <label>
-                    Format registry identifier
+                    <span th:text="#{known.registryId}">Format registry identifier</span>
                     <input type="text" name="registryId" th:value="${d.registryId}" placeholder="PRONOM fmt/214"/>
                 </label>
                 <label>
-                    Version or conformance class of the specification
+                    <span th:text="#{known.version}">Version or conformance class of the specification</span>
                     <input type="text" name="version" th:value="${d.version}"/>
                 </label>
             </div>
             <th:block th:if="${format.text()}">
                 <div class="form-row">
                     <label>
-                        Character encoding
+                        <span th:text="#{known.encoding}">Character encoding</span>
                         <input type="text" name="characterEncoding" th:value="${d.characterEncoding}" placeholder="UTF-8"/>
                     </label>
                     <label>
-                        Line endings
+                        <span th:text="#{known.lineEndings}">Line endings</span>
                         <select name="lineEnding">
                             <option th:each="e : ${ {'CRLF', 'LF', 'CR'} }" th:value="${e}" th:text="${e}"
                                     th:selected="${e == d.lineEnding}">CRLF</option>
@@ -58,66 +56,65 @@
                 </div>
                 <div class="form-row">
                     <label>
-                        Field delimiter (<code>TAB</code> for a tab)
+                        <span th:utext="#{known.delimiter}">Field delimiter (<code>TAB</code> for a tab)</span>
                         <input type="text" name="delimiter" th:value="${d.delimiter}" placeholder=","/>
                     </label>
                     <label>
-                        Quote character
+                        <span th:text="#{known.quote}">Quote character</span>
                         <input type="text" name="quote" th:value="${d.quote}" placeholder="&quot;"/>
                     </label>
                 </div>
             </th:block>
-            <button type="submit">Save details</button>
+            <button type="submit" th:text="#{known.saveDetails}">Save details</button>
         </form>
     </section>
 
     <section class="editor-section">
-        <h2>Columns</h2>
+        <h2 th:text="#{known.columns}">Columns</h2>
         <form th:if="${format.readable()}" th:action="@{/repinfo-tools/known/from-sample}" method="post"
               enctype="multipart/form-data" class="form">
             <label>
-                Take the sheets and columns from a sample file (headers from each sheet's first
-                non-empty row; meanings already given are kept)
+                <span th:text="#{known.fromSample}">Take the sheets and columns from a sample file (headers from each sheet's first
+                non-empty row; meanings already given are kept)</span>
                 <input type="file" name="sample" required/>
             </label>
-            <button type="submit">Read columns</button>
+            <button type="submit" th:text="#{known.readColumns}">Read columns</button>
         </form>
-        <p class="muted" th:unless="${format.readable()}">
-            This application can't read <span th:text="${format.label()}">.ods</span> files, so add the
-            sheets and columns by hand.
+        <p class="muted" th:unless="${format.readable()}" th:text="#{known.cantRead(${@labels.of('format', format.label())})}">
+            This application can't read .ods files, so add the sheets and columns by hand.
         </p>
 
         <div th:each="p : ${d.parts}" class="editor-subsection">
             <form th:action="@{/repinfo-tools/known/parts/{id}/update(id=${p.id()})}" method="post" class="form form-row">
                 <label>
-                    <span th:text="${format.text()} ? 'Name' : 'Sheet'">Sheet</span>
+                    <span th:text="${format.text()} ? #{col.name} : #{known.sheet}">Sheet</span>
                     <input type="text" name="name" th:value="${p.name()}" th:readonly="${format.text()}"/>
                 </label>
                 <label>
-                    Header row
+                    <span th:text="#{known.headerRow}">Header row</span>
                     <input type="number" name="headerRow" min="1" th:value="${p.headerRow()}"/>
                 </label>
-                <button type="submit">Save</button>
+                <button type="submit" th:text="#{action.save}">Save</button>
             </form>
             <form th:unless="${format.text()}" th:action="@{/repinfo-tools/known/parts/{id}/delete(id=${p.id()})}"
                   method="post" class="form">
-                <button type="submit" class="delete-btn">Remove this sheet</button>
+                <button type="submit" class="delete-btn" th:text="#{known.removeSheet}">Remove this sheet</button>
             </form>
             <table class="listing" th:if="${!p.items().isEmpty()}">
-                <thead><tr><th>Column header</th><th>Meaning</th><th>Units</th><th></th></tr></thead>
+                <thead><tr><th th:text="#{known.columnHeader}">Column header</th><th th:text="#{sample.col.meaning}">Meaning</th><th th:text="#{known.units}">Units</th><th></th></tr></thead>
                 <tbody>
                 <tr th:each="i : ${p.items()}">
                     <td><a th:href="@{/repinfo-tools/known(item=${i.id()})} + '#item'" th:text="${i.header()}">Temp</a></td>
                     <td>
                         <span th:text="${i.semantics().semanticName() ?: ''}">Air temperature</span>
                         <span class="muted" th:if="${!i.semantics().codes().isEmpty()}"
-                              th:text="'(' + ${i.semantics().codes().size()} + ' coded values)'">(2 coded values)</span>
-                        <span class="muted" th:if="${i.semantics().isEmpty()}">not described yet</span>
+                              th:text="#{known.codedValues(${i.semantics().codes().size()})}">(2 coded values)</span>
+                        <span class="muted" th:if="${i.semantics().isEmpty()}" th:text="#{known.notDescribed}">not described yet</span>
                     </td>
                     <td th:text="${i.semantics().units() ?: ''}">Cel</td>
                     <td>
                         <form th:action="@{/repinfo-tools/known/items/{id}/delete(id=${i.id()})}" method="post">
-                            <button type="submit" class="delete-btn">Remove</button>
+                            <button type="submit" class="delete-btn" th:text="#{action.remove}">Remove</button>
                         </form>
                     </td>
                 </tr>
@@ -126,54 +123,54 @@
             <form th:action="@{/repinfo-tools/known/items/add}" method="post" class="form form-row">
                 <input type="hidden" name="partId" th:value="${p.id()}"/>
                 <label>
-                    Add a column, by its header
+                    <span th:text="#{known.addColumnLabel}">Add a column, by its header</span>
                     <input type="text" name="header" required/>
                 </label>
-                <button type="submit">Add column</button>
+                <button type="submit" th:text="#{known.addColumn}">Add column</button>
             </form>
         </div>
 
         <form th:unless="${format.text()}" th:action="@{/repinfo-tools/known/parts/add}" method="post" class="form form-row">
             <label>
-                Add a sheet, by its name
+                <span th:text="#{known.addSheetLabel}">Add a sheet, by its name</span>
                 <input type="text" name="name" required/>
             </label>
             <label>
-                Header row
+                <span th:text="#{known.headerRow}">Header row</span>
                 <input type="number" name="headerRow" min="1" value="1"/>
             </label>
-            <button type="submit">Add sheet</button>
+            <button type="submit" th:text="#{known.addSheet}">Add sheet</button>
         </form>
     </section>
 
     <section class="editor-section" th:if="${item != null}" id="item">
-        <h2 th:text="'Column ' + ${item.header()} + ' of ' + ${itemPart.name()}">Column Temp</h2>
+        <h2 th:text="#{known.columnOf(${item.header()}, ${itemPart.name()})}">Column Temp</h2>
         <form th:action="@{/repinfo-tools/known/items/{id}/update(id=${item.id()})}" method="post" class="form">
             <label>
-                Column header (how the column is found)
+                <span th:text="#{known.columnHeaderLabel}">Column header (how the column is found)</span>
                 <input type="text" name="header" th:value="${item.header()}" required/>
             </label>
             <fieldset th:replace="~{repinfo-tools/semantics-fields :: semanticsFields(${sem}, true)}"></fieldset>
-            <button type="submit">Save</button>
+            <button type="submit" th:text="#{action.save}">Save</button>
         </form>
     </section>
 
     <section class="editor-section" th:if="${format.readable()}" id="test">
-        <h2>Test against a sample file</h2>
-        <p class="muted">
+        <h2 th:text="#{known.test}">Test against a sample file</h2>
+        <p class="muted" th:text="#{known.testNote}">
             Finds each described column in the sample and shows its first values and what they mean
             (a code's meaning, a scaled value with its units, a fill value), counting values outside
             their code list or valid range. The file is only used for this one request.
         </p>
         <form th:action="@{/repinfo-tools/known/test} + '#test'" method="post" enctype="multipart/form-data" class="form">
             <input type="file" name="sample" required/>
-            <button type="submit">Test</button>
+            <button type="submit" th:text="#{known.testAction}">Test</button>
         </form>
         <p class="notice error" th:if="${testError != null}" th:text="${testError}">error</p>
         <th:block th:if="${testResults != null}">
             <p><strong th:text="${sampleFileName}">sample.xlsx</strong>:</p>
             <table class="listing">
-                <thead><tr><th>Column</th><th>Found</th><th>Values</th><th>First values, and what they mean</th><th>Checks</th></tr></thead>
+                <thead><tr><th th:text="#{package.col.column}">Column</th><th th:text="#{known.found}">Found</th><th th:text="#{known.values}">Values</th><th th:text="#{known.firstValues}">First values, and what they mean</th><th th:text="#{known.checks}">Checks</th></tr></thead>
                 <tbody>
                 <tr th:each="r : ${testResults}">
                     <td><span th:text="${r.sheet()}">Readings</span> &rsaquo; <strong th:text="${r.header()}">Temp</strong></td>
@@ -193,38 +190,38 @@
     </section>
 
     <section class="editor-section">
-        <h2>Save to archive</h2>
-        <p class="muted">
+        <h2 th:text="#{repinfo.saveToArchive}">Save to archive</h2>
+        <p class="muted" th:utext="#{known.saveNote}">
             Saves the columns' meanings as Semantic Representation Information, used together with the
             format's Structure and Other Representation Information (an AND group of the three). Each
             column's meaning records where it is, e.g. <code>Readings!"Air temperature"</code>.
         </p>
         <form th:action="@{/repinfo-tools/known/save}" method="post" class="form">
             <label>
-                Data Object this describes
+                <span th:text="#{repinfo.dataObject}">Data Object this describes</span>
                 <select name="dataObjectId">
-                    <option value="">-- create a new Data Object --</option>
+                    <option value="" th:text="#{repinfo.newDataObject}">-- create a new Data Object --</option>
                     <option th:each="e : ${allEntities}" th:value="${e.id}" th:text="${e.title} + ' (' + ${e.typeLocalName} + ')'">target</option>
                 </select>
             </label>
             <label>
-                Structure Representation Information
+                <span th:text="#{known.structure}">Structure Representation Information</span>
                 <select name="structure">
-                    <option value="" th:text="'A new format profile: ' + ${format.label()} + ', ' + ${d.version}">new</option>
+                    <option value="" th:text="#{known.newProfile(${@labels.of('format', format.label())}, ${d.version})}">new</option>
                     <option th:each="s : ${structures}" th:value="${s.iri}" th:text="${s.label}">existing</option>
                 </select>
             </label>
             <label>
-                Other Representation Information (software that reads it)
+                <span th:text="#{known.other}">Other Representation Information (software that reads it)</span>
                 <select name="other">
-                    <option value="" th:text="'Any one of: ' + ${#strings.listJoin(format.software().![label()], ', ')}">software</option>
+                    <option value="" th:text="#{known.anyOneOf(${#strings.listJoin(format.software().![@labels.of('software', label())], ', ')})}">software</option>
                     <option th:each="o : ${others}" th:value="${o.iri}" th:text="${o.label}">existing</option>
                 </select>
             </label>
-            <button type="submit">Save to archive</button>
+            <button type="submit" th:text="#{repinfo.saveToArchive}">Save to archive</button>
         </form>
         <form th:action="@{/repinfo-tools/known/discard}" method="post" class="form">
-            <button type="submit" class="delete-btn">Discard this description</button>
+            <button type="submit" class="delete-btn" th:text="#{known.discard}">Discard this description</button>
         </form>
     </section>
 </main>

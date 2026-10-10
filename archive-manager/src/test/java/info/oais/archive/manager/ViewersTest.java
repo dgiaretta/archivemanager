@@ -503,7 +503,7 @@ class ViewersTest {
             String id = archive.encodeId(dataObject);
             mockMvc.perform(get("/api/graph/{id}", id))
                     .andExpect(jsonPath("$.nodes[?(@.id == '" + dataObject + "')].viewers[*].id").value(
-                            org.hamcrest.Matchers.contains("ds9", "aladin")))
+                            org.hamcrest.Matchers.contains("aladin", "ds9")))
                     .andExpect(jsonPath("$.nodes[?(@.id == '" + dataObject + "')].viewers[0].dataUrl").value(
                             org.hamcrest.Matchers.contains("/api/data-objects/" + id + "/fits")))
                     .andExpect(jsonPath("$.nodes[?(@.id == '" + dataObject + "')].viewers[0].mtype").value(

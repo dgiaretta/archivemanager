@@ -11,7 +11,9 @@ import java.util.Map;
 /**
  * Which language to prefer when a class or property has labels in more than
  * one (the real RiC-O ontology labels everything in English, French, and
- * Spanish, and classes additionally in German). Stored per-session, set via
+ * Spanish, and classes additionally in German), and the interface's own text
+ * is in: English, or Brazilian Portuguese ({@link #localeOf}, and the message
+ * bundles {@code i18n/messages*.properties}). Stored per-session, set via
  * {@code GET /language/{lang}}, defaulting to English.
  *
  * <p><b>Dhivehi (dv) is listed as available, but is currently inert.</b> The
@@ -53,13 +55,35 @@ public class LanguagePreference {
     public static final Map<String, String> AVAILABLE = buildAvailable();
 
     private static Map<String, String> buildAvailable() {
+        // In alphabetical order of their codes, as the switcher shows them.
         Map<String, String> m = new LinkedHashMap<>();
-        m.put("en", "English");
-        m.put("fr", "Français");
-        m.put("es", "Español");
         m.put("de", "Deutsch");
         m.put("dv", "Dhivehi");
+        m.put("en", "English");
+        m.put("es", "Español");
+        m.put("fr", "Français");
+        m.put("pt", "Português (Brasil)");
         return m;
+    }
+
+    /**
+     * The locale the interface's text is shown in for {@code language}: Portuguese
+     * is Brazilian Portuguese ({@code pt-BR}); the others are just their language.
+     * Only English and Portuguese have the interface's text (see
+     * {@code i18n/messages*.properties}); the others show it in English, and
+     * use their language for the ontology's labels.
+     */
+    public static java.util.Locale localeOf(String language) {
+        if (language == null || language.isBlank()) {
+            return java.util.Locale.ENGLISH;
+        }
+        return "pt".equals(language) ? java.util.Locale.forLanguageTag("pt-BR")
+                : java.util.Locale.forLanguageTag(language);
+    }
+
+    /** The locale of the current session's preferred language. */
+    public java.util.Locale locale() {
+        return localeOf(current());
     }
 
     /** The current session's preferred language, or {@link #DEFAULT} if unset or there's no active request. */

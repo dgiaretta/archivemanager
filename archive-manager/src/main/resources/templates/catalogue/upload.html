@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Upload to Catalogue')}"></head>
+<head th:replace="~{fragments :: head(#{upload.title})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <p class="breadcrumb"><a th:href="@{/catalogue}">&larr; Catalogue</a></p>
-    <h1>Bulk upload</h1>
-    <p class="muted">
+    <p class="breadcrumb"><a th:href="@{/catalogue}" th:utext="'&larr; ' + #{nav.catalogue}">&larr; Catalogue</a></p>
+    <h1 th:text="#{upload.heading}">Bulk upload</h1>
+    <p class="muted" th:utext="#{upload.intro}">
         Upload a Bulk Upload Spreadsheet (the 26-column format from NAM's Preservation Policy and
         Implementation Plan, "Upload Spreadsheet and Accession Register") as either <code>.xlsx</code>
         or <code>.csv</code>. Column headers must match the spreadsheet's field names (matching is
@@ -16,7 +16,7 @@
         Identifier, Source, Language, Relation, Coverage, Rights, Provenance, FormatInfo, Semantics,
         OtherRI) accept multiple values in one cell separated by <code>;</code>.
     </p>
-    <div class="callout">
+    <div class="callout" th:utext="#{upload.preferXlsx}">
         <strong>Prefer .xlsx over .csv if any of your data is in Dhivehi (or any non-Latin script).</strong>
         Excel's plain "CSV (Comma delimited)" export writes the file using the system's ANSI code
         page, not UTF-8, unless "CSV UTF-8 (Comma delimited)" is chosen specifically -- and the
@@ -26,7 +26,7 @@
         already-corrupted CSV again won't recover it, however this app handles encoding. Uploading the
         original <code>.xlsx</code> avoids the lossy step entirely.
     </div>
-    <p class="muted">
+    <p class="muted" th:text="#{upload.rows}">
         Each row becomes one Catalogue record. The whole upload becomes one Accession Register
         entry linking every record it created. No column is required -- a blank cell just means
         that property isn't recorded for this row, which is normal; rows are only skipped (and
@@ -34,31 +34,31 @@
     </p>
 
     <div class="callout" th:if="${error}">
-        <strong>Not imported.</strong> <span th:text="${error}">error</span>
+        <strong th:text="#{import.notImported}">Not imported.</strong> <span th:text="${error}">error</span>
     </div>
 
     <form th:action="@{/catalogue/upload}" method="post" enctype="multipart/form-data" class="form">
         <label>
-            Spreadsheet file (.xlsx or .csv)
+            <span th:text="#{upload.file}">Spreadsheet file (.xlsx or .csv)</span>
             <input type="file" name="file" accept=".xlsx,.csv" required/>
         </label>
         <label>
-            Accession description
-            <textarea name="accessionDescription" rows="3" placeholder="e.g. Transfer from the Ministry of Fisheries, March 2026"></textarea>
+            <span th:text="#{upload.accessionDescription}">Accession description</span>
+            <textarea name="accessionDescription" rows="3" th:placeholder="#{upload.accessionExample}"></textarea>
         </label>
         <label>
-            Depositor
-            <input type="text" name="depositor" placeholder="If different from the creator"/>
+            <span th:text="#{upload.depositor}">Depositor</span>
+            <input type="text" name="depositor" th:placeholder="#{upload.depositorHint}"/>
         </label>
         <label>
-            Recording archivist
-            <input type="text" name="recordingArchivist" placeholder="Your name"/>
+            <span th:text="#{upload.archivist}">Recording archivist</span>
+            <input type="text" name="recordingArchivist" th:placeholder="#{upload.yourName}"/>
         </label>
         <label>
-            Accession date
+            <span th:text="#{upload.date}">Accession date</span>
             <input type="text" name="accessionDate" placeholder="YYYY-MM-DD"/>
         </label>
-        <button type="submit">Upload</button>
+        <button type="submit" th:text="#{upload.action}">Upload</button>
     </form>
 </main>
 <div th:replace="~{fragments :: footer}"></div>

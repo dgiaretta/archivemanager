@@ -5,22 +5,21 @@
 <div th:fragment="sampleResult(result)">
     <p>
         <strong th:text="${sampleFileName}">sample.bin</strong>
-        (<span th:text="${sampleFileSize}">0</span> bytes):
-        <span th:if="${result.ok()}">decoded successfully.</span>
-        <span th:unless="${result.ok()}">could not be decoded.</span>
+        <span th:text="#{sample.bytes(${sampleFileSize})}">(0 bytes):</span>
+        <span th:if="${result.ok()}" th:text="#{sample.decoded}">decoded successfully.</span>
+        <span th:unless="${result.ok()}" th:text="#{sample.notDecoded}">could not be decoded.</span>
     </p>
     <pre class="sparql" th:unless="${result.ok()}" th:text="${result.error()}">diagnostics</pre>
     <p class="notice error" th:if="${result.ok() and result.trailingBytes() != null and result.trailingBytes() > 0}"
-       th:text="${result.trailingBytes() + ' byte' + (result.trailingBytes() == 1 ? '' : 's')
-                + ' at the end of the file are not covered by the description, so they were ignored. '
-                + 'Either the description is incomplete, or the sample has extra data.'}">leftover</p>
-    <p class="muted" th:if="${result.ok() and result.trailingBytes() != null and result.trailingBytes() == 0}">
-        The description accounts for every byte of the sample.</p>
+       th:text="${result.trailingBytes() == 1} ? #{sample.trailingOne} : #{sample.trailing(${result.trailingBytes()})}">leftover</p>
+    <p class="muted" th:if="${result.ok() and result.trailingBytes() != null and result.trailingBytes() == 0}"
+       th:text="#{sample.everyByte}">The description accounts for every byte of the sample.</p>
     <p class="notice" th:if="${result.warning() != null}" th:text="${result.warning()}">warning</p>
     <table th:if="${result.ok()}" class="listing">
         <thead>
-        <tr><th>Element</th><th>Kind</th><th>Value</th><th th:if="${result.hasMeanings()}">Meaning</th>
-            <th th:if="${result.hasPositions()}">Position</th></tr>
+        <tr><th th:text="#{sample.col.element}">Element</th><th th:text="#{sample.col.kind}">Kind</th>
+            <th th:text="#{sample.col.value}">Value</th><th th:if="${result.hasMeanings()}" th:text="#{sample.col.meaning}">Meaning</th>
+            <th th:if="${result.hasPositions()}" th:text="#{sample.col.position}">Position</th></tr>
         </thead>
         <tbody>
         <tr th:each="row : ${result.rows()}">
@@ -32,8 +31,8 @@
         </tr>
         </tbody>
     </table>
-    <p class="muted" th:if="${result.truncated()}">
-        Showing the first <span th:text="${result.rows().size()}">2000</span> elements only.
+    <p class="muted" th:if="${result.truncated()}" th:text="#{sample.truncated(${result.rows().size()})}">
+        Showing the first 2000 elements only.
     </p>
 </div>
 </body>

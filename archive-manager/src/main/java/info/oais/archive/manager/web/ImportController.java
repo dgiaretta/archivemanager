@@ -42,7 +42,10 @@ public class ImportController {
 
     private final RdfStore store;
 
-    public ImportController(RdfStore store) {
+    private final info.oais.archive.manager.i18n.Messages messages;
+
+    public ImportController(RdfStore store, info.oais.archive.manager.i18n.Messages messages) {
+        this.messages = messages;
         this.store = store;
     }
 
@@ -56,7 +59,7 @@ public class ImportController {
         model.addAttribute("turtle", turtle);
 
         if (turtle == null || turtle.isBlank()) {
-            model.addAttribute("error", "Paste some Turtle content first.");
+            model.addAttribute("error", messages.get("error.pasteTurtle"));
             return "entities/import";
         }
 
@@ -64,12 +67,12 @@ public class ImportController {
         try {
             RDFDataMgr.read(parsed, new ByteArrayInputStream(turtle.getBytes(StandardCharsets.UTF_8)), Lang.TURTLE);
         } catch (RiotException e) {
-            model.addAttribute("error", "Could not parse that as Turtle: " + e.getMessage());
+            model.addAttribute("error", messages.get("error.notTurtle", e.getMessage()));
             return "entities/import";
         }
 
         store.dataModel().add(parsed);
-        model.addAttribute("success", "Imported " + parsed.size() + " triples.");
+        model.addAttribute("success", messages.get("import.imported", String.valueOf(parsed.size())));
         model.addAttribute("turtle", "");
         return "entities/import";
     }

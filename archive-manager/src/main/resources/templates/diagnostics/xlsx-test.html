@@ -1,46 +1,38 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('XLSX read test')}"></head>
+<head th:replace="~{fragments :: head(#{diag.xlsx.title})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <p class="breadcrumb"><a th:href="@{/diagnostics/encoding}">&larr; Encoding diagnostics</a></p>
-    <h1>XLSX read test</h1>
-    <p class="muted">
-        Upload the actual .xlsx you're having trouble with. This shows exactly what Apache POI
-        extracts from its first few rows &mdash; nothing else touches it: no data graph, no
-        storage, no rendering pipeline. If Dhivehi text already shows as question marks here, the
-        corruption is either already in the file itself, or introduced the moment this specific
-        file is read (a genuine bug, not an environment issue) &mdash; either way, it's happening
-        before any other part of this app gets involved. If it displays correctly here but still
-        shows as question marks in the Catalogue after a real import, the problem is further down
-        the pipeline (storage or rendering), which <a th:href="@{/diagnostics/encoding}">the other
-        diagnostic page</a> is the better tool for.
+    <p class="breadcrumb"><a th:href="@{/diagnostics/encoding}" th:utext="'&larr; ' + #{diag.encoding.title}">&larr; Encoding diagnostics</a></p>
+    <h1 th:text="#{diag.xlsx.title}">XLSX read test</h1>
+    <p class="muted" th:utext="#{diag.xlsx.intro(@{/diagnostics/encoding})}">
+        Upload the actual .xlsx you're having trouble with.
     </p>
 
     <div class="callout" th:if="${error}">
-        <strong>Could not read that file.</strong> <span th:text="${error}">error</span>
+        <strong th:text="#{diag.xlsx.couldNotRead}">Could not read that file.</strong> <span th:text="${error}">error</span>
     </div>
 
     <form th:action="@{/diagnostics/xlsx-test}" method="post" enctype="multipart/form-data" class="form">
         <label>
-            .xlsx file
+            <span th:text="#{diag.xlsx.file}">.xlsx file</span>
             <input type="file" name="file" accept=".xlsx" required/>
         </label>
-        <button type="submit">Read first rows</button>
+        <button type="submit" th:text="#{diag.xlsx.action}">Read first rows</button>
     </form>
 
     <div class="editor-section" th:if="${rows != null}">
-        <h2>What POI extracted</h2>
+        <h2 th:text="#{diag.xlsx.extracted}">What POI extracted</h2>
         <table class="listing">
             <tr th:each="row, rowStat : ${rows}">
-                <td class="prop" th:text="'Row ' + ${rowStat.index}">Row</td>
+                <td class="prop" th:text="#{diag.xlsx.row(${rowStat.index})}">Row</td>
                 <td>
                     <div th:each="cell : ${row}" th:text="${cell}" style="padding:0.15rem 0;">cell</div>
                 </td>
             </tr>
         </table>
-        <p th:if="${rows.isEmpty()}" class="muted">The sheet appears to be empty.</p>
+        <p th:if="${rows.isEmpty()}" class="muted" th:text="#{diag.xlsx.empty}">The sheet appears to be empty.</p>
     </div>
 </main>
 <div th:replace="~{fragments :: footer}"></div>

@@ -1,89 +1,54 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Encoding diagnostics')}"></head>
+<head th:replace="~{fragments :: head(#{diag.encoding.title})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <h1>Encoding diagnostics</h1>
-    <p class="muted">
+    <h1 th:text="#{diag.encoding.title}">Encoding diagnostics</h1>
+    <p class="muted" th:text="#{diag.encoding.intro}">
         This page exists to answer one question definitively: is Dhivehi text showing as question
-        marks because it was already corrupted before reaching this app (most commonly, an Excel
-        "CSV (Comma delimited)" export, which uses the system's ANSI code page and has no
-        representation for Thaana script at all), or because something in this app's own pipeline
-        is at fault?
+        marks because it was already corrupted before reaching this app, or because something in this
+        app's own pipeline is at fault?
     </p>
 
     <div class="editor-section">
-        <h2>Test string</h2>
-        <p class="muted">
-            The text below is written directly into this app's Java source code &mdash; it never
-            touched an uploaded file, a spreadsheet, or anything you typed. If it displays
-            correctly, this app's rendering pipeline works and the problem is upstream, in the
-            source spreadsheet. If it <em>also</em> shows as question marks, the bug is in this
-            app's own pipeline, not your data.
+        <h2 th:text="#{diag.encoding.testString}">Test string</h2>
+        <p class="muted" th:utext="#{diag.encoding.testStringNote}">
+            The text below is written directly into this app's Java source code.
         </p>
         <p style="font-size:1.4rem; padding:1rem; background:var(--accent-soft); border-radius:8px;" th:text="${testString}">test string</p>
     </div>
 
     <div class="editor-section">
-        <h2>JVM configuration</h2>
-        <div class="callout" th:if="${!looksOk}" style="border-color:#c0392b;">
-            <strong>The JVM's default charset is not UTF-8.</strong> This is the single most likely
-            cause of Dhivehi text corrupting somewhere in this app's own pipeline (as opposed to
-            already being corrupted in your source file) &mdash; Java 17 predates Java 18's
-            "UTF-8 by default" change, so on Windows specifically, an unconfigured JVM falls back to
-            the Windows ANSI code page, which has no Thaana support at all. Fix: launch with
-            <code>-Dfile.encoding=UTF-8 -Dsun.jnu.encoding=UTF-8</code> explicitly &mdash; see
-            <code>run.bat</code> in this project, or the README's internationalisation section.
+        <h2 th:text="#{diag.encoding.jvm}">JVM configuration</h2>
+        <div class="callout" th:if="${!looksOk}" style="border-color:#c0392b;" th:utext="#{diag.encoding.notUtf8}">
+            <strong>The JVM's default charset is not UTF-8.</strong>
         </div>
-        <div class="callout" th:if="${looksOk}" style="border-color:#8a4b2f;">
-            <strong>The JVM's default charset is UTF-8.</strong> That specific cause is ruled out; if
-            question marks are still appearing, the corruption most likely already existed in the
-            source spreadsheet before this app read it (see the note above the test string).
+        <div class="callout" th:if="${looksOk}" style="border-color:#8a4b2f;" th:utext="#{diag.encoding.utf8}">
+            <strong>The JVM's default charset is UTF-8.</strong>
         </div>
         <table class="attrs">
-            <tr><td class="prop">Default charset</td><td th:text="${defaultCharset}">?</td></tr>
+            <tr><td class="prop" th:text="#{diag.encoding.defaultCharset}">Default charset</td><td th:text="${defaultCharset}">?</td></tr>
             <tr><td class="prop">file.encoding</td><td th:text="${fileEncoding}">?</td></tr>
             <tr><td class="prop">sun.jnu.encoding</td><td th:text="${sunJnuEncoding}">?</td></tr>
-            <tr><td class="prop">OS</td><td th:text="${osName}">?</td></tr>
-            <tr><td class="prop">Java version</td><td th:text="${javaVersion}">?</td></tr>
+            <tr><td class="prop" th:text="#{diag.encoding.os}">OS</td><td th:text="${osName}">?</td></tr>
+            <tr><td class="prop" th:text="#{diag.encoding.javaVersion}">Java version</td><td th:text="${javaVersion}">?</td></tr>
             <tr><td class="prop">LANG (env)</td><td th:text="${lang}">?</td></tr>
             <tr><td class="prop">LC_ALL (env)</td><td th:text="${lcAll}">?</td></tr>
             <tr><td class="prop">LC_CTYPE (env)</td><td th:text="${lcCtype}">?</td></tr>
         </table>
-        <p class="muted" style="font-size:0.8rem;">
-            If LANG/LC_ALL/LC_CTYPE are all "(not set)", or something like plain <code>C</code> or
-            <code>POSIX</code> (ASCII-only, no Unicode support), that's a locale configuration issue
-            independent of which OS this is running on &mdash; it affects Linux/WSL exactly as much
-            as Windows. <code>C.UTF-8</code> specifically is <strong>not</strong> one of those cases
-            &mdash; it's C-style collation with full UTF-8 character support, a real and correctly
-            Unicode-capable locale often used deliberately in containers and minimal server images.
-            <code>run.sh</code> (Linux/macOS) and <code>run.bat</code> (Windows) force UTF-8
-            explicitly at the JVM level regardless of the surrounding locale, for the (Java 17 and
-            earlier, pre-JEP-400) cases where it matters; on Java 18+ the JVM already defaults to
-            UTF-8 everywhere, so this class of fix has nothing left to do.
+        <p class="muted" style="font-size:0.8rem;" th:utext="#{diag.encoding.locale}">
+            If LANG/LC_ALL/LC_CTYPE are all "(not set)", ...
         </p>
     </div>
 
     <div class="editor-section">
-        <h2>Still seeing question marks with a real upload?</h2>
-        <p class="muted">
-            The test string above only exercises the rendering half of the pipeline &mdash; it
-            never went through file reading at all. If your source file passes this page but still
-            shows question marks after importing it, or if you want to test the exact file that's
-            giving you trouble directly, use the
-            <a th:href="@{/diagnostics/xlsx-test}">XLSX read test</a>: upload the actual file and
-            see precisely what Apache POI extracts from it, before anything else in this app gets
-            involved.
+        <h2 th:text="#{diag.encoding.still}">Still seeing question marks with a real upload?</h2>
+        <p class="muted" th:utext="#{diag.encoding.stillXlsx(@{/diagnostics/xlsx-test})}">
+            The test string above only exercises the rendering half of the pipeline.
         </p>
-        <p class="muted">
-            If <em>that</em> page also renders correctly but a real import still corrupts, the one
-            remaining untested link is Jena/TDB2's own storage round trip &mdash; neither this page
-            nor the XLSX read test actually writes to or reads from the data graph at all. The
-            <a th:href="@{/diagnostics/tdb2-roundtrip}">TDB2 round-trip test</a> writes the same
-            Dhivehi string into the data graph, commits, and reads it back in a genuinely separate
-            request &mdash; the same round trip a real import and a later Catalogue page view go
-            through.
+        <p class="muted" th:utext="#{diag.encoding.stillTdb2(@{/diagnostics/tdb2-roundtrip})}">
+            If that page also renders correctly but a real import still corrupts, ...
         </p>
     </div>
 </main>

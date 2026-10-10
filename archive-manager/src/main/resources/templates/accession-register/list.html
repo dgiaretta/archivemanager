@@ -1,23 +1,23 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Accession Register')}"></head>
+<head th:replace="~{fragments :: head(#{nav.accessionRegister})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <h1>Accession Register</h1>
-    <p class="muted">
+    <h1 th:text="#{nav.accessionRegister}">Accession Register</h1>
+    <p class="muted" th:text="#{register.intro}">
         Every accession (a body of records transferred to NAM at one time from the same source) is
         listed here, open to everyone with no login needed. Each entry links through to its full
         detail -- attributes, who was involved, and every record it covers.
     </p>
     <p>
-        <a class="button button-secondary" th:href="@{/catalogue/upload}">Bulk upload (creates a new accession) &rarr;</a>
+        <a class="button button-secondary" th:href="@{/catalogue/upload}" th:utext="#{register.bulkUpload} + ' &rarr;'">Bulk upload (creates a new accession) &rarr;</a>
         <span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span>
     </p>
 
     <table class="listing">
         <thead>
-        <tr><th>Type</th><th>Description</th><th th:if="${loggedIn}"></th></tr>
+        <tr><th th:text="#{col.type}">Type</th><th th:text="#{col.description}">Description</th><th th:if="${loggedIn}"></th></tr>
         </thead>
         <tbody>
         <tr th:each="a : ${resultPage.items}">
@@ -25,21 +25,21 @@
             <td><a th:href="@{/activities/{id}(id=${a.id})}" th:text="${a.title}">Description</a></td>
             <td th:if="${loggedIn}">
                 <form th:action="@{/accession-register/{id}/delete(id=${a.id})}" method="post" class="inline-form"
-                      onsubmit="return confirm('Delete this accession AND every record it created? This cannot be undone.');">
-                    <button type="submit" class="delete-btn" title="Delete accession and its records">&times;</button>
+                      th:data-confirm="#{register.deleteConfirm}" onsubmit="return confirm(this.dataset.confirm);">
+                    <button type="submit" class="delete-btn" th:title="#{register.deleteTitle}">&times;</button>
                 </form>
             </td>
         </tr>
         </tbody>
     </table>
-    <p th:if="${resultPage.items.isEmpty()}" class="muted">No accessions yet.</p>
+    <p th:if="${resultPage.items.isEmpty()}" class="muted" th:text="#{register.none}">No accessions yet.</p>
     <div th:replace="~{pagination :: pagination(${resultPage}, '/accession-register')}"></div>
 
     <details th:if="${loggedIn}" class="danger-zone">
-        <summary>Advanced</summary>
+        <summary th:text="#{register.advanced}">Advanced</summary>
         <form th:action="@{/accession-register/delete-all}" method="post"
-              onsubmit="return confirm('Delete every record, accession, and OAIS-counterpart resource any import has ever created -- including orphaned records left behind by an accession already deleted the old way. This cannot be undone.');">
-            <button type="submit" class="danger-link">Delete ALL catalogue import data</button>
+              th:data-confirm="#{register.deleteAllConfirm}" onsubmit="return confirm(this.dataset.confirm);">
+            <button type="submit" class="danger-link" th:text="#{register.deleteAll}">Delete ALL catalogue import data</button>
         </form>
     </details>
 </main>

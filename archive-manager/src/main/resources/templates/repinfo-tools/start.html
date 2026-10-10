@@ -1,109 +1,96 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('RepInfo Tools')}"></head>
+<head th:replace="~{fragments :: head(#{nav.repinfoTools})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <h1>RepInfo Tools</h1>
-    <p class="muted">
-        Build a Kaitai Struct (.ksy), DFDL (.dfdl.xsd), DRB (SDF schema or drb-python driver) and/or EAST (.east) description for a
-        scientific data format, and give each field a semantic name, a definition, and units --
-        then save it into the archive as real OAIS Representation Information: Structure
-        Representation Information for the byte/logical layout, and Semantic Representation
-        Information, one individual per field, for what each one means.
+    <h1 th:text="#{nav.repinfoTools}">RepInfo Tools</h1>
+    <p class="muted" th:text="#{start.intro}">
+        Build a Kaitai Struct (.ksy), DFDL (.dfdl.xsd), DRB (SDF schema or drb-python driver) and/or EAST (.east)
+        description for a scientific data format, and give each field a semantic name, a definition, and units.
     </p>
 
     <div class="callout" th:if="${hasDraft}">
-        <strong>You have a description in progress.</strong>
+        <strong th:text="#{start.inProgress}">You have a description in progress.</strong>
         <p>
-            <a class="button" th:href="@{/repinfo-tools/edit}">Resume editing &rarr;</a>
+            <a class="button" th:href="@{/repinfo-tools/edit}" th:utext="#{start.resume} + ' &rarr;'">Resume editing &rarr;</a>
             <form th:action="@{/repinfo-tools/discard}" method="post" style="display:inline;"
-                  onsubmit="return confirm('Discard the in-progress description? This cannot be undone.');">
-                <button type="submit" class="button-secondary">Discard it</button>
+                  th:data-confirm="#{start.discardConfirm}" onsubmit="return confirm(this.dataset.confirm);">
+                <button type="submit" class="button-secondary" th:text="#{start.discard}">Discard it</button>
             </form>
         </p>
     </div>
 
-    <h2>Start from a template</h2>
+    <h2 th:text="#{start.fromTemplate}">Start from a template</h2>
     <div class="repinfo-template-grid">
+        <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
+            <input type="hidden" name="template" value="csv"/>
+            <h3 th:text="#{start.csv}">CSV table</h3>
+            <p class="muted" th:text="#{start.csv.note}">
+                Delimited text: one comma-separated reading per line to the end of the file,
+                with units, a scale factor, a valid range and a fill value on its columns.
+            </p>
+            <button type="submit" th:utext="#{start.csv.action} + ' &rarr;'">Start from CSV example &rarr;</button>
+        </form>
         <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
             <input type="hidden" name="template" value="fits"/>
             <h3>FITS</h3>
-            <p class="muted">
+            <p class="muted" th:text="#{start.fits.note}">
                 Primary header + data unit, pre-populated with the FITS Standard's required
                 keyword cards (SIMPLE, BITPIX, NAXIS...) and their real meanings.
             </p>
-            <button type="submit">Start from FITS &rarr;</button>
+            <button type="submit" th:utext="#{start.fits.action} + ' &rarr;'">Start from FITS &rarr;</button>
         </form>
         <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
             <input type="hidden" name="template" value="hdf5"/>
             <h3>HDF5</h3>
-            <p class="muted">
+            <p class="muted" th:text="#{start.hdf5.note}">
                 A worked-example logical schema (group/dataset/attribute) to replace with your
                 own tree -- HDF5 has no fixed universal layout to template byte-for-byte.
             </p>
-            <button type="submit">Start from HDF5 example &rarr;</button>
+            <button type="submit" th:utext="#{start.hdf5.action} + ' &rarr;'">Start from HDF5 example &rarr;</button>
         </form>
         <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
             <input type="hidden" name="template" value="telemetry"/>
-            <h3>Telemetry packets</h3>
-            <p class="muted">
+            <h3 th:text="#{start.telemetry}">Telemetry packets</h3>
+            <p class="muted" th:text="#{start.telemetry.note}">
                 A worked binary example using counts, a choice on a packet type, a length-prefixed
                 message, a conditional checksum, and scaled values with units and code lists.
             </p>
-            <button type="submit">Start from telemetry example &rarr;</button>
-        </form>
-        <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
-            <input type="hidden" name="template" value="csv"/>
-            <h3>CSV table</h3>
-            <p class="muted">
-                Delimited text: one comma-separated reading per line to the end of the file,
-                with units, a scale factor, a valid range and a fill value on its columns.
-            </p>
-            <button type="submit">Start from CSV example &rarr;</button>
+            <button type="submit" th:utext="#{start.telemetry.action} + ' &rarr;'">Start from telemetry example &rarr;</button>
         </form>
     </div>
 
-    <h2 id="fits">Or describe a FITS file from its headers</h2>
-    <p class="muted">
-        A FITS file describes itself: its headers say what each HDU holds. Its headers become a description of
-        that file in particular &mdash; each header a record of its keyword records, each pointing to the keyword's
-        meaning in the FITS keyword dictionary (FITS Standard 4.0); each image as rows of pixels, typed by BITPIX,
-        with BUNIT, BSCALE, BZERO and BLANK as their units, scale, offset and fill value; each table's columns
-        typed by TFORMn and named by TTYPEn, with TUNITn, TSCALn, TZEROn, TNULLn, TLMINn and TLMAXn. Then the
-        archive can decode it, show its table and image, and say what its columns mean. Only the headers are read.
-        A Data Object whose Representation Information says it's FITS can be described the same way from its page.
+    <h2 id="fits" th:text="#{start.fitsHeaders}">Or describe a FITS file from its headers</h2>
+    <p class="muted" th:text="#{start.fitsHeaders.note}">
+        A FITS file describes itself: its headers say what each HDU holds.
     </p>
     <div class="notice error" th:if="${fitsError}">
-        <strong>The FITS file couldn't be described.</strong> <span th:text="${fitsError}">...</span>
+        <strong th:text="#{start.fitsError}">The FITS file couldn't be described.</strong> <span th:text="${fitsError}">...</span>
     </div>
     <form th:action="@{/repinfo-tools/start-fits}" method="post" enctype="multipart/form-data" class="form">
-        <label>FITS file <input type="file" name="file" accept=".fits,.fit,.fts"/></label>
-        <button type="submit">Describe it from its headers &rarr;</button>
+        <label><span th:text="#{start.fitsFile}">FITS file</span> <input type="file" name="file" accept=".fits,.fit,.fts"/></label>
+        <button type="submit" th:utext="#{start.fitsHeaders.action} + ' &rarr;'">Describe it from its headers &rarr;</button>
     </form>
 
-    <h2 id="east">Or read a description in EAST</h2>
-    <p class="muted">
-        A Data Description Record in the CCSDS data description language EAST (CCSDS 644.0-B-3): its logical
-        package and its physical package. It's kept as written, and tested with the EAST interpreter. Its records,
-        arrays, enumerations and variants also become the element tree, with each enumeration's literals as the
-        meanings of its codes, so Kaitai Struct, DFDL and DRB descriptions can be generated from it and tested
-        against sample data too - when the tree can express it; if not, it's kept as EAST only.
+    <h2 id="east" th:text="#{start.east}">Or read a description in EAST</h2>
+    <p class="muted" th:text="#{start.east.note}">
+        A Data Description Record in the CCSDS data description language EAST (CCSDS 644.0-B-3).
     </p>
     <div class="notice error" th:if="${eastError}">
-        <strong>The EAST description couldn't be read.</strong> <span th:text="${eastError}">Line 3: ...</span>
+        <strong th:text="#{start.eastError}">The EAST description couldn't be read.</strong> <span th:text="${eastError}">Line 3: ...</span>
     </div>
     <form th:action="@{/repinfo-tools/start-east}" method="post" enctype="multipart/form-data" class="form">
-        <label>EAST file <input type="file" name="file" accept=".east,.ddr,.txt,.ads"/></label>
-        <label>or paste it
+        <label><span th:text="#{start.eastFile}">EAST file</span> <input type="file" name="file" accept=".east,.ddr,.txt,.ads"/></label>
+        <label><span th:text="#{start.orPaste}">or paste it</span>
             <textarea name="text" rows="8" class="code-input" spellcheck="false"
                       th:text="${eastText}" placeholder="package MY_DATA is ... end MY_DATA;&#10;package MY_DATA_PHYSICAL is ... end MY_DATA_PHYSICAL;"></textarea>
         </label>
-        <button type="submit">Read the EAST description &rarr;</button>
+        <button type="submit" th:utext="#{start.east.action} + ' &rarr;'">Read the EAST description &rarr;</button>
     </form>
 
-    <h2>Or write a description by hand</h2>
-    <p class="muted">
+    <h2 th:text="#{start.byHand}">Or write a description by hand</h2>
+    <p class="muted" th:text="#{start.byHand.note}">
         In an engine's own language, for what the editor's element tree can't express: checksums,
         encryption, other compression, records over several lines, and anything else the language
         can do. You can add an element tree later for the meanings.
@@ -112,77 +99,72 @@
         <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
             <input type="hidden" name="template" value="hand-dfdl"/>
             <h3>DFDL</h3>
-            <p class="muted">Checks with assertions, gzip and base64 layers, delimited and multi-line text.</p>
-            <button type="submit">Write DFDL &rarr;</button>
-        </form>
-        <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
-            <input type="hidden" name="template" value="hand-kaitai"/>
-            <h3>Kaitai Struct</h3>
-            <p class="muted">Magic numbers and value checks, XOR/rotate decryption, zlib, seeking.</p>
-            <button type="submit">Write Kaitai Struct &rarr;</button>
+            <p class="muted" th:text="#{start.byHand.dfdl}">Checks with assertions, gzip and base64 layers, delimited and multi-line text.</p>
+            <button type="submit" th:utext="#{start.byHand.write('DFDL')} + ' &rarr;'">Write DFDL &rarr;</button>
         </form>
         <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
             <input type="hidden" name="template" value="hand-drb"/>
-            <h3>DRB SDF schema</h3>
-            <p class="muted">Binary and delimited text for GAEL's Java DRB.</p>
-            <button type="submit">Write a DRB schema &rarr;</button>
+            <h3 th:text="#{start.byHand.drbTitle}">DRB SDF schema</h3>
+            <p class="muted" th:text="#{start.byHand.drb}">Binary and delimited text for GAEL's Java DRB.</p>
+            <button type="submit" th:utext="#{start.byHand.drbAction} + ' &rarr;'">Write a DRB schema &rarr;</button>
         </form>
         <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
             <input type="hidden" name="template" value="hand-east"/>
             <h3>EAST</h3>
-            <p class="muted">CCSDS 644.0-B-3: markers, VAX, 1750A and IBM reals, integers in pieces.</p>
-            <button type="submit">Write EAST &rarr;</button>
+            <p class="muted" th:text="#{start.byHand.east}">CCSDS 644.0-B-3: markers, VAX, 1750A and IBM reals, integers in pieces.</p>
+            <button type="submit" th:utext="#{start.byHand.write('EAST')} + ' &rarr;'">Write EAST &rarr;</button>
+        </form>
+        <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
+            <input type="hidden" name="template" value="hand-kaitai"/>
+            <h3>Kaitai Struct</h3>
+            <p class="muted" th:text="#{start.byHand.kaitai}">Magic numbers and value checks, XOR/rotate decryption, zlib, seeking.</p>
+            <button type="submit" th:utext="#{start.byHand.write('Kaitai Struct')} + ' &rarr;'">Write Kaitai Struct &rarr;</button>
         </form>
     </div>
 
-    <h2>Or describe data whose format is already known</h2>
-    <p class="muted">
+    <h2 th:text="#{start.known}">Or describe data whose format is already known</h2>
+    <p class="muted" th:text="#{start.known.note}">
         For a spreadsheet or delimited text, whose structure is defined by a published specification
-        and which software already reads: describe only what each column means. It's saved as
-        Semantic Representation Information, used together with a format profile (Structure
-        Representation Information) and the software that reads the format (Other Representation
-        Information: any one of several applications), or with Representation Information already in
-        the archive.
+        and which software already reads: describe only what each column means.
     </p>
     <div class="callout" th:if="${hasKnownDraft}">
-        <strong>You have a known-format description in progress.</strong>
-        <p><a class="button" th:href="@{/repinfo-tools/known}">Resume editing &rarr;</a></p>
+        <strong th:text="#{start.known.inProgress}">You have a known-format description in progress.</strong>
+        <p><a class="button" th:href="@{/repinfo-tools/known}" th:utext="#{start.resume} + ' &rarr;'">Resume editing &rarr;</a></p>
     </div>
     <div class="repinfo-template-grid">
         <form th:each="f : ${knownFormats}" th:action="@{/repinfo-tools/known/start}" method="post"
               class="repinfo-template-card">
             <input type="hidden" name="format" th:value="${f.key()}"/>
-            <h3 th:text="${f.label()}">Excel workbook (.xlsx)</h3>
+            <h3 th:text="${@labels.of('format', f.label())}">Excel workbook (.xlsx)</h3>
             <p class="muted">
-                <span th:text="${f.registryId()}">PRONOM fmt/214</span>, read by
-                <span th:text="${#strings.listJoin(f.software().![label()], ' or ')}">Microsoft Excel</span>.
-                <span th:if="${f.readable()}">Columns can be taken from a sample file, and tested against one.</span>
+                <span th:text="#{start.known.readBy(${f.registryId()}, ${#strings.listJoin(f.software().![@labels.of('software', label())], ' / ')})}">PRONOM fmt/214, read by Microsoft Excel.</span>
+                <span th:if="${f.readable()}" th:text="#{start.known.readable}">Columns can be taken from a sample file, and tested against one.</span>
             </p>
-            <button type="submit">Describe its columns &rarr;</button>
+            <button type="submit" th:utext="#{start.known.action} + ' &rarr;'">Describe its columns &rarr;</button>
         </form>
     </div>
 
-    <h2>Or start blank</h2>
+    <h2 th:text="#{start.blank}">Or start blank</h2>
     <div class="repinfo-template-grid">
         <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
             <input type="hidden" name="template" value="blank-byte"/>
-            <h3>Byte-layout format</h3>
-            <p class="muted">
+            <h3 th:text="#{start.blank.byte}">Byte-layout format</h3>
+            <p class="muted" th:text="#{start.blank.byte.note}">
                 A sequential binary format (like FITS): define fields in file order, each with a
                 type, length, byte order, semantic name, definition, and units. Generates Kaitai,
                 DFDL, and DRB.
             </p>
-            <button type="submit">Start blank &rarr;</button>
+            <button type="submit" th:utext="#{start.blank.action} + ' &rarr;'">Start blank &rarr;</button>
         </form>
         <form th:action="@{/repinfo-tools/start}" method="post" class="repinfo-template-card">
             <input type="hidden" name="template" value="blank-logical"/>
-            <h3>Logical schema (HDF5-style)</h3>
-            <p class="muted">
+            <h3 th:text="#{start.blank.logical}">Logical schema (HDF5-style)</h3>
+            <p class="muted" th:text="#{start.blank.logical.note}">
                 A self-describing container's group/dataset/attribute tree: define the shape,
                 semantic name, definition, and units of each part. Generates DRB and semantic
                 documentation, not Kaitai/DFDL.
             </p>
-            <button type="submit">Start blank &rarr;</button>
+            <button type="submit" th:utext="#{start.blank.action} + ' &rarr;'">Start blank &rarr;</button>
         </form>
     </div>
 </main>

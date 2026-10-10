@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Agents')}"></head>
+<head th:replace="~{fragments :: head(#{nav.agents})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <h1>Agents</h1>
+    <h1 th:text="#{nav.agents}">Agents</h1>
     <p><span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span></p>
     <table class="listing">
-        <thead><tr><th>Type</th><th>Name</th></tr></thead>
+        <thead><tr><th th:text="#{col.type}">Type</th><th th:text="#{col.name}">Name</th></tr></thead>
         <tbody>
         <tr th:each="a : ${resultPage.items}">
             <td><span class="pill" th:text="${a.typeLocalName}">Type</span></td>

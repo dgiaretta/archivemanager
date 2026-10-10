@@ -27,6 +27,13 @@ server:
 spring:
   application:
     name: archive-manager
+  messages:
+    # The interface's text: i18n/messages.properties (English, the default) and
+    # i18n/messages_pt.properties (Brazilian Portuguese). A language without its
+    # own file -- French, Spanish, German, Dhivehi -- falls back to English.
+    basename: i18n/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
   thymeleaf:
     cache: false
     encoding: UTF-8

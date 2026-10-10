@@ -1,5 +1,6 @@
 package info.oais.archive.manager.web;
 
+import info.oais.archive.manager.i18n.LanguagePreference;
 import org.commonmark.parser.Parser;
 import org.commonmark.renderer.html.HtmlRenderer;
 import org.springframework.core.io.ClassPathResource;
@@ -15,6 +16,12 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+/**
+ * The Help page and the structure adapters' notes, in the interface's
+ * language: Help is long prose, so each language has a page of its own
+ * ({@code help.html}, {@code help_pt.html}) rather than messages; so do the
+ * adapters' READMEs ({@code README-DFDL.md}, {@code README-DFDL.pt.md}).
+ */
 @Controller
 public class HelpController {
 
@@ -32,10 +39,15 @@ public class HelpController {
     // Our own bundled files, but escaped anyway: nothing in them needs raw HTML.
     private final Parser markdown = Parser.builder().build();
     private final HtmlRenderer html = HtmlRenderer.builder().escapeHtml(true).build();
+    private final LanguagePreference languages;
+
+    public HelpController(LanguagePreference languages) {
+        this.languages = languages;
+    }
 
     @GetMapping("/help")
     public String help() {
-        return "help";
+        return "pt".equals(languages.current()) ? "help_pt" : "help";
     }
 
     /** Renders one structure adapter's README (e.g. {@code /help/engines/dfdl}) as a page. */
@@ -45,8 +57,13 @@ public class HelpController {
         if (title == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         }
+        String base = "docs/engines/README-" + engine.toUpperCase();
+        ClassPathResource readme = new ClassPathResource(base + ".pt.md");
+        if (!"pt".equals(languages.current()) || !readme.exists()) {
+            readme = new ClassPathResource(base + ".md");
+        }
         String text;
-        try (InputStream in = new ClassPathResource("docs/engines/README-" + engine.toUpperCase() + ".md").getInputStream()) {
+        try (InputStream in = readme.getInputStream()) {
             text = new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
         model.addAttribute("title", title);

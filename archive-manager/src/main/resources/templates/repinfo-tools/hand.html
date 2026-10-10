@@ -1,42 +1,34 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Write by hand')}"></head>
+<head th:replace="~{fragments :: head(#{hand.title})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
     <p class="breadcrumb">
-        <a th:href="@{/repinfo-tools/edit}">&larr; Back to editor</a> &middot;
-        <a th:href="@{/repinfo-tools/preview}">Preview</a>
+        <a th:href="@{/repinfo-tools/edit}" th:utext="'&larr; ' + #{repinfo.backToEditor}">&larr; Back to editor</a> &middot;
+        <a th:href="@{/repinfo-tools/preview}" th:text="#{repinfo.preview}">Preview</a>
     </p>
-    <h1 th:text="${def.name + ': ' + (addIn ? language.label() + ' add-in' : language.label() + ' by hand')}">Format: DFDL by hand</h1>
+    <h1 th:text="${addIn} ? #{hand.headingAddIn(${def.name}, ${language.label()})} : #{hand.heading(${def.name}, ${language.label()})}">Format: DFDL by hand</h1>
 
     <section class="editor-section" th:if="${addIn}">
-        <p>
+        <p th:text="#{hand.addIn.intro}">
             Write Python code for the generated drb-python driver to call, for what the element tree
-            can't express. The driver still reads the element tree; the add-in plugs in around it,
-            through any of these functions:
+            can't express.
         </p>
         <ul>
-            <li><code>prepare(data)</code> &mdash; gets the file's bytes before they're read, and returns
-                the bytes to read: decrypt or decompress them here.</li>
-            <li><code>check(root)</code> &mdash; after decoding: returns a list of problems (checksums,
-                CRCs, cross-checks), added to what the <code>checks</code> add-on reports.</li>
-            <li><code>metadata(root)</code> &mdash; returns a dict merged into what the
-                <code>metadata</code> add-on returns.</li>
-            <li><code>restore(data)</code> &mdash; when the file is written back: undoes
-                <code>prepare()</code> (e.g. encrypts again), returning the bytes to write.</li>
+            <li th:utext="#{hand.addIn.prepare}"><code>prepare(data)</code></li>
+            <li th:utext="#{hand.addIn.check}"><code>check(root)</code></li>
+            <li th:utext="#{hand.addIn.metadata}"><code>metadata(root)</code></li>
+            <li th:utext="#{hand.addIn.restore}"><code>restore(data)</code></li>
         </ul>
-        <p>
-            <code>root.original_bytes</code> are the file's bytes, <code>root.decoded_bytes</code> what
-            <code>prepare()</code> returned, and <code>root</code>'s children the decoded elements. The
-            add-in is <code>addin.py</code> in the downloaded package, and is saved to the archive with
-            the driver.
+        <p th:utext="#{hand.addIn.root}">
+            <code>root.original_bytes</code> are the file's bytes.
         </p>
         <p class="notice">
-            An add-in is Python code, which runs with the full rights of whoever uses the driver.
-            It's checked to be valid Python, but it can't be checked to be safe.
-            <span th:if="${runsAddIns}">This server runs add-ins in sample tests.</span>
-            <span th:unless="${runsAddIns}">This server doesn't run add-ins in sample tests
+            <span th:text="#{hand.addIn.risk}">An add-in is Python code, which runs with the full rights of whoever uses the driver.
+            It's checked to be valid Python, but it can't be checked to be safe.</span>
+            <span th:if="${runsAddIns}" th:text="#{hand.addIn.runs}">This server runs add-ins in sample tests.</span>
+            <span th:unless="${runsAddIns}" th:utext="#{hand.addIn.doesNotRun}">This server doesn't run add-ins in sample tests
                 (<code>archive.drb-python.run-hand-written-add-ins</code>), so test the downloaded
                 package elsewhere.</span>
         </p>
@@ -46,24 +38,13 @@
     </section>
 
     <section class="editor-section" th:unless="${addIn}">
-        <p>
-            Write the <span th:text="${language.label()}">DFDL</span> description yourself, for what the
-            editor's element tree can't express &mdash; checksums, encryption, other compression,
-            records spread over several lines, and anything else the language can do. Once saved, it
-            replaces the generated description in the preview, the sample test, the download and
-            when saving to the archive. The element tree still provides the meanings (semantic
-            names, units, codes) saved as Semantic Representation Information, but a sample test of
-            a hand-written description shows the engine's own tree rather than lining it up with
-            the element tree.
+        <p th:text="#{hand.intro(${language.label()})}">
+            Write the DFDL description yourself, for what the editor's element tree can't express.
         </p>
-        <p class="muted">
-            A sample test runs the description inside this application, so it's checked first: no
-            DOCTYPE or files included from elsewhere (DFDL may include Daffodil's own built-in
-            schemas); for Kaitai Struct, no <code>imports</code> or custom <code>process:</code>
-            routines (zlib, xor, rol and ror are built in); for DRB, no queries calling Java or
-            reading files.
+        <p class="muted" th:utext="#{hand.checked}">
+            A sample test runs the description inside this application, so it's checked first.
         </p>
-        <p class="notice" th:if="${outOfDate}">
+        <p class="notice" th:if="${outOfDate}" th:text="#{hand.outOfDate}">
             The element tree has changed since this was written, so what it generates now is
             different. Check whether the hand-written description needs the same change.
         </p>
@@ -75,26 +56,26 @@
     <section class="editor-section">
         <form th:action="@{/repinfo-tools/hand/{l}(l=${languagePath})}" method="post" class="form">
             <label>
-                <span th:text="${addIn ? 'addin.py' : language.label() + ' description'}">DFDL description</span>
+                <span th:text="${addIn} ? 'addin.py' : #{hand.description(${language.label()})}">DFDL description</span>
                 <textarea name="text" rows="30" class="code-input" spellcheck="false" th:text="${text}"></textarea>
             </label>
-            <button type="submit">Save and preview</button>
+            <button type="submit" th:text="#{hand.save}">Save and preview</button>
         </form>
         <form th:if="${isHandWritten}" th:action="@{/repinfo-tools/hand/{l}/revert(l=${languagePath})}" method="post"
               class="form">
             <button type="submit" class="delete-btn"
-                    th:text="${addIn ? 'Remove the add-in' : 'Discard the hand-written version, use the generated one'}">Discard</button>
+                    th:text="${addIn} ? #{hand.removeAddIn} : #{hand.discard}">Discard</button>
         </form>
     </section>
 
     <section class="editor-section" th:if="${!examples.isEmpty()}">
-        <h2>Examples</h2>
-        <p class="muted">Each has been run on sample data by this application's tests.</p>
+        <h2 th:text="#{hand.examples}">Examples</h2>
+        <p class="muted" th:text="#{hand.examplesNote}">Each has been run on sample data by this application's tests.</p>
         <details th:each="e : ${examples}">
             <summary th:text="${e.title()}">Example</summary>
             <p th:text="${e.explanation()}">explanation</p>
-            <p><a th:href="@{/repinfo-tools/hand/{l}(l=${languagePath},example=${e.id()})}">Load this example into the editor</a>
-                (replaces the text above until you save)</p>
+            <p><a th:href="@{/repinfo-tools/hand/{l}(l=${languagePath},example=${e.id()})}" th:text="#{hand.loadExample}">Load this example into the editor</a>
+                <span th:text="#{hand.loadExampleNote}">(replaces the text above until you save)</span></p>
             <pre class="sparql" th:text="${e.text()}">...</pre>
         </details>
     </section>

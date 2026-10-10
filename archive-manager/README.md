@@ -1629,7 +1629,7 @@ English, then an untagged label, then whatever's available.
 
 The current language is a per-**session** preference (`LanguagePreference`,
 session-key `preferredLanguage`, default English), switchable from a small
-EN / FR / ES / DE / DV control in the top nav (`GET /language/{lang}`, a
+DE / DV / EN / ES / FR / PT control in the top nav (`GET /language/{lang}`, a
 plain link-driven GET since it only changes a display preference, not
 archive data, redirecting back via the Referer header rather than a
 passed-through URL parameter). It's read via `RequestContextHolder` rather
@@ -1642,9 +1642,9 @@ anything running outside an HTTP request (startup-time ontology queries in
 particular) has no session to read and falls back to English rather than
 throwing.
 
-This only affects **labels** -- the dropdown's underlying `rico:`/`im:`
+For the ontology, this only affects **labels** -- the dropdown's underlying `rico:`/`im:`
 IRIs and the bundled OAIS/stub schema (which only ever has untagged English
-labels) are unaffected either way; the language switcher only matters once
+labels) are unaffected either way; the language switcher only matters for them once
 the real, multilingual RiC-O file is loaded. **Dhivehi (DV) is listed but
 currently inert**: the mechanism is fully generic (any language code
 works, not a hard-coded set), but none of this project's bundled ontology
@@ -1655,6 +1655,49 @@ English rather than erroring; the moment real `rdfs:label ...@dv` triples
 exist anywhere in the ontology graph, it starts working immediately, no
 code changes needed. This is entirely separate from whether *catalogue
 data itself* can be in Dhivehi, covered next -- it already fully can.
+
+### The interface in English and Brazilian Portuguese
+
+The interface's own text -- every page's titles, labels, buttons, prompts,
+messages and explanations, and the scripts' text -- is in Spring message
+bundles: `src/main/resources/i18n/messages.properties` (English, the
+default) and `messages_pt.properties` (Brazilian Portuguese, pt-BR). The
+session's language picks the bundle (`WebConfig.localeResolver`: `pt` is
+`pt-BR`); French, Spanish, German and Dhivehi have no bundle of their own,
+so they show the interface in English and use their language for the
+ontology's labels. Templates use `#{key}` (`th:utext` where a message holds
+markup, with links passed as arguments, e.g. `#{statistics.intro(@{/graph})}`,
+so the context path still applies); controllers use `Messages.get(key,
+args...)`; the pages' scripts get the messages whose keys start with `js.`
+as `window.I18N`, through `i18n('key', args...)` (defined in the footer
+fragment, `GlobalModelAttributes.jsMessages`). A message with arguments is a
+`MessageFormat` pattern, so its apostrophes are doubled (`''`); one without
+is used as written. Fixed English labels that services also write into
+files -- an AIP component's name, requirement and status, a package
+finding's note, a Transformation check's outcome, a known format's name --
+stay English in the services and are translated on the page by the `labels`
+bean (`${@labels.of('aip', p.name())}`), which looks up a key made from the
+English (`aip.content_information`) and shows the English when there's
+none. The Help page is long prose, so it's a page per language
+(`help.html`, `help_pt.html`), as are the engines' notes
+(`README-DFDL.md`, `README-DFDL.pt.md`, ... in each `oais-structure-*`
+module, bundled into the jar). `I18nTest` checks that both bundles have the
+same keys and that every page renders with no missing message in either
+language.
+
+What stays in English: the archive's data (titles, descriptions, labels,
+the starter templates' example content, which becomes the user's own
+description), the ontologies' labels where they have no Portuguese, and
+diagnostics from the engines and validators (Daffodil, Kaitai Struct, DRB,
+EAST, the description validator), which are passed on as they come.
+
+**Lists are in alphabetical order** where the order means nothing else --
+entities, records, agents, mandates and events (by title, ignoring case,
+across pages), a resource's properties and links, the viewers, type and
+property pickers, the RepInfo Tools templates, formats and languages --
+using `Alphabetical` (a `Collator` ignoring case but not accents, empty
+text last). Lists whose order is information stay as they are: a format's
+elements in data order, counts by size, years by date.
 
 ## Internationalisation and Dhivehi (Thaana script) support
 

@@ -1,49 +1,49 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('New record')}"></head>
+<head th:replace="~{fragments :: head(#{records.new})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <p class="breadcrumb"><a th:href="@{/records}">&larr; Records</a></p>
-    <h1>New record</h1>
+    <p class="breadcrumb"><a th:href="@{/records}" th:utext="'&larr; ' + #{nav.records}">&larr; Records</a></p>
+    <h1 th:text="#{records.new}">New record</h1>
 
     <form th:action="@{/records}" method="post" class="form">
         <label>
-            Type
+            <span th:text="#{col.type}">Type</span>
             <select name="type" required>
-                <option value="Record">Record</option>
-                <option value="RecordPart">Record Part</option>
-                <option value="RecordSet">Record Set</option>
+                <option value="Record" th:text="#{records.type.record}">Record</option>
+                <option value="RecordPart" th:text="#{records.type.recordPart}">Record Part</option>
+                <option value="RecordSet" th:text="#{records.type.recordSet}">Record Set</option>
             </select>
         </label>
 
         <label>
-            Title
-            <input type="text" name="title" required placeholder="e.g. Minute book of the Harbour Commissioners"/>
+            <span th:text="#{col.title}">Title</span>
+            <input type="text" name="title" required th:placeholder="#{records.form.titleExample}"/>
         </label>
 
         <label>
-            Description
+            <span th:text="#{col.description}">Description</span>
             <textarea name="description" rows="4" placeholder="rico:generalDescription"></textarea>
         </label>
 
         <label>
-            Creator (rico:hasCreator)
+            <span th:text="#{records.form.creator}">Creator (rico:hasCreator)</span>
             <select name="creatorId">
-                <option value="">-- none --</option>
+                <option value="" th:text="#{option.none}">-- none --</option>
                 <option th:each="ag : ${agents}" th:value="${ag.id}" th:text="${ag.title}">Agent</option>
             </select>
         </label>
 
         <label>
-            Part of (rico:hasOrHadConstituent, from the parent to this record)
+            <span th:text="#{records.form.partOf}">Part of (rico:hasOrHadConstituent, from the parent to this record)</span>
             <select name="parentId">
-                <option value="">-- none --</option>
+                <option value="" th:text="#{option.none}">-- none --</option>
                 <option th:each="rs : ${recordSets}" th:value="${rs.id}" th:text="${rs.title}">Record Set</option>
             </select>
         </label>
 
-        <button type="submit">Create</button>
+        <button type="submit" th:text="#{action.create}">Create</button>
     </form>
 </main>
 <div th:replace="~{fragments :: footer}"></div>

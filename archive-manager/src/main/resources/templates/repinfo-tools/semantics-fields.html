@@ -4,55 +4,55 @@
 <!-- The "Meaning" inputs, shared by the element editor (edit.html) and the column editor (known.html).
      sem: anything with the SemanticsForm accessors; values: whether to offer units, codes, scale, fill and range. -->
     <fieldset th:fragment="semanticsFields(sem, values)">
-        <legend>Meaning (Semantic Representation Information)</legend>
+        <legend th:text="#{sem.legend}">Meaning (Semantic Representation Information)</legend>
         <label>
-            Semantic name (what it represents, e.g. "Temperature")
+            <span th:text="#{sem.name}">Semantic name (what it represents, e.g. "Temperature")</span>
             <input type="text" name="semanticName" th:value="${sem.semanticName}"/>
         </label>
         <label>
-            Definition
+            <span th:text="#{sem.definition}">Definition</span>
             <textarea name="definition" rows="3" th:text="${sem.definition}"></textarea>
         </label>
         <th:block th:if="${values}">
             <label>
-                Units (e.g. "K", "hPa")
+                <span th:text="#{sem.units}">Units (e.g. "K", "hPa")</span>
                 <input type="text" name="units" th:value="${sem.units}"/>
             </label>
             <label>
-                Units in a vocabulary (optional link, e.g. a QUDT unit)
+                <span th:text="#{sem.unitsUri}">Units in a vocabulary (optional link, e.g. a QUDT unit)</span>
                 <input type="url" name="unitsUri" th:value="${sem.unitsUri}" placeholder="https://qudt.org/vocab/unit/K"/>
             </label>
             <label>
-                Coded values, one per line as <code>value = meaning</code>
-                <textarea name="codes" rows="3" th:text="${sem.codes}" placeholder="1 = housekeeping&#10;2 = science"></textarea>
+                <span th:utext="#{sem.codes}">Coded values, one per line as <code>value = meaning</code></span>
+                <textarea name="codes" rows="3" th:text="${sem.codes}" th:placeholder="#{sem.codesExample}"></textarea>
             </label>
             <div class="form-row">
                 <label>
-                    Scale (physical value = raw &times; scale + offset)
+                    <span th:utext="#{sem.scale}">Scale (physical value = raw &times; scale + offset)</span>
                     <input type="text" name="scale" th:value="${sem.scale}" placeholder="1"/>
                 </label>
                 <label>
-                    Offset
+                    <span th:text="#{sem.offset}">Offset</span>
                     <input type="text" name="offset" th:value="${sem.offset}" placeholder="0"/>
                 </label>
             </div>
             <label>
-                Fill value (the raw value meaning "no data")
+                <span th:text="#{sem.fill}">Fill value (the raw value meaning "no data")</span>
                 <input type="text" name="fillValue" th:value="${sem.fillValue}"/>
             </label>
             <div class="form-row">
                 <label>
-                    Smallest valid value
+                    <span th:text="#{sem.validMin}">Smallest valid value</span>
                     <input type="text" name="validMin" th:value="${sem.validMin}"/>
                 </label>
                 <label>
-                    Largest valid value
+                    <span th:text="#{sem.validMax}">Largest valid value</span>
                     <input type="text" name="validMax" th:value="${sem.validMax}"/>
                 </label>
             </div>
         </th:block>
         <label>
-            Concept in a vocabulary or ontology (optional link)
+            <span th:text="#{sem.concept}">Concept in a vocabulary or ontology (optional link)</span>
             <input type="url" name="conceptUri" th:value="${sem.conceptUri}"/>
         </label>
     </fieldset>

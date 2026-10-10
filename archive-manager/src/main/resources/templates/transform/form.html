@@ -1,42 +1,36 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Transform ' + ${title})}"></head>
+<head th:replace="~{fragments :: head(#{transform.title(${title})})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
     <p class="breadcrumb"><a th:href="@{/resource/{id}(id=${id})}" th:text="'← ' + ${title}">&larr; Data Object</a></p>
-    <h1>Transform <span th:text="${title}">Data Object</span></h1>
-    <p class="muted">
-        A Transformation rewrites this Data Object in another format &mdash; here, by mapping it to a format
-        described in the archive, or <a href="#external">with another application</a>. Here, it is decoded with its own
-        Representation Information, each element of the new format is made from its elements as you say
-        below, and the result is written with the new format's DFDL description. The new data is then
-        decoded again with that description to check each Transformation Information Property. Doing it
-        keeps the new data in the archive and records a new Data Object, in an AIP Version whose
-        Provenance Information records the Transformation &mdash; this Data Object is left as it is.
+    <h1 th:text="#{transform.title(${title})}">Transform Data Object</h1>
+    <p class="muted" th:utext="#{transform.intro}">
+        A Transformation rewrites this Data Object in another format.
     </p>
     <p class="notice error" th:if="${error != null}" th:text="${error}">Problem.</p>
-    <p class="notice error" th:if="${transformable != null and !transformable}">
+    <p class="notice error" th:if="${transformable != null and !transformable}" th:text="#{transform.notTransformable}">
         This Data Object can't be transformed: its bits need a storage location, and its Representation
         Information a DFDL, DRB SDF or Kaitai Struct description to decode them with.
     </p>
 
     <section class="editor-section">
-        <h2>The new format</h2>
+        <h2 th:text="#{transform.newFormat}">The new format</h2>
         <form th:action="@{/transform/{id}(id=${id})}" method="get" class="form">
             <label>
-                Transform it into
+                <span th:text="#{transform.into}">Transform it into</span>
                 <select name="target" required>
-                    <option value="">Choose a format&hellip;</option>
+                    <option value="" th:utext="#{transform.chooseFormat} + '&hellip;'">Choose a format&hellip;</option>
                     <option th:each="t : ${targets}" th:value="${t.iri()}" th:text="${t.label()}"
                             th:selected="${target != null and t.iri() == target.iri()}">Format</option>
                 </select>
             </label>
-            <p class="muted" th:if="${targets.isEmpty()}">
+            <p class="muted" th:if="${targets.isEmpty()}" th:text="#{transform.noTargets}">
                 No format can be transformed into yet: one needs a DFDL description in the archive, used by some
                 Data Object. Describe it in RepInfo Tools and save it to the archive.
             </p>
-            <button type="submit">Choose</button>
+            <button type="submit" th:text="#{transform.choose}">Choose</button>
         </form>
     </section>
 
@@ -44,8 +38,8 @@
         <input type="hidden" name="target" th:value="${target.iri()}"/>
 
         <section class="editor-section">
-            <h2>What makes each element of the new format</h2>
-            <p class="muted">
+            <h2 th:text="#{transform.mapping}">What makes each element of the new format</h2>
+            <p class="muted" th:text="#{transform.mappingNote}">
                 An element that repeats occurs once for each occurrence of the element of the old format it
                 repeats over; inside it, the old format's elements under that one are that occurrence's. A value
                 is copied (times a scale, plus an offset, if given), counted, or a constant. Elements were first
@@ -54,13 +48,13 @@
             <table class="listing transform-mapping">
                 <thead>
                 <tr>
-                    <th>Element of the new format</th>
-                    <th>Repeat over</th>
-                    <th>Value</th>
-                    <th>From</th>
-                    <th>Scale</th>
-                    <th>Offset</th>
-                    <th>Constant</th>
+                    <th th:text="#{transform.col.element}">Element of the new format</th>
+                    <th th:text="#{transform.col.repeatOver}">Repeat over</th>
+                    <th th:text="#{sample.col.value}">Value</th>
+                    <th th:text="#{transform.col.from}">From</th>
+                    <th th:text="#{transform.col.scale}">Scale</th>
+                    <th th:text="#{sem.offset}">Offset</th>
+                    <th th:text="#{transform.col.constant}">Constant</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -68,12 +62,12 @@
                     <td th:style="${r.indent()}">
                         <code th:text="${r.name()}">ra</code>
                         <span class="muted" th:if="${r.type() != null}" th:text="${r.type()}">double</span>
-                        <span class="muted" th:if="${r.repeats()}">repeats</span>
-                        <span class="muted" th:if="${r.optional() and !r.repeats()}">optional</span>
-                        <span class="muted" th:if="${r.alternative()}">alternative</span>
+                        <span class="muted" th:if="${r.repeats()}" th:text="#{transform.repeats}">repeats</span>
+                        <span class="muted" th:if="${r.optional() and !r.repeats()}" th:text="#{transform.optional}">optional</span>
+                        <span class="muted" th:if="${r.alternative()}" th:text="#{transform.alternative}">alternative</span>
                         <div class="muted" th:if="${r.meaning() != null}" th:text="${r.meaning()}">Right ascension</div>
                     </td>
-                    <td th:if="${r.computed()}" colspan="6" class="muted">Computed by the new format's description when it's written.</td>
+                    <td th:if="${r.computed()}" colspan="6" class="muted" th:text="#{transform.computed}">Computed by the new format's description when it's written.</td>
                     <th:block th:unless="${r.computed()}">
                         <td>
                             <select th:if="${r.repeatable()}" th:name="${'for.' + r.path()}">
@@ -86,9 +80,9 @@
                         <td>
                             <select th:if="${r.value()}" th:name="${'kind.' + r.path()}">
                                 <option value="" th:selected="${r.kind() == ''}">&mdash;</option>
-                                <option value="copy" th:selected="${r.kind() == 'copy'}">copy</option>
-                                <option value="count" th:selected="${r.kind() == 'count'}">count of</option>
-                                <option value="constant" th:selected="${r.kind() == 'constant'}">constant</option>
+                                <option value="constant" th:selected="${r.kind() == 'constant'}" th:text="#{transform.kind.constant}">constant</option>
+                                <option value="copy" th:selected="${r.kind() == 'copy'}" th:text="#{transform.kind.copy}">copy</option>
+                                <option value="count" th:selected="${r.kind() == 'count'}" th:text="#{transform.kind.count}">count of</option>
                             </select>
                         </td>
                         <td>
@@ -106,35 +100,28 @@
                 </tbody>
             </table>
             <details>
-                <summary>The mapping as text</summary>
-                <p class="muted">
-                    This is what's recorded with the Transformation. You can edit it here instead of above: one
-                    rule per line &mdash; <code>for star in stars.entry</code>, <code>star.ra = stars.entry.ra</code>,
-                    <code>star.ra_rad = stars.entry.ra * 0.0174532925</code>, <code>n = count(stars.entry)</code>,
-                    <code>version = "2"</code>.
+                <summary th:text="#{transform.asText}">The mapping as text</summary>
+                <p class="muted" th:utext="#{transform.asTextNote}">
+                    This is what's recorded with the Transformation.
                 </p>
                 <textarea name="mappingText" rows="10" cols="80" th:text="${mappingText}"></textarea>
-                <label><input type="checkbox" name="useText"/> Use this text, not the table above</label>
+                <label><input type="checkbox" name="useText"/> <span th:text="#{transform.useText}">Use this text, not the table above</span></label>
             </details>
         </section>
 
         <section class="editor-section">
-            <h2>Transformation Information Properties to check</h2>
-            <p class="muted">
-                The values that must survive the Transformation. Each is checked by decoding the new data with
-                its own description and comparing physical values (after each side's scale and offset) &mdash;
-                within the tolerance given, in the values' units, or else what the types carry. Those this Data
-                Object's Information Object already has are marked; the others are added to it when you
-                transform.
+            <h2 th:text="#{transform.properties}">Transformation Information Properties to check</h2>
+            <p class="muted" th:text="#{transform.propertiesNote}">
+                The values that must survive the Transformation.
             </p>
             <table class="listing">
-                <thead><tr><th>Check</th><th>Values of</th><th>Tolerance</th></tr></thead>
+                <thead><tr><th th:text="#{transform.col.check}">Check</th><th th:text="#{transform.col.valuesOf}">Values of</th><th th:text="#{transform.col.tolerance}">Tolerance</th></tr></thead>
                 <tbody>
                 <tr th:each="p : ${propertyRows}">
                     <td><input type="checkbox" th:name="${'tip.' + p.path()}" th:checked="${p.checked()}"/></td>
                     <td>
                         <span th:text="${p.display()}">star.ra</span>
-                        <span class="pill pill-oais" th:if="${p.existing()}">Transformation Information Property</span>
+                        <span class="pill pill-oais" th:if="${p.existing()}" th:text="#{transform.tip}">Transformation Information Property</span>
                     </td>
                     <td><input type="text" size="10" th:name="${'tol.' + p.path()}" th:value="${p.tolerance()}"/></td>
                 </tr>
@@ -143,90 +130,87 @@
         </section>
 
         <p>
-            <button type="submit">Try it</button>
-            <button type="submit" class="button-secondary" th:formaction="@{/transform/{id}(id=${id})}">Transform</button>
+            <button type="submit" th:text="#{transform.try}">Try it</button>
+            <button type="submit" class="button-secondary" th:formaction="@{/transform/{id}(id=${id})}" th:text="#{resource.transformAction}">Transform</button>
         </p>
     </form>
 
     <section class="editor-section" id="external">
-        <h2>Or transform it with another application</h2>
-        <p class="muted">
-            If another application does the Transformation &mdash; a format converter, a script, a mission's own
-            software &mdash; download the data and its description, transform it there, then upload the result here
-            and say what was done. That record becomes the new AIP Version's Provenance Information, so whoever reads
-            it later knows how the data came to be.
+        <h2 th:text="#{transform.external}">Or transform it with another application</h2>
+        <p class="muted" th:text="#{transform.externalNote}">
+            If another application does the Transformation, download the data and its description, transform it
+            there, then upload the result here and say what was done.
         </p>
         <p>
-            <a class="button" th:href="@{/api/data-objects/{id}/bits(id=${id})}">1. Download the data &rarr;</a>
-            <a class="button button-secondary" th:href="@{/api/descriptions/{id}/description.zip(id=${id})}">Download its data description &rarr;</a>
+            <a class="button" th:href="@{/api/data-objects/{id}/bits(id=${id})}" th:utext="#{transform.downloadData} + ' &rarr;'">1. Download the data &rarr;</a>
+            <a class="button button-secondary" th:href="@{/api/descriptions/{id}/description.zip(id=${id})}" th:utext="#{transform.downloadDescription} + ' &rarr;'">Download its data description &rarr;</a>
         </p>
         <p class="notice error" th:if="${externalError != null}" th:text="${externalError}">Problem.</p>
         <form th:action="@{/transform/{id}/external(id=${id})}" method="post" enctype="multipart/form-data" class="form transform-external">
-            <h3>2. Upload the result and say what was done</h3>
+            <h3 th:text="#{transform.upload}">2. Upload the result and say what was done</h3>
             <label>
-                The transformed file
+                <span th:text="#{transform.file}">The transformed file</span>
                 <input type="file" name="file" required/>
             </label>
             <div class="form-row">
                 <label>
-                    Application used
-                    <input type="text" name="application" th:value="${ext['application']}" required placeholder="e.g. Astropy"/>
+                    <span th:text="#{transform.application}">Application used</span>
+                    <input type="text" name="application" th:value="${ext['application']}" required th:placeholder="#{transform.applicationExample}"/>
                 </label>
                 <label>
-                    Its version
-                    <input type="text" name="applicationVersion" th:value="${ext['applicationVersion']}" placeholder="e.g. 6.1.0"/>
+                    <span th:text="#{transform.version}">Its version</span>
+                    <input type="text" name="applicationVersion" th:value="${ext['applicationVersion']}" th:placeholder="#{transform.versionExample}"/>
                 </label>
             </div>
             <label>
-                Where the application can be found (optional)
+                <span th:text="#{transform.applicationUrl}">Where the application can be found (optional)</span>
                 <input type="url" name="applicationUrl" th:value="${ext['applicationUrl']}" placeholder="https://"/>
             </label>
             <div class="form-row">
                 <label>
-                    Done by
+                    <span th:text="#{transform.doneBy}">Done by</span>
                     <input type="text" name="performedBy" th:value="${ext['performedBy']}" required/>
                 </label>
                 <label>
-                    On
+                    <span th:text="#{transform.on}">On</span>
                     <input type="date" name="performedOn" th:value="${ext['performedOn'] != null ? ext['performedOn'] : today}"/>
                 </label>
             </div>
             <label>
-                What was done &mdash; the steps, settings or commands, so it could be done again
+                <span th:text="#{transform.method}">What was done — the steps, settings or commands, so it could be done again</span>
                 <textarea name="method" rows="5" required th:text="${ext['method']}"></textarea>
             </label>
             <label>
-                What the new data is interpreted using
+                <span th:text="#{transform.interpretedUsing}">What the new data is interpreted using</span>
                 <select name="repInfo">
-                    <option value="">Nothing in the archive yet &mdash; I'll add its Representation Information afterwards</option>
+                    <option value="" th:text="#{transform.noRepInfo}">Nothing in the archive yet &mdash; I'll add its Representation Information afterwards</option>
                     <option th:each="c : ${repInfoChoices}" th:value="${c.iri()}" th:text="${c.label()}"
                             th:selected="${c.iri() == ext['repInfo']}">Representation Information</option>
                 </select>
             </label>
-            <p class="muted">
+            <p class="muted" th:text="#{transform.repInfoNote}">
                 Without Representation Information the new data can't be understood, and its AIP is incomplete: describe
                 its format first in RepInfo Tools if it isn't in the archive yet.
             </p>
             <label>
                 <input type="checkbox" name="reversible" th:checked="${ext['reversible'] == 'on'}"/>
-                It is shown to be reversible: the original can be recreated exactly from the result
+                <span th:text="#{transform.reversible}">It is shown to be reversible: the original can be recreated exactly from the result</span>
             </label>
             <label>
-                Why it is, or isn't, reversible
+                <span th:text="#{transform.why}">Why it is, or isn't, reversible</span>
                 <input type="text" name="reversibility" th:value="${ext['reversibility']}"
-                       placeholder="e.g. converted back and compared byte for byte; values rounded to 4 decimal places"/>
+                       th:placeholder="#{transform.whyExample}"/>
             </label>
 
-            <h3>Transformation Information Properties</h3>
-            <p class="muted">
-                For each value that must survive, record the outcome and how you checked it. If you give where the
-                values are in the new format (a path such as <code>star.ra</code>) and the new data's Representation
-                Information can decode it, the archive checks them itself, decoding both the old and the new data,
-                and records that instead.
+            <h3 th:text="#{transform.tips}">Transformation Information Properties</h3>
+            <p class="muted" th:utext="#{transform.tipsNote}">
+                For each value that must survive, record the outcome and how you checked it.
             </p>
             <table class="listing">
                 <thead>
-                <tr><th>Record</th><th>Values of</th><th>In the new format at</th><th>Outcome</th><th>How it was checked</th><th>Tolerance</th></tr>
+                <tr><th th:text="#{transform.col.record}">Record</th><th th:text="#{transform.col.valuesOf}">Values of</th>
+                    <th th:text="#{transform.col.inNewFormat}">In the new format at</th><th th:text="#{transform.col.outcome}">Outcome</th>
+                    <th th:text="#{transform.col.howChecked}">How it was checked</th><th th:text="#{transform.col.tolerance}">Tolerance</th></tr>
                 </thead>
                 <tbody>
                 <tr th:each="s : ${externalRows}">
@@ -235,7 +219,8 @@
                     <td><input type="text" size="12" th:name="${'ext.target.' + s.path()}" th:value="${ext['ext.target.' + s.path()]}"/></td>
                     <td>
                         <select th:name="${'ext.outcome.' + s.path()}">
-                            <option th:each="o : ${ {'preserved', 'changed', 'not checked'} }" th:value="${o}" th:text="${o}"
+                            <option th:each="o : ${ {'changed', 'not checked', 'preserved'} }" th:value="${o}"
+                                    th:text="${@labels.of('transform.outcome', o)}"
                                     th:selected="${o == (ext['ext.outcome.' + s.path()] != null ? ext['ext.outcome.' + s.path()] : 'not checked')}">preserved</option>
                         </select>
                     </td>
@@ -244,42 +229,42 @@
                 </tr>
                 </tbody>
             </table>
-            <p class="muted" th:if="${externalRows.isEmpty()}">
+            <p class="muted" th:if="${externalRows.isEmpty()}" th:text="#{transform.noValues}">
                 The archive can't list this Data Object's values, so no Transformation Information Properties can be
                 recorded here.
             </p>
-            <button type="submit">Record the Transformation</button>
+            <button type="submit" th:text="#{transform.record}">Record the Transformation</button>
         </form>
     </section>
 
     <section class="editor-section" th:if="${trial != null}">
-        <h2>Trying it</h2>
+        <h2 th:text="#{transform.trying}">Trying it</h2>
         <p>
-            The new data is <span th:text="${trial.written().length}">0</span> bytes
-            (SHA-256 <code th:text="${trial.sha256()}">digest</code>):
-            <a th:href="@{/transform/{id}/trial(id=${id})}">download it</a> to look at it. Nothing is saved
-            until you choose Transform.
+            <span th:utext="#{transform.trialSize(${trial.written().length}, ${trial.sha256()})}">The new data is 0 bytes (SHA-256 <code>digest</code>):</span>
+            <a th:href="@{/transform/{id}/trial(id=${id})}" th:text="#{transform.downloadIt}">download it</a> <span th:text="#{transform.nothingSaved}">to look at it. Nothing is saved
+            until you choose Transform.</span>
         </p>
-        <p th:if="${trial.reversible()}">
+        <p th:if="${trial.reversible()}" th:utext="#{transform.shownReversible}">
             It is <strong>shown reversible</strong>: every value of the old data is in the new data, unchanged.
         </p>
         <th:block th:unless="${trial.reversible()}">
-            <p>It is <strong>not shown reversible</strong>, so it will be recorded as a Non-Reversible Transformation:</p>
+            <p th:utext="#{transform.notShownReversible}">It is <strong>not shown reversible</strong>, so it will be recorded as a Non-Reversible Transformation:</p>
             <ul><li th:each="l : ${trial.lost()}" th:text="${l}">star.name: not carried over</li></ul>
         </th:block>
         <table class="listing" th:if="${!trial.checks().isEmpty()}">
-            <thead><tr><th>Transformation Information Property</th><th>From</th><th>To</th><th>Outcome</th><th>Details</th></tr></thead>
+            <thead><tr><th th:text="#{transform.tip}">Transformation Information Property</th><th th:text="#{transform.col.from}">From</th>
+                <th th:text="#{transform.col.to}">To</th><th th:text="#{transform.col.outcome}">Outcome</th><th th:text="#{transform.col.details}">Details</th></tr></thead>
             <tbody>
             <tr th:each="c : ${trial.checks()}">
                 <td th:text="${c.label()}">Right ascension (deg)</td>
                 <td><code th:text="${c.sourcePath()}">star.ra</code></td>
                 <td><code th:text="${c.targetPath() == null ? '—' : c.targetPath()}">star.ra</code></td>
-                <td><strong th:text="${c.outcome().text()}">preserved</strong></td>
+                <td><strong th:text="${@labels.of('transform.outcome', c.outcome().text())}">preserved</strong></td>
                 <td th:text="${c.detail()}">All values are the same.</td>
             </tr>
             </tbody>
         </table>
-        <p class="muted" th:if="${trial.checks().isEmpty()}">No Transformation Information Properties were chosen to check.</p>
+        <p class="muted" th:if="${trial.checks().isEmpty()}" th:text="#{transform.noChecks}">No Transformation Information Properties were chosen to check.</p>
     </section>
 </main>
 </body>

@@ -23,13 +23,13 @@
 
     show.addEventListener('click', () => {
         show.disabled = true;
-        show.textContent = 'Decoding…';
+        show.textContent = i18n('decoding');
         fetch(root.dataset.pixels)
             .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t); }))
             .then(load)
             .catch(e => {
                 show.disabled = false;
-                show.textContent = 'Show the image';
+                show.textContent = i18n('image.show');
                 panel.hidden = false;
                 readout.textContent = e.message;
             });
@@ -189,13 +189,12 @@
         }
         const row = controls.flip.checked ? image.height - 1 - shownRow : shownRow;
         const v = values[row * image.width + px];
-        readout.textContent = describe('Column ' + (px + 1) + ', row ' + (row + 1) + ': '
-            + (Number.isNaN(v) ? 'no value' : v + (image.unit ? ' ' + image.unit : '')));
+        readout.textContent = describe(i18n('image.position', px + 1, row + 1,
+            Number.isNaN(v) ? i18n('image.noValue') : v + (image.unit ? ' ' + image.unit : '')));
     });
 
     function describe(position) {
         const what = image.description ? ' — ' + image.description : '';
-        return (position || 'Point at the image to see a pixel’s value.') + what
-            + ' (' + image.width + ' × ' + image.height + ' pixels)';
+        return (position || i18n('image.point')) + what + ' ' + i18n('image.size', image.width, image.height);
     }
 })();

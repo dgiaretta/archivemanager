@@ -15,13 +15,16 @@ public class GraphPageController {
 
     private final ArchiveService archive;
 
-    public GraphPageController(ArchiveService archive) {
+    private final info.oais.archive.manager.i18n.Messages messages;
+
+    public GraphPageController(ArchiveService archive, info.oais.archive.manager.i18n.Messages messages) {
+        this.messages = messages;
         this.archive = archive;
     }
 
     @GetMapping("/graph")
     public String full(Model model) {
-        model.addAttribute("pageTitle", "Full relationship graph");
+        model.addAttribute("pageTitle", messages.get("title.fullGraph"));
         model.addAttribute("apiUrl", "/api/graph");
         model.addAttribute("focusId", null);
         model.addAttribute("focusIds", null);
@@ -34,7 +37,7 @@ public class GraphPageController {
                            @RequestParam(defaultValue = "1") int depth,
                            Model model) {
         String iri = archive.decodeId(id);
-        model.addAttribute("pageTitle", "Graph: " + archive.label(iri));
+        model.addAttribute("pageTitle", messages.get("title.graphOf", archive.label(iri)));
         model.addAttribute("apiUrl", "/api/graph/" + id + "?depth=" + depth);
         model.addAttribute("focusId", id);
         model.addAttribute("focusIds", null);
@@ -52,7 +55,7 @@ public class GraphPageController {
                          @RequestParam(defaultValue = "1") int depth,
                          Model model) {
         String apiIds = ids.stream().map(id -> "id=" + id).collect(Collectors.joining("&"));
-        model.addAttribute("pageTitle", "Graph: " + ids.size() + " selected resource" + (ids.size() == 1 ? "" : "s"));
+        model.addAttribute("pageTitle", ids.size() == 1 ? messages.get("title.graphOne") : messages.get("title.graphMany", ids.size()));
         model.addAttribute("apiUrl", "/api/graph/multi?" + apiIds + "&depth=" + depth);
         model.addAttribute("focusId", null);
         model.addAttribute("focusIds", ids);

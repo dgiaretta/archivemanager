@@ -32,7 +32,10 @@ public class SparqlController {
     private final QueryRunner queryRunner;
     private final ArchiveService archive;
 
-    public SparqlController(RdfStore store, QueryRunner queryRunner, ArchiveService archive) {
+    private final info.oais.archive.manager.i18n.Messages messages;
+
+    public SparqlController(RdfStore store, QueryRunner queryRunner, ArchiveService archive, info.oais.archive.manager.i18n.Messages messages) {
+        this.messages = messages;
         this.store = store;
         this.queryRunner = queryRunner;
         this.archive = archive;
@@ -50,7 +53,7 @@ public class SparqlController {
         try {
             Query query = QueryFactory.create(queryText);
             if (!query.isSelectType()) {
-                model.addAttribute("error", "Only SELECT queries are supported by this console.");
+                model.addAttribute("error", messages.get("error.selectOnly"));
                 return "sparql/console";
             }
             List<Map<String, String>> rows = queryRunner.select(store.queryModel(), queryText);

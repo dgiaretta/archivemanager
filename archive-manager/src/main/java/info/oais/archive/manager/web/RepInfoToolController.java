@@ -96,14 +96,19 @@ public class RepInfoToolController {
     private final KaitaiSampleRunner kaitaiSampleRunner;
     private final EastSampleRunner eastSampleRunner;
     private final DataObjectViewService views;
+    private final info.oais.archive.manager.i18n.Labels labels;
     private final StorageFetcher fetcher;
+
+    private final info.oais.archive.manager.i18n.Messages messages;
 
     public RepInfoToolController(ArchiveService archive, KaitaiGenerator kaitaiGenerator, DfdlGenerator dfdlGenerator,
                                   DrbGenerator drbGenerator, FormatDescriptionRdfService rdfService,
                                   DfdlSampleRunner dfdlSampleRunner, DrbPythonSampleRunner drbPythonSampleRunner,
                                   DrbSampleRunner drbSampleRunner, KaitaiSampleRunner kaitaiSampleRunner,
                                   EastSampleRunner eastSampleRunner, DataObjectViewService views,
-                                  StorageFetcher fetcher) {
+                                  StorageFetcher fetcher, info.oais.archive.manager.i18n.Labels labels, info.oais.archive.manager.i18n.Messages messages) {
+        this.messages = messages;
+        this.labels = labels;
         this.views = views;
         this.fetcher = fetcher;
         this.archive = archive;
@@ -121,7 +126,8 @@ public class RepInfoToolController {
     @GetMapping
     public String start(HttpSession session, Model model) {
         model.addAttribute("hasDraft", draft(session) != null);
-        model.addAttribute("knownFormats", info.oais.archive.manager.service.format.KnownFormat.ALL);
+        model.addAttribute("knownFormats", info.oais.archive.manager.service.format.KnownFormat.ALL.stream()
+                .sorted(info.oais.archive.manager.model.Alphabetical.by(f -> labels.of("format", f.label()))).toList());
         model.addAttribute("hasKnownDraft", session.getAttribute(KnownFormatController.SESSION_KEY) != null);
         return "repinfo-tools/start";
     }
@@ -226,7 +232,7 @@ public class RepInfoToolController {
     public String startFits(@RequestParam(required = false) MultipartFile file, HttpSession session, Model model)
             throws IOException {
         if (file == null || file.isEmpty()) {
-            model.addAttribute("fitsError", "Choose a FITS file first.");
+            model.addAttribute("fitsError", messages.get("error.chooseFits"));
             return start(session, model);
         }
         java.nio.file.Path copy = java.nio.file.Files.createTempFile("fits-", ".fits");
@@ -255,7 +261,7 @@ public class RepInfoToolController {
             throws IOException {
         java.util.Optional<java.net.URI> location = views.storageLocation(archive.decodeId(dataObjectId));
         if (location.isEmpty()) {
-            model.addAttribute("fitsError", "That Data Object has no storage location for its bits.");
+            model.addAttribute("fitsError", messages.get("error.noStorage"));
             return start(session, model);
         }
         java.net.URI uri = location.get();
@@ -263,7 +269,7 @@ public class RepInfoToolController {
             return startFits(fileName(uri.getPath()), (offset, length) -> fetcher.fetchRange(uri, offset, length),
                     dataObjectId, session, model);
         } catch (IOException e) {
-            model.addAttribute("fitsError", "Its headers couldn't be read from " + uri + ": " + e.getMessage());
+            model.addAttribute("fitsError", messages.get("error.headersUnreadable", uri, e.getMessage()));
             return start(session, model);
         }
     }
@@ -322,7 +328,9 @@ public class RepInfoToolController {
         Map<String, String> featureLanguages = new LinkedHashMap<>();
         for (Feature feature : Feature.values()) {
             allow.put(feature.name(), def.allows(feature));
-            featureLanguages.put(feature.name(), feature.languagesText());
+            List<String> names = feature.languages().stream().map(DescriptionLanguage::label).toList();
+            featureLanguages.put(feature.name(), names.size() == 1 ? names.get(0) : messages.get("list.and",
+                    String.join(", ", names.subList(0, names.size() - 1)), names.get(names.size() - 1)));
         }
         model.addAttribute("allow", allow);
         model.addAttribute("featureLanguages", featureLanguages);
@@ -331,7 +339,7 @@ public class RepInfoToolController {
                 .map(l -> Map.of("label", l.label(), "path", handPath(l))).toList());
         if (def.getKind() == FormatDefinitionKind.BYTE_LAYOUT) {
             FormatDescription format = def.toFormatDescription();
-            List<DescriptionEditorView.Row> rows = DescriptionEditorView.rows(format, def.getTargets());
+            List<DescriptionEditorView.Row> rows = DescriptionEditorView.rows(format, def.getTargets(), messages::get);
             long problemCount = DescriptionValidator.validate(format, def.getTargets()).size();
             if (def.getHandWritten().keySet().stream().anyMatch(l -> !HandWrittenDescriptions.isAddIn(l))
                     && def.getRoot().children().isEmpty()) {
@@ -446,7 +454,7 @@ public class RepInfoToolController {
             }
             ElementDescription replacement = updated;
             def.editRoot(rootRecord -> Descriptions.update(rootRecord, id, e -> replacement));
-            redirect.addFlashAttribute("editorMessage", "Saved '" + replacement.name() + "'.");
+            redirect.addFlashAttribute("editorMessage", messages.get("message.saved", replacement.name()));
         } catch (IllegalArgumentException e) {
             redirect.addFlashAttribute("editorError", e.getMessage());
         }

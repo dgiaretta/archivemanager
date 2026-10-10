@@ -38,8 +38,8 @@
             params.set('language', language.value);
         }
         show.disabled = true;
-        show.textContent = 'Decoding…';
-        status.textContent = 'Loading…';
+        show.textContent = i18n('decoding');
+        status.textContent = i18n('loading');
         fetch(root.dataset.values + '?' + params)
             .then(r => r.ok ? r.json() : r.text().then(t => { throw new Error(t); }))
             .then(render)
@@ -47,7 +47,7 @@
             .finally(() => {
                 loading = false;
                 show.disabled = false;
-                show.textContent = 'Show the values';
+                show.textContent = i18n('values.show');
             });
     }
 
@@ -67,10 +67,11 @@
         pagesLabel.textContent = pages.toLocaleString();
         const first = (page - 1) * data.pageSize + 1;
         const last = first + data.rows.length - 1;
-        status.textContent = 'elements ' + first.toLocaleString() + '–' + last.toLocaleString() + ' of '
-            + data.totalRows.toLocaleString() + (data.truncated ? ' (the first ones only: there are more)' : '')
-            + (data.language ? ', decoded with its ' + data.language + ' description' : '')
-            + (data.trailingBytes ? '; ' + data.trailingBytes + ' bytes at the end aren’t described' : '');
+        status.textContent = i18n('values.status', first.toLocaleString(), last.toLocaleString(),
+                data.totalRows.toLocaleString())
+            + (data.truncated ? ' ' + i18n('values.truncated') : '')
+            + (data.language ? i18n('values.language', data.language) : '')
+            + (data.trailingBytes ? i18n('values.trailing', data.trailingBytes) : '');
         q('first').disabled = q('previous').disabled = page <= 1;
         q('next').disabled = q('last').disabled = page >= pages;
         pager.hidden = false;

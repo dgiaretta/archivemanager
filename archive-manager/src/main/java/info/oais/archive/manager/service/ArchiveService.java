@@ -37,7 +37,11 @@ public class ArchiveService {
     private final QueryRunner q;
     private final LanguagePreference languagePreference;
 
-    public ArchiveService(RdfStore store, QueryRunner q, LanguagePreference languagePreference) {
+    private final info.oais.archive.manager.i18n.Messages messages;
+
+    public ArchiveService(RdfStore store, QueryRunner q, LanguagePreference languagePreference,
+                          info.oais.archive.manager.i18n.Messages messages) {
+        this.messages = messages;
         this.store = store;
         this.q = q;
         this.languagePreference = languagePreference;
@@ -50,6 +54,21 @@ public class ArchiveService {
     // Default and maximum page size, shared by every paginated listing.
     private static final int DEFAULT_PAGE_SIZE = 50;
     private static final int MAX_PAGE_SIZE = 200;
+
+    /** Listings in alphabetical order of their titles (ignoring case), then by IRI so paging is stable. */
+    private static final String TITLE_ORDER = "ORDER BY LCASE(STR(?title)) ?s";
+
+    /**
+     * Binds {@code ?sortKey} to what {@link #label} shows for {@code ?s} -- its
+     * title, name or label, else the end of its IRI -- lower-cased, for
+     * listing entities alphabetically across pages.
+     */
+    private static final String SORT_KEY = """
+            OPTIONAL { ?s rico:title ?_k1 }
+            OPTIONAL { ?s rico:name ?_k2 }
+            OPTIONAL { ?s rdfs:label ?_k3 }
+            BIND(LCASE(STR(COALESCE(?_k1, ?_k2, ?_k3, REPLACE(STR(?s), "^.*[/#]", "")))) AS ?_key)
+            """;
 
     // The "WHERE { ... }" body for each top-level listing, shared between the
     // capped/unpaginated convenience methods (used to populate dropdowns) and
@@ -84,12 +103,12 @@ public class ArchiveService {
     /** First {@code MAX_PAGE_SIZE} record resources, for dropdowns (e.g. the "parent" picker) that just need "some". */
     public List<ResourceSummary> listRecordResources() {
         return toSummaries(Ns.PREFIXES + "SELECT ?s ?type ?title WHERE { " + RECORD_RESOURCE_BODY
-                + " } ORDER BY ?type ?title LIMIT " + MAX_PAGE_SIZE);
+                + " } " + TITLE_ORDER + " LIMIT " + MAX_PAGE_SIZE);
     }
 
     /** The actual, paginated Records browse page. */
     public Page<ResourceSummary> listRecordResources(int page, int pageSize) {
-        return pagedSummaries(RECORD_RESOURCE_BODY, "ORDER BY ?type ?title", page, pageSize);
+        return pagedSummaries(RECORD_RESOURCE_BODY, TITLE_ORDER, page, pageSize);
     }
 
     public long countRecordResources() {
@@ -120,7 +139,7 @@ public class ArchiveService {
                     )
                     """.formatted(escaped);
         }
-        return pagedSummaries(body, "ORDER BY ?type ?title", page, pageSize);
+        return pagedSummaries(body, TITLE_ORDER, page, pageSize);
     }
 
     /**
@@ -164,7 +183,7 @@ public class ArchiveService {
             }
             body.append("}\n");
         }
-        return pagedSummaries(body.toString(), "ORDER BY ?type ?title", page, pageSize);
+        return pagedSummaries(body.toString(), TITLE_ORDER, page, pageSize);
     }
 
     private void appendContainsFilter(StringBuilder body, String property, String var, String value) {
@@ -251,7 +270,7 @@ public class ArchiveService {
 
     /** The public NAM Accession Register: paginated list of nam:Accession individuals. */
     public Page<ResourceSummary> listAccessions(int page, int pageSize) {
-        return pagedSummaries(ACCESSION_BODY, "ORDER BY ?title", page, pageSize);
+        return pagedSummaries(ACCESSION_BODY, TITLE_ORDER, page, pageSize);
     }
 
     public long countAccessions() {
@@ -261,11 +280,11 @@ public class ArchiveService {
     /** First {@code MAX_PAGE_SIZE} agents, for dropdowns (e.g. the "creator" picker). */
     public List<ResourceSummary> listAgents() {
         return toSummaries(Ns.PREFIXES + "SELECT ?s ?type ?title WHERE { " + AGENT_BODY
-                + " } ORDER BY ?title LIMIT " + MAX_PAGE_SIZE);
+                + " } " + TITLE_ORDER + " LIMIT " + MAX_PAGE_SIZE);
     }
 
     public Page<ResourceSummary> listAgents(int page, int pageSize) {
-        return pagedSummaries(AGENT_BODY, "ORDER BY ?title", page, pageSize);
+        return pagedSummaries(AGENT_BODY, TITLE_ORDER, page, pageSize);
     }
 
     public long countAgents() {
@@ -273,7 +292,7 @@ public class ArchiveService {
     }
 
     public Page<ResourceSummary> listActivities(int page, int pageSize) {
-        return pagedSummaries(EVENT_BODY, "ORDER BY ?title", page, pageSize);
+        return pagedSummaries(EVENT_BODY, TITLE_ORDER, page, pageSize);
     }
 
     public long countActivities() {
@@ -281,7 +300,7 @@ public class ArchiveService {
     }
 
     public Page<ResourceSummary> listMandates(int page, int pageSize) {
-        return pagedSummaries(MANDATE_BODY, "ORDER BY ?title", page, pageSize);
+        return pagedSummaries(MANDATE_BODY, TITLE_ORDER, page, pageSize);
     }
 
     public long countMandates() {
@@ -349,7 +368,8 @@ public class ArchiveService {
         for (Map<String, String> row : q.select(store.dataModel(), sparql)) {
             long triples = Long.parseLong(row.get("tripleCount"));
             long subjects = Long.parseLong(row.get("subjectCount"));
-            String label = displayName(row.get("p")) + (triples == subjects ? "" : " (on " + subjects + " distinct records)");
+            String label = triples == subjects ? displayName(row.get("p"))
+                    : messages.get("statistics.distinctRecords", displayName(row.get("p")), subjects);
             out.add(new FacetCount(label, triples));
         }
         return out;
@@ -497,22 +517,20 @@ public class ArchiveService {
     /** Up to {@code MAX_PAGE_SIZE} entities, for pickers (e.g. the relationship-target dropdown) that just need "some". */
     public List<ResourceSummary> listAllEntities() {
         String sparql = Ns.PREFIXES + """
-                SELECT DISTINCT ?s WHERE {
+                SELECT ?s (MIN(?_key) AS ?sortKey) WHERE {
                   ?s a ?type .
-                } ORDER BY ?s LIMIT %d
-                """.formatted(MAX_PAGE_SIZE);
+                  %s
+                } GROUP BY ?s ORDER BY ?sortKey ?s LIMIT %d
+                """.formatted(SORT_KEY, MAX_PAGE_SIZE);
         List<ResourceSummary> out = new ArrayList<>();
         for (Map<String, String> row : q.select(store.dataModel(), sparql)) {
             out.add(summarize(row.get("s")));
         }
-        out.sort((a, b) -> {
-            String ta = a.title() == null ? "" : a.title();
-            String tb = b.title() == null ? "" : b.title();
-            return ta.compareToIgnoreCase(tb);
-        });
+        out.sort(info.oais.archive.manager.model.Alphabetical.RESOURCES);
         return out;
     }
-    /** The actual, paginated Entities browse page (ordered by IRI, so OFFSET-based paging stays stable across pages). */
+
+    /** The actual, paginated Entities browse page, in alphabetical order (then by IRI, so paging stays stable). */
     /**
      * Every class actually in use in the data graph, with how many
      * individuals each has -- the "how is the archive's data actually
@@ -546,10 +564,11 @@ public class ArchiveService {
                 ? "?s a <" + typeIri + "> ." : "?s a ?anyType .";
 
         String selectSparql = Ns.PREFIXES + """
-                SELECT DISTINCT ?s WHERE {
+                SELECT ?s (MIN(?_key) AS ?sortKey) WHERE {
                   %s
-                } ORDER BY ?s LIMIT %d OFFSET %d
-                """.formatted(typeFilter, size, offset);
+                  %s
+                } GROUP BY ?s ORDER BY ?sortKey ?s LIMIT %d OFFSET %d
+                """.formatted(typeFilter, SORT_KEY, size, offset);
         List<ResourceSummary> items = new ArrayList<>();
         for (Map<String, String> row : q.select(store.dataModel(), selectSparql)) {
             items.add(summarize(row.get("s")));
@@ -589,6 +608,7 @@ public class ArchiveService {
         for (Map<String, String> row : q.select(store.queryModel(), sparql)) {
             out.add(summarize(row.get("o")));
         }
+        out.sort(info.oais.archive.manager.model.Alphabetical.RESOURCES);
         return out;
     }
 
@@ -598,8 +618,16 @@ public class ArchiveService {
         for (Map<String, String> row : q.select(store.queryModel(), sparql)) {
             out.add(summarize(row.get("s")));
         }
+        out.sort(info.oais.archive.manager.model.Alphabetical.RESOURCES);
         return out;
     }
+
+    /** Relationships and links in alphabetical order: by property, then by what they lead to. */
+    private static final java.util.Comparator<EditableRelationship> RELATIONSHIPS =
+            info.oais.archive.manager.model.Alphabetical.by(EditableRelationship::propertyLocalName)
+                    .thenComparing(EditableRelationship::target, info.oais.archive.manager.model.Alphabetical.RESOURCES);
+    private static final java.util.Comparator<LinkedResource> LINKS = info.oais.archive.manager.model.Alphabetical.by(LinkedResource::propertyLocalName)
+            .thenComparing(LinkedResource::resource, info.oais.archive.manager.model.Alphabetical.RESOURCES);
 
     /** Every literal-valued property found on a resource, for a generic "all attributes" panel. */
     public List<PropertyValue> attributes(String iri) {
@@ -614,6 +642,7 @@ public class ArchiveService {
         for (Map<String, String> row : q.select(store.queryModel(), sparql)) {
             out.add(new PropertyValue(q.localName(row.get("p")), row.get("o"), false, null));
         }
+        out.sort(info.oais.archive.manager.model.Alphabetical.by(PropertyValue::propertyLocalName).thenComparing(info.oais.archive.manager.model.Alphabetical.by(PropertyValue::value)));
         return out;
     }
 
@@ -629,6 +658,7 @@ public class ArchiveService {
         for (Map<String, String> row : q.select(store.queryModel(), sparql)) {
             out.add(new EditableProperty(row.get("p"), q.localName(row.get("p")), row.get("o")));
         }
+        out.sort(info.oais.archive.manager.model.Alphabetical.by(EditableProperty::propertyLocalName).thenComparing(info.oais.archive.manager.model.Alphabetical.by(EditableProperty::value)));
         return out;
     }
 
@@ -645,6 +675,7 @@ public class ArchiveService {
         for (Map<String, String> row : q.select(store.queryModel(), sparql)) {
             out.add(new EditableRelationship(row.get("p"), q.localName(row.get("p")), summarize(row.get("o"))));
         }
+        out.sort(RELATIONSHIPS);
         return out;
     }
 
@@ -660,6 +691,7 @@ public class ArchiveService {
         for (Map<String, String> row : q.select(store.queryModel(), sparql)) {
             out.add(new EditableRelationship(row.get("p"), q.localName(row.get("p")), summarize(row.get("s"))));
         }
+        out.sort(RELATIONSHIPS);
         return out;
     }
 
@@ -677,6 +709,7 @@ public class ArchiveService {
             String o = row.get("o");
             out.add(new LinkedResource(q.localName(row.get("p")), summarize(o), !hasAnyType(o)));
         }
+        out.sort(LINKS);
         return out;
     }
 
@@ -693,6 +726,7 @@ public class ArchiveService {
             String s = row.get("s");
             out.add(new LinkedResource(q.localName(row.get("p")), summarize(s), !hasAnyType(s)));
         }
+        out.sort(LINKS);
         return out;
     }
 

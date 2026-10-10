@@ -44,7 +44,10 @@ public class EntityController {
     private final OntologyService ontology;
     private final EditService edit;
 
-    public EntityController(ArchiveService archive, OntologyService ontology, EditService edit) {
+    private final info.oais.archive.manager.i18n.Messages messages;
+
+    public EntityController(ArchiveService archive, OntologyService ontology, EditService edit, info.oais.archive.manager.i18n.Messages messages) {
+        this.messages = messages;
         this.archive = archive;
         this.ontology = ontology;
         this.edit = edit;
@@ -55,7 +58,9 @@ public class EntityController {
                         @RequestParam(defaultValue = "1") int page, Model model) {
         model.addAttribute("resultPage", archive.listAllEntitiesPaged(type, page, 50));
         model.addAttribute("selectedType", type);
-        model.addAttribute("typesInUse", archive.typesInUse());
+        model.addAttribute("typesInUse", archive.typesInUse().stream()
+                .sorted(info.oais.archive.manager.model.Alphabetical.by(info.oais.archive.manager.model.TypeOption::label))
+                .toList());
         return "entities/list";
     }
 
@@ -86,7 +91,7 @@ public class EntityController {
         model.addAttribute("id", id);
         model.addAttribute("iri", iri);
         model.addAttribute("title", archive.label(iri));
-        model.addAttribute("pageTitle", "Edit: " + archive.label(iri));
+        model.addAttribute("pageTitle", messages.get("title.edit", archive.label(iri)));
         model.addAttribute("types", archive.typesAsOptions(iri));
         List<EditableProperty> properties = archive.editableLiteralProperties(iri);
         List<EditableRelationship> outgoing = archive.editableOutgoingRelationships(iri);

@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('SPARQL console')}"></head>
+<head th:replace="~{fragments :: head(#{nav.sparql})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <h1>SPARQL console</h1>
-    <p class="muted">
+    <h1 th:text="#{nav.sparql}">SPARQL console</h1>
+    <p class="muted" th:utext="#{sparql.intro}">
         Runs SELECT queries against the union of the archive's data graph and the ontology graph
         (OAIS schema + bridging ontology), so you can query instance data and schema-level bridge
         mappings (e.g. <code>skos:closeMatch</code>, <code>bridge:mappingRationale</code>) together.
@@ -14,14 +14,14 @@
 
     <form th:action="@{/sparql}" method="post" class="form">
         <label>
-            Query
+            <span th:text="#{sparql.query}">Query</span>
             <textarea class="sparql" name="queryText" th:text="${queryText}"></textarea>
         </label>
-        <button type="submit">Run</button>
+        <button type="submit" th:text="#{sparql.run}">Run</button>
     </form>
 
     <div class="callout" th:if="${error}">
-        <strong>Error:</strong> <span th:text="${error}">error</span>
+        <strong th:text="#{sparql.error}">Error:</strong> <span th:text="${error}">error</span>
     </div>
 
     <p th:if="${rows != null}"><span th:replace="~{graph-button :: viewAsGraph(${resourceIds})}"></span></p>
@@ -35,8 +35,8 @@
         </tr>
         </tbody>
     </table>
-    <p th:if="${rows != null and rows.isEmpty()}" class="muted">No results.</p>
-    <p th:if="${rows != null and !rows.isEmpty() and (resourceIds == null or resourceIds.isEmpty())}" class="muted">
+    <p th:if="${rows != null and rows.isEmpty()}" class="muted" th:text="#{catalogue.noResults}">No results.</p>
+    <p th:if="${rows != null and !rows.isEmpty() and (resourceIds == null or resourceIds.isEmpty())}" class="muted" th:text="#{sparql.noGraphable}">
         No graphable resources in these results (no column bound to a URI resource) &mdash; the "view as
         graph" button above only appears when at least one does.
     </p>

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Import data')}"></head>
+<head th:replace="~{fragments :: head(#{import.title.short})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <p class="breadcrumb"><a th:href="@{/entities}">&larr; Entities</a></p>
-    <h1>Import Turtle data</h1>
-    <p class="muted">
+    <p class="breadcrumb"><a th:href="@{/entities}" th:utext="'&larr; ' + #{nav.entities}">&larr; Entities</a></p>
+    <h1 th:text="#{import.title}">Import Turtle data</h1>
+    <p class="muted" th:utext="#{import.intro}">
         Paste complete, self-contained Turtle -- including its own <code>@prefix</code> lines; they
         aren't inherited from anywhere else. The content of any of this project's own
         <code>rdf/*.ttl</code> files (e.g. <code>sample-data-science.ttl</code>) pastes in directly.
@@ -15,21 +15,21 @@
     </p>
 
     <div class="callout" th:if="${error}">
-        <strong>Not imported.</strong> <span th:text="${error}">error</span>
+        <strong th:text="#{import.notImported}">Not imported.</strong> <span th:text="${error}">error</span>
     </div>
     <div class="callout" th:if="${success}" style="border-color:#8a4b2f;">
-        <strong>Done.</strong> <span th:text="${success}">success</span>
-        &mdash; <a th:href="@{/entities}">browse entities</a>
+        <strong th:text="#{import.done}">Done.</strong> <span th:text="${success}">success</span>
+        &mdash; <a th:href="@{/entities}" th:text="#{import.browse}">browse entities</a>
     </div>
 
     <form th:action="@{/entities/import}" method="post" class="form">
         <label>
-            Turtle content
+            <span th:text="#{import.content}">Turtle content</span>
             <textarea name="turtle" rows="20" class="import-textarea"
                       placeholder="@prefix rico: &lt;https://www.ica.org/standards/RiC/ontology#&gt; .&#10;..."
                       th:text="${turtle}"></textarea>
         </label>
-        <button type="submit">Import</button>
+        <button type="submit" th:text="#{import.action}">Import</button>
     </form>
 </main>
 <div th:replace="~{fragments :: footer}"></div>

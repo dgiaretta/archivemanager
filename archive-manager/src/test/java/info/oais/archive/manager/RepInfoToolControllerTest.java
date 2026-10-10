@@ -194,7 +194,7 @@ class RepInfoToolControllerTest {
                         .file(new MockMultipartFile("sample", "t.bin", "application/octet-stream", sample))
                         .param("changes", "# a comment\n/packet/body/science/temp = 1000\n")
                         .session(session))
-                .andExpect(content().string(containsString("written back\n                <span>with the changes</span>")))
+                .andExpect(content().string(containsString("(5 bytes) written back with the changes:")))
                 .andExpect(content().string(containsString("2 bytes differ, the first at offset 3.")));
         byte[] written = mockMvc.perform(get("/repinfo-tools/write-back/download").session(session))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.header().string(
@@ -241,7 +241,7 @@ class RepInfoToolControllerTest {
                     .andExpect(content().string(containsString("= 205 K")))
                     .andExpect(content().string(containsString("absent: its condition is false")))
                     .andExpect(content().string(containsString(
-                            "1 byte at the end of the file are not covered by the description")));
+                            "1 byte at the end of the file is not covered by the description")));
         }
     }
 

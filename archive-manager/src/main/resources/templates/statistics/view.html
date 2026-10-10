@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Statistics')}"></head>
+<head th:replace="~{fragments :: head(#{nav.statistics})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <h1>Statistics</h1>
-    <p class="muted">
+    <h1 th:text="#{nav.statistics}">Statistics</h1>
+    <p class="muted" th:utext="#{statistics.intro(@{/graph})}">
         How classes and properties are actually used across the whole data graph right now, not a
         static list of what the ontologies define. Anything with zero individuals or zero uses is
         left out entirely, rather than padding these tables with mostly-empty rows. For a visual,
@@ -16,18 +16,18 @@
 
     <div class="cards">
         <div class="report-panel">
-            <h3>Entity types in use</h3>
+            <h3 th:text="#{statistics.types}">Entity types in use</h3>
             <table class="attrs">
                 <tr th:each="f : ${classCounts}">
                     <td><a th:href="@{/entities(type=${f.iri})}" th:text="${f.label}">Type</a></td>
                     <td th:text="${f.count}">0</td>
                 </tr>
             </table>
-            <p th:if="${classCounts.isEmpty()}" class="muted">No data yet.</p>
+            <p th:if="${classCounts.isEmpty()}" class="muted" th:text="#{statistics.noData}">No data yet.</p>
         </div>
         <div class="report-panel">
-            <h3>Properties in use</h3>
-            <p class="muted" style="font-size:0.75rem;">
+            <h3 th:text="#{statistics.properties}">Properties in use</h3>
+            <p class="muted" style="font-size:0.75rem;" th:text="#{statistics.propertiesNote}">
                 Triple count per property; where it differs from the number of distinct records
                 using it, that's noted &mdash; a sign the field is repeatable and several records
                 have more than one value.
@@ -38,7 +38,7 @@
                     <td th:text="${f.count}">0</td>
                 </tr>
             </table>
-            <p th:if="${propertyCounts.isEmpty()}" class="muted">No data yet.</p>
+            <p th:if="${propertyCounts.isEmpty()}" class="muted" th:text="#{statistics.noData}">No data yet.</p>
         </div>
     </div>
 </main>

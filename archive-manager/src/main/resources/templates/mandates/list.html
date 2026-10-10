@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Mandates')}"></head>
+<head th:replace="~{fragments :: head(#{mandates.title})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <h1>Mandates</h1>
-    <p>rico:Mandate individuals &mdash; the bridge maps these to OAIS Access Rights Information.</p>
+    <h1 th:text="#{mandates.title}">Mandates</h1>
+    <p th:text="#{mandates.intro}">rico:Mandate individuals &mdash; the bridge maps these to OAIS Access Rights Information.</p>
     <p><span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span></p>
     <table class="listing">
-        <thead><tr><th>Name</th></tr></thead>
+        <thead><tr><th th:text="#{col.name}">Name</th></tr></thead>
         <tbody>
         <tr th:each="m : ${resultPage.items}">
             <td><a th:href="@{/mandates/{id}(id=${m.id})}" th:text="${m.title}">Mandate</a></td>

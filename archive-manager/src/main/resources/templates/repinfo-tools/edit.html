@@ -1,48 +1,48 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Edit format description')}"></head>
+<head th:replace="~{fragments :: head(#{edit.title})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <p class="breadcrumb"><a th:href="@{/repinfo-tools}">&larr; RepInfo Tools</a></p>
+    <p class="breadcrumb"><a th:href="@{/repinfo-tools}" th:utext="'&larr; ' + #{nav.repinfoTools}">&larr; RepInfo Tools</a></p>
     <h1 th:text="${def.name}">Format description</h1>
 
     <section class="editor-section">
-        <h2>Details</h2>
+        <h2 th:text="#{edit.details}">Details</h2>
         <form th:action="@{/repinfo-tools/details}" method="post" class="form">
             <label>
-                Name
+                <span th:text="#{col.name}">Name</span>
                 <input type="text" name="name" th:value="${def.name}" required/>
             </label>
             <label>
-                Notes (padding rules, variable-length conventions, anything a reader needs before the structure)
+                <span th:text="#{edit.notes}">Notes (padding rules, variable-length conventions, anything a reader needs before the structure)</span>
                 <textarea name="notes" rows="4" th:text="${def.notes}"></textarea>
             </label>
             <label>
-                File extensions (optional, comma-separated, e.g. <code>fits, fit</code> &mdash; lets the
-                generated drb-python driver recognise these files automatically)
+                <span th:utext="#{edit.extensions}">File extensions (optional, comma-separated, e.g. <code>fits, fit</code> &mdash; lets the
+                generated drb-python driver recognise these files automatically)</span>
                 <input type="text" name="fileExtensions" th:value="${#strings.listJoin(def.fileExtensions, ', ')}"/>
             </label>
             <label th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
-                Default byte order
+                <span th:text="#{edit.defaultByteOrder}">Default byte order</span>
                 <select name="defaultByteOrder">
-                    <option th:each="o : ${byteOrders}" th:value="${o}" th:text="${o}"
+                    <option th:each="o : ${byteOrders}" th:value="${o}" th:text="#{__${'byteOrder.' + o}__}"
                             th:selected="${o == def.defaultByteOrder}">BIG_ENDIAN</option>
                 </select>
             </label>
             <input type="hidden" name="defaultByteOrder" th:if="${def.kind.name() != 'BYTE_LAYOUT'}"
                    th:value="${def.defaultByteOrder}"/>
             <fieldset th:if="${def.kind.name() == 'BYTE_LAYOUT'}" class="languages">
-                <legend>Languages to generate</legend>
-                <p class="muted">
+                <legend th:text="#{edit.languages}">Languages to generate</legend>
+                <p class="muted" th:text="#{edit.languagesNote}">
                     With all four, the description is limited to what every language can express.
                     Choose fewer to use what only they can:
                 </p>
                 <ul class="muted feature-list">
                     <li th:each="f : ${features}">
-                        <span th:text="${f.label()}">bit fields</span>:
+                        <span th:text="#{__${'feature.' + f.name()}__}">bit fields</span>:
                         <span th:text="${featureLanguages.get(f.name())}">DFDL and Kaitai Struct</span>
-                        <strong th:if="${allow.get(f.name())}">(available)</strong>
+                        <strong th:if="${allow.get(f.name())}" th:text="#{edit.available}">(available)</strong>
                     </li>
                 </ul>
                 <label class="checkbox" th:each="l : ${languages}">
@@ -50,40 +50,33 @@
                     <span th:text="${l.label()}">DFDL</span>
                 </label>
             </fieldset>
-            <button type="submit">Save details</button>
+            <button type="submit" th:text="#{known.saveDetails}">Save details</button>
         </form>
     </section>
 
     <!-- Byte-layout structure: records, fields and choices -->
     <section class="editor-section" th:if="${def.kind.name() == 'BYTE_LAYOUT'}" id="structure">
-        <h2>Structure</h2>
-        <p class="muted">
-            The file as a tree, in data order. A <strong>record</strong> groups elements (and can be
-            repeated, or be one line of delimited text such as a CSV row); a <strong>field</strong>
-            is one value; a <strong>choice</strong> is one of several records, picked by an earlier
-            field's value. Counts, lengths and conditions can use earlier fields and arithmetic,
-            e.g. <code>n</code>, <code>rows * cols</code>, <code>flags = 1</code>, and fields inside a record
-            read earlier, e.g. <code>header.length + 1</code>. Select an element to
-            edit it, including what it means: its semantic name, definition, units and more.
+        <h2 th:text="#{edit.structure}">Structure</h2>
+        <p class="muted" th:utext="#{edit.structureNote}">
+            The file as a tree, in data order.
         </p>
         <p class="notice" th:if="${!handWritten.isEmpty()}">
-            Written by hand:
+            <span th:text="#{edit.handWritten}">Written by hand:</span>
             <th:block th:each="h, it : ${handWritten}"><a th:href="@{/repinfo-tools/hand/{p}(p=${h.path})}"
                 th:text="${h.label}">DFDL</a><th:block th:unless="${it.last}">, </th:block></th:block>
-            &mdash; used instead of what this tree generates in that language. The tree still provides
-            the meanings saved with the description (and is optional if you only write by hand).
+            &mdash; <span th:text="#{edit.handWrittenNote}">used instead of what this tree generates in that language. The tree still provides
+            the meanings saved with the description (and is optional if you only write by hand).</span>
         </p>
         <p class="notice error" th:if="${editorError != null}" th:text="${editorError}">error</p>
         <p class="notice" th:if="${editorMessage != null}" th:text="${editorMessage}">saved</p>
         <p class="notice error" th:if="${problemCount > 0}"
-           th:text="${problemCount == 1 ? '1 problem to fix before the description can be generated in its languages - see below.'
-                    : problemCount + ' problems to fix before the description can be generated in its languages - see below.'}">problems</p>
+           th:text="${problemCount == 1} ? #{edit.oneProblem} : #{edit.problems(${problemCount})}">problems</p>
 
         <table class="attrs structure-tree">
-            <tr><th>Element</th><th>Layout</th><th>Meaning</th><th></th></tr>
+            <tr><th th:text="#{sample.col.element}">Element</th><th th:text="#{edit.layout}">Layout</th><th th:text="#{sample.col.meaning}">Meaning</th><th></th></tr>
             <tr th:each="row : ${rows}" th:classappend="${form != null and form.id == row.id} ? 'selected'">
                 <td th:style="|padding-left: ${row.depth * 1.4 + 0.5}rem|">
-                    <span class="element-kind" th:text="${row.kind}">field</span>
+                    <span class="element-kind" th:text="#{__${'kind.' + row.kind}__}">field</span>
                     <a th:href="@{/repinfo-tools/edit(element=${row.id})} + '#edit-element'" th:text="${row.name}">name</a>
                     <ul class="problems" th:if="${!row.problems.isEmpty()}">
                         <li th:each="p : ${row.problems}" th:text="${p}">problem</li>
@@ -94,187 +87,187 @@
                 <td class="row-actions">
                     <form th:if="${!row.root}" th:action="@{/repinfo-tools/elements/{id}/move(id=${row.id})}" method="post" class="inline-form">
                         <input type="hidden" name="delta" value="-1"/>
-                        <button type="submit" th:disabled="${row.first}" title="Move up">&uarr;</button>
+                        <button type="submit" th:disabled="${row.first}" th:title="#{action.moveUp}">&uarr;</button>
                     </form>
                     <form th:if="${!row.root}" th:action="@{/repinfo-tools/elements/{id}/move(id=${row.id})}" method="post" class="inline-form">
                         <input type="hidden" name="delta" value="1"/>
-                        <button type="submit" th:disabled="${row.last}" title="Move down">&darr;</button>
+                        <button type="submit" th:disabled="${row.last}" th:title="#{action.moveDown}">&darr;</button>
                     </form>
                     <form th:if="${!row.root}" th:action="@{/repinfo-tools/elements/{id}/delete(id=${row.id})}" method="post" class="inline-form">
-                        <button type="submit" class="delete-btn" title="Remove">&times;</button>
+                        <button type="submit" class="delete-btn" th:title="#{action.remove}">&times;</button>
                     </form>
                 </td>
             </tr>
         </table>
-        <p class="muted" th:if="${form == null}">Select an element above to edit it, or to add elements inside it.</p>
+        <p class="muted" th:if="${form == null}" th:text="#{edit.select}">Select an element above to edit it, or to add elements inside it.</p>
     </section>
 
     <!-- Edit panel for the selected element -->
     <section class="editor-section" th:if="${def.kind.name() == 'BYTE_LAYOUT' and form != null}" id="edit-element">
-        <h2 th:text="${form.root ? 'The whole file' : 'Edit ' + form.kind + ' ' + form.name}">Edit field</h2>
+        <h2 th:text="${form.root} ? #{edit.wholeFile} : #{edit.editElement(#{__${'kind.' + form.kind}__}, ${form.name})}">Edit field</h2>
         <form th:action="@{/repinfo-tools/elements/{id}/update(id=${form.id})}" method="post" class="form">
             <fieldset>
-                <legend>Layout</legend>
+                <legend th:text="#{edit.layout}">Layout</legend>
                 <label th:if="${!form.root}">
-                    Name (lower-case letters, digits and underscores)
+                    <span th:text="#{edit.name}">Name (lower-case letters, digits and underscores)</span>
                     <input type="text" name="name" th:value="${form.name}" required/>
                 </label>
                 <th:block th:if="${form.kind == 'field'}">
                     <label>
-                        Type
+                        <span th:text="#{col.type}">Type</span>
                         <select name="type">
                             <option th:each="t : ${fieldTypes}" th:value="${t}" th:text="${t}"
                                     th:selected="${t.name() == form.type}">UINT8</option>
                         </select>
                     </label>
                     <label>
-                        Length in bytes (STRING and BYTES in a binary record only): a number, or an
-                        expression such as <code>name_len</code> or <code>n * 2 - 1</code>.
-                        <th:block th:if="${allow.get('BIT_FIELDS')}">For BITS, the number of bits (1 to 64).</th:block>
+                        <span th:utext="#{edit.length}">Length in bytes (STRING and BYTES in a binary record only): a number, or an
+                        expression such as <code>name_len</code> or <code>n * 2 - 1</code>.</span>
+                        <th:block th:if="${allow.get('BIT_FIELDS')}"><span th:text="#{edit.lengthBits}">For BITS, the number of bits (1 to 64).</span></th:block>
                         <input type="text" name="length" th:value="${form.length}"/>
                     </label>
                     <th:block th:if="${form.inText and allow.get('NIL_VALUES')}">
                         <input type="hidden" name="nilShown" value="1"/>
                         <label class="checkbox">
                             <input type="checkbox" name="nil" th:checked="${form.nil}"/>
-                            Can have no value (nil), written as:
+                            <span th:text="#{edit.nil}">Can have no value (nil), written as:</span>
                         </label>
                         <label>
-                            Text meaning "no value" (e.g. <code>NA</code>; leave empty for an empty field)
+                            <span th:utext="#{edit.nilValue}">Text meaning "no value" (e.g. <code>NA</code>; leave empty for an empty field)</span>
                             <input type="text" name="nilValue" th:value="${form.nilValue}"/>
                         </label>
                     </th:block>
                     <th:block th:if="${form.inText and allow.get('NUMBER_FORMATS')}">
                         <label>
-                            Number format, for a number not written as plain digits (e.g. <code>#,##0.00</code>);
-                            leave empty for plain digits
+                            <span th:utext="#{edit.numberFormat}">Number format, for a number not written as plain digits (e.g. <code>#,##0.00</code>);
+                            leave empty for plain digits</span>
                             <input type="text" name="numberPattern" th:value="${form.numberPattern}"/>
                         </label>
                         <div class="form-row">
                             <label>
-                                Decimal separator
+                                <span th:text="#{edit.decimalSeparator}">Decimal separator</span>
                                 <input type="text" name="decimalSeparator" th:value="${form.decimalSeparator}" maxlength="1"/>
                             </label>
                             <label>
-                                Grouping separator (e.g. <code>,</code>; empty if none)
+                                <span th:utext="#{edit.groupingSeparator}">Grouping separator (e.g. <code>,</code>; empty if none)</span>
                                 <input type="text" name="groupingSeparator" th:value="${form.groupingSeparator}" maxlength="1"/>
                             </label>
                         </div>
                     </th:block>
                     <label>
-                        Byte order (multi-byte numbers)
+                        <span th:text="#{edit.byteOrder}">Byte order (multi-byte numbers)</span>
                         <select name="byteOrder">
-                            <option value="" th:selected="${form.byteOrder == ''}">(the file's default)</option>
-                            <option th:each="o : ${byteOrders}" th:value="${o}" th:text="${o}"
+                            <option value="" th:selected="${form.byteOrder == ''}" th:text="#{edit.fileDefault}">(the file's default)</option>
+                            <option th:each="o : ${byteOrders}" th:value="${o}" th:text="#{__${'byteOrder.' + o}__}"
                                     th:selected="${o.name() == form.byteOrder}">BIG_ENDIAN</option>
                         </select>
                     </label>
                 </th:block>
                 <label th:if="${form.kind == 'choice'}">
-                    Chosen by (an earlier field, or an expression)
+                    <span th:text="#{edit.chosenBy}">Chosen by (an earlier field, or an expression)</span>
                     <input type="text" name="discriminator" th:value="${form.discriminator}" required/>
                 </label>
                 <label th:if="${form.kind == 'branch'}">
-                    Used when the choice's value is
+                    <span th:text="#{edit.branchKey}">Used when the choice's value is</span>
                     <input type="text" name="branchKey" th:value="${form.branchKey}" required/>
                 </label>
                 <th:block th:if="${(form.kind == 'record' or form.kind == 'branch')
                                    and (allow.get('DELIMITED_TEXT') or form.text)}">
                     <label class="checkbox">
                         <input type="checkbox" name="text" th:checked="${form.text}"/>
-                        Delimited text (e.g. one CSV row): its fields are text between separators
+                        <span th:text="#{edit.delimited}">Delimited text (e.g. one CSV row): its fields are text between separators</span>
                     </label>
                     <label>
-                        Field separator (<code>\t</code> for a tab)
+                        <span th:utext="#{edit.fieldSeparator}">Field separator (<code>\t</code> for a tab)</span>
                         <input type="text" name="fieldSeparator" th:value="${form.fieldSeparator}"/>
                     </label>
                     <label>
-                        Record terminator (<code>\n</code> for a newline)
+                        <span th:utext="#{edit.recordTerminator}">Record terminator (<code>\n</code> for a newline)</span>
                         <input type="text" name="recordTerminator" th:value="${form.recordTerminator}"/>
                     </label>
                     <label th:if="${allow.get('QUOTED_TEXT')}">
-                        Quote (e.g. <code>"</code>): values containing separators are enclosed in it, with a
-                        doubled quote inside meaning one; leave empty if values are never quoted
+                        <span th:utext="#{edit.quote}">Quote (e.g. <code>"</code>): values containing separators are enclosed in it, with a
+                        doubled quote inside meaning one; leave empty if values are never quoted</span>
                         <input type="text" name="quote" th:value="${form.quote}" maxlength="1"/>
                     </label>
                     <label th:if="${!form.root and allow.get('SIZED_RECORDS')}">
-                        Size in bytes, if stated (a number or an expression such as <code>block_len</code>): its
-                        elements are read within it and any bytes they don't use are skipped
+                        <span th:utext="#{edit.recordSize}">Size in bytes, if stated (a number or an expression such as <code>block_len</code>): its
+                        elements are read within it and any bytes they don't use are skipped</span>
                         <input type="text" name="recordSize" th:value="${form.recordSize}"/>
                     </label>
                     <th:block th:if="${!form.root and allow.get('COMPRESSION')}">
                         <input type="hidden" name="zlibShown" value="1"/>
                         <label class="checkbox">
                             <input type="checkbox" name="zlib" th:checked="${form.zlib}"/>
-                            zlib-compressed (its size is then the compressed size)
+                            <span th:text="#{edit.zlib}">zlib-compressed (its size is then the compressed size)</span>
                         </label>
                     </th:block>
                 </th:block>
                 <label th:if="${!form.root and form.kind != 'choice' and form.kind != 'branch' and !form.inText
                                and allow.get('ABSOLUTE_OFFSETS')}">
-                    Read at an offset (bytes from the start of the file, or of the enclosing record of a
-                    stated size), e.g. <code>index_offset</code>; leave empty to read it in sequence
+                    <span th:utext="#{edit.offset}">Read at an offset (bytes from the start of the file, or of the enclosing record of a
+                    stated size), e.g. <code>index_offset</code>; leave empty to read it in sequence</span>
                     <input type="text" name="position" th:value="${form.position}"/>
                 </label>
                 <th:block th:if="${!form.root and form.kind != 'branch'}">
                     <label>
-                        Occurs
+                        <span th:text="#{edit.occurs}">Occurs</span>
                         <select name="occurs">
-                            <option value="once" th:selected="${form.occurs == 'once'}">once</option>
-                            <option value="optional" th:selected="${form.occurs == 'optional'}">only if a condition holds</option>
-                            <option value="repeated" th:selected="${form.occurs == 'repeated'}">a number of times</option>
-                            <option value="until_end" th:selected="${form.occurs == 'until_end'}">repeatedly, to the end of the data</option>
+                            <option value="once" th:selected="${form.occurs == 'once'}" th:text="#{edit.occurs.once}">once</option>
+                            <option value="optional" th:selected="${form.occurs == 'optional'}" th:text="#{edit.occurs.optional}">only if a condition holds</option>
+                            <option value="repeated" th:selected="${form.occurs == 'repeated'}" th:text="#{edit.occurs.repeated}">a number of times</option>
+                            <option value="until_end" th:selected="${form.occurs == 'until_end'}" th:text="#{edit.occurs.untilEnd}">repeatedly, to the end of the data</option>
                         </select>
                     </label>
                     <label>
-                        Condition or number of times (e.g. <code>flags = 1</code>, <code>n</code>, <code>rows * cols</code>)
+                        <span th:utext="#{edit.occursExpr}">Condition or number of times (e.g. <code>flags = 1</code>, <code>n</code>, <code>rows * cols</code>)</span>
                         <input type="text" name="occursExpr" th:value="${form.occursExpr}"/>
                     </label>
                 </th:block>
             </fieldset>
 
             <fieldset th:replace="~{repinfo-tools/semantics-fields :: semanticsFields(${form}, ${form.kind == 'field'})}"></fieldset>
-            <button type="submit">Save</button>
+            <button type="submit" th:text="#{action.save}">Save</button>
         </form>
 
         <th:block th:if="${form.kind == 'record' or form.kind == 'branch'}">
-            <h3 th:text="${form.root ? 'Add to the whole file' : 'Add inside ' + form.name}">Add inside</h3>
+            <h3 th:text="${form.root} ? #{edit.addToFile} : #{edit.addInside(${form.name})}">Add inside</h3>
             <form th:action="@{/repinfo-tools/elements/add}" method="post" class="inline-add-form">
                 <input type="hidden" name="parentId" th:value="${form.id}"/>
                 <select name="kind">
-                    <option value="field">field</option>
-                    <option value="record">record</option>
-                    <option value="choice">choice</option>
+                    <option value="choice" th:text="#{kind.choice}">choice</option>
+                    <option value="field" selected="selected" th:text="#{kind.field}">field</option>
+                    <option value="record" th:text="#{kind.record}">record</option>
                 </select>
-                <input type="text" name="name" placeholder="name" required/>
-                <input type="text" name="discriminator" placeholder="for a choice: chosen by, e.g. kind"/>
-                <button type="submit">Add</button>
+                <input type="text" name="name" th:placeholder="#{edit.namePlaceholder}" required/>
+                <input type="text" name="discriminator" th:placeholder="#{edit.discriminatorPlaceholder}"/>
+                <button type="submit" th:text="#{edit.add}">Add</button>
             </form>
         </th:block>
         <th:block th:if="${form.kind == 'choice'}">
-            <h3>Add a branch</h3>
+            <h3 th:text="#{edit.addBranch}">Add a branch</h3>
             <form th:action="@{/repinfo-tools/elements/add}" method="post" class="inline-add-form">
                 <input type="hidden" name="parentId" th:value="${form.id}"/>
                 <input type="hidden" name="kind" value="branch"/>
-                <input type="text" name="name" placeholder="branch record name, e.g. temperature" required/>
-                <input type="text" name="key" th:placeholder="'used when ' + ${form.discriminator} + ' is, e.g. 1'" required/>
-                <button type="submit">Add branch</button>
+                <input type="text" name="name" th:placeholder="#{edit.branchNamePlaceholder}" required/>
+                <input type="text" name="key" th:placeholder="#{edit.branchKeyPlaceholder(${form.discriminator})}" required/>
+                <button type="submit" th:text="#{edit.addBranchAction}">Add branch</button>
             </form>
         </th:block>
     </section>
 
     <!-- HDF5-style logical tree -->
     <section class="editor-section" th:if="${def.kind.name() == 'LOGICAL_TREE'}">
-        <h2>Group / dataset / attribute tree</h2>
-        <p class="muted">
+        <h2 th:text="#{edit.tree}">Group / dataset / attribute tree</h2>
+        <p class="muted" th:utext="#{edit.treeNote}">
             <strong>Semantic name</strong>, <strong>definition</strong>, and <strong>units</strong>
-            become this row's own Semantic Representation Information when you save -- distinct
-            from the structural name derived from its path.
+            become this row's own Semantic Representation Information when you save.
         </p>
         <table class="attrs" th:if="${!def.nodes.isEmpty()}">
             <tr>
-                <th>Kind</th><th>Path</th><th>Type</th><th>Shape</th><th>Semantic name</th>
-                <th>Definition</th><th>Units</th><th></th>
+                <th th:text="#{sample.col.kind}">Kind</th><th th:text="#{edit.path}">Path</th><th th:text="#{col.type}">Type</th>
+                <th th:text="#{edit.shape}">Shape</th><th th:text="#{edit.semanticName}">Semantic name</th>
+                <th th:text="#{sem.definition}">Definition</th><th th:text="#{known.units}">Units</th><th></th>
             </tr>
             <tr th:each="n, it : ${def.nodes}">
                 <td th:text="${n.kind}">kind</td>
@@ -287,36 +280,36 @@
                 <td>
                     <form th:action="@{/repinfo-tools/nodes/{i}/move(i=${it.index})}" method="post" class="inline-form">
                         <input type="hidden" name="delta" value="-1"/>
-                        <button type="submit" th:disabled="${it.index == 0}" title="Move up">&uarr;</button>
+                        <button type="submit" th:disabled="${it.index == 0}" th:title="#{action.moveUp}">&uarr;</button>
                     </form>
                     <form th:action="@{/repinfo-tools/nodes/{i}/move(i=${it.index})}" method="post" class="inline-form">
                         <input type="hidden" name="delta" value="1"/>
-                        <button type="submit" th:disabled="${it.index == def.nodes.size() - 1}" title="Move down">&darr;</button>
+                        <button type="submit" th:disabled="${it.index == def.nodes.size() - 1}" th:title="#{action.moveDown}">&darr;</button>
                     </form>
                     <form th:action="@{/repinfo-tools/nodes/{i}/delete(i=${it.index})}" method="post" class="inline-form">
-                        <button type="submit" class="delete-btn" title="Remove">&times;</button>
+                        <button type="submit" class="delete-btn" th:title="#{action.remove}">&times;</button>
                     </form>
                 </td>
             </tr>
         </table>
-        <p th:if="${def.nodes.isEmpty()}" class="muted">No rows yet.</p>
+        <p th:if="${def.nodes.isEmpty()}" class="muted" th:text="#{edit.noRows}">No rows yet.</p>
 
         <form th:action="@{/repinfo-tools/nodes}" method="post" class="inline-add-form">
             <select name="kind">
                 <option th:each="k : ${nodeKinds}" th:value="${k}" th:text="${k}">GROUP</option>
             </select>
             <input type="text" name="path" placeholder="/group/dataset or /group/dataset@attr" required style="min-width:16rem;"/>
-            <input type="text" name="dtype" placeholder="dtype (dataset/attribute only)"/>
-            <input type="text" name="shape" placeholder="shape, e.g. 100,200 (dataset only)"/>
-            <input type="text" name="semanticName" placeholder="semantic name (e.g. Temperature)"/>
-            <input type="text" name="definition" placeholder="what this means" style="min-width:20rem;"/>
-            <input type="text" name="units" placeholder="units (optional)"/>
-            <button type="submit">Add row</button>
+            <input type="text" name="dtype" th:placeholder="#{edit.dtypePlaceholder}"/>
+            <input type="text" name="shape" th:placeholder="#{edit.shapePlaceholder}"/>
+            <input type="text" name="semanticName" th:placeholder="#{edit.semanticNamePlaceholder}"/>
+            <input type="text" name="definition" th:placeholder="#{edit.definitionPlaceholder}" style="min-width:20rem;"/>
+            <input type="text" name="units" th:placeholder="#{edit.unitsPlaceholder}"/>
+            <button type="submit" th:text="#{edit.addRow}">Add row</button>
         </form>
     </section>
 
     <p>
-        <a class="button" th:href="@{/repinfo-tools/preview}">Preview &amp; generate &rarr;</a>
+        <a class="button" th:href="@{/repinfo-tools/preview}" th:utext="#{edit.previewGenerate} + ' &rarr;'">Preview &amp; generate &rarr;</a>
     </p>
 </main>
 <div th:replace="~{fragments :: footer}"></div>

@@ -5,20 +5,20 @@
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container container-wide">
     <p class="breadcrumb" th:if="${focusId != null}">
-        <a th:href="@{/resource/{id}(id=${focusId})}">&larr; back to resource</a>
+        <a th:href="@{/resource/{id}(id=${focusId})}" th:utext="'&larr; ' + #{graph.back}">&larr; back to resource</a>
     </p>
     <h1 th:text="${pageTitle}">Graph</h1>
 
     <div class="graph-toolbar">
         <span class="legend-item"><span class="swatch swatch-rico"></span> RiC-O</span>
         <span class="legend-item"><span class="swatch swatch-oais"></span> OAIS</span>
-        <span class="legend-item"><span class="swatch swatch-other"></span> other</span>
-        <span class="legend-item"><span class="swatch-line swatch-cross"></span> cross-ontology link (via the bridge)</span>
+        <span class="legend-item"><span class="swatch swatch-other"></span> <span th:text="#{graph.other}">other</span></span>
+        <span class="legend-item"><span class="swatch-line swatch-cross"></span> <span th:text="#{graph.cross}">cross-ontology link (via the bridge)</span></span>
 
         <span class="spacer"></span>
 
         <span th:if="${focusId != null}">
-            depth:
+            <span th:text="#{graph.depth}">depth:</span>
             <a th:each="d : ${#numbers.sequence(1, 4)}"
                th:href="@{/graph/{id}(id=${focusId}, depth=${d})}"
                th:text="${d}"
@@ -26,51 +26,51 @@
                class="depth-link">1</a>
         </span>
         <span th:if="${focusIds != null and !focusIds.isEmpty()}">
-            depth:
+            <span th:text="#{graph.depth}">depth:</span>
             <a th:each="d : ${#numbers.sequence(1, 4)}"
                th:href="@{/graph/multi(id=${focusIds}, depth=${d})}"
                th:text="${d}"
                th:classappend="${depth != null and depth == d} ? 'active' : ''"
                class="depth-link">1</a>
         </span>
-        <a th:href="@{/graph}" class="button-link">View full graph</a>
+        <a th:href="@{/graph}" class="button-link" th:text="#{graph.full}">View full graph</a>
     </div>
 
     <div class="highlight-panel">
         <div class="highlight-group">
-            <span class="highlight-heading">Highlight entity types</span>
+            <span class="highlight-heading" th:text="#{graph.highlightTypes}">Highlight entity types</span>
             <div id="highlight-types" class="highlight-checkboxes"></div>
         </div>
         <div class="highlight-group">
-            <span class="highlight-heading">Highlight properties</span>
+            <span class="highlight-heading" th:text="#{graph.highlightProperties}">Highlight properties</span>
             <div id="highlight-node-properties" class="highlight-checkboxes"></div>
         </div>
         <div class="highlight-group">
-            <span class="highlight-heading">Highlight relationship types</span>
+            <span class="highlight-heading" th:text="#{graph.highlightRelationships}">Highlight relationship types</span>
             <div id="highlight-relationship-types" class="highlight-checkboxes"></div>
         </div>
-        <button type="button" id="highlight-clear" class="page-link">Clear highlight</button>
+        <button type="button" id="highlight-clear" class="page-link" th:text="#{graph.clearHighlight}">Clear highlight</button>
     </div>
 
     <div id="network"></div>
     <div id="node-context-menu" class="node-context-menu" style="display:none;"></div>
     <p id="viewer-status" class="muted" aria-live="polite"></p>
     <p class="muted">
-        <span id="node-count">0</span> nodes, <span id="edge-count">0</span> edges.
-        Scroll to zoom, drag to pan, double-click a node to open it, right-click for its links.
+        <span id="node-count">0</span> <span th:text="#{graph.nodes}">nodes</span>, <span id="edge-count">0</span> <span th:text="#{graph.edges}">edges</span>.
+        <span th:text="#{graph.howTo}">Scroll to zoom, drag to pan, double-click a node to open it, right-click for its links.</span>
     </p>
     <div class="callout" id="truncated-notice" style="display:none;">
-        <strong>This view is truncated.</strong>
-        <span th:if="${focusId == null and (focusIds == null or focusIds.isEmpty())}">
+        <strong th:text="#{graph.truncated}">This view is truncated.</strong>
+        <span th:if="${focusId == null and (focusIds == null or focusIds.isEmpty())}" th:text="#{graph.truncated.full}">
             The full graph has more resource-to-resource triples than this view renders at once. Try a
             focused view from a specific record/agent/etc. instead ("View in graph" on its page), which
             supports adjustable depth and stays responsive at any archive size.
         </span>
-        <span th:if="${focusId != null}">
+        <span th:if="${focusId != null}" th:text="#{graph.truncated.focus}">
             This resource's neighbourhood has more connected nodes than this view renders at once. Try a
             smaller depth from the toolbar above.
         </span>
-        <span th:if="${focusIds != null and !focusIds.isEmpty()}">
+        <span th:if="${focusIds != null and !focusIds.isEmpty()}" th:text="#{graph.truncated.multi}">
             This selection's combined neighbourhood has more connected nodes than this view renders at
             once. Try a smaller depth from the toolbar above, or graph fewer items at once (e.g. one page
             of results instead of a larger listing).
@@ -225,7 +225,7 @@
 
                 contextMenu.innerHTML = '';
                 if (n.detailUrl) {
-                    addMenuItem('Open detail page', null, function () {
+                    addMenuItem(i18n('graph.openDetail'), null, function () {
                         window.open(n.detailUrl, '_blank', 'noopener,noreferrer');
                     });
                 }
@@ -241,14 +241,15 @@
                     }
                     const heading = document.createElement('div');
                     heading.className = 'menu-heading';
-                    heading.textContent = 'View the data';
+                    heading.textContent = i18n('graph.viewData');
                     contextMenu.appendChild(heading);
                     const status = document.getElementById('viewer-status');
                     viewers.forEach(function (v) {
-                        addMenuItem(v.label, 'sent over SAMP', function () {
+                        const app = v.label.replace(/^View with /, '');
+                        addMenuItem(i18n('graph.viewWith', app), i18n('graph.overSamp'), function () {
                             window.OaisSamp.send({
                                 url: v.dataUrl, name: n.label, mtype: v.mtype, client: v.clientName,
-                                label: v.label.replace(/^View with /, ''),
+                                label: app,
                                 say: function (text) { status.textContent = n.label + ': ' + text; }
                             });
                         });
@@ -256,11 +257,11 @@
                     // Fiji/ImageJ doesn't use SAMP: it opens the FITS file itself.
                     const image = viewers.filter(function (v) { return v.format === 'fits'; })[0];
                     if (image) {
-                        addMenuItem('Download as FITS', 'for Fiji/ImageJ or any image viewer', function () {
+                        addMenuItem(i18n('graph.downloadFits'), i18n('graph.forImageViewers'), function () {
                             window.open(image.dataUrl, '_blank', 'noopener,noreferrer');
                         });
                     }
-                    addMenuItem('Representation Information manifest', 'for TOPCAT and SPLAT by URL', function () {
+                    addMenuItem(i18n('graph.manifest'), i18n('graph.forTopcat'), function () {
                         window.open(viewers[0].manifestUrl, '_blank', 'noopener,noreferrer');
                     });
                 }
@@ -273,9 +274,10 @@
                     }
                     const heading = document.createElement('div');
                     heading.className = 'menu-heading';
-                    heading.textContent = 'Links';
+                    heading.textContent = i18n('graph.links');
                     contextMenu.appendChild(heading);
-                    links.forEach(function (link) {
+                    links.slice().sort((a, b) => a.propertyLocalName.localeCompare(b.propertyLocalName, undefined, {sensitivity: 'base'}))
+                        .forEach(function (link) {
                         addMenuItem(link.propertyLocalName, link.url, function () {
                             window.open(link.url, '_blank', 'noopener,noreferrer');
                         });
@@ -309,7 +311,7 @@
 
             function buildCheckboxes(containerId, values) {
                 const container = document.getElementById(containerId);
-                Array.from(values).sort().forEach(value => {
+                Array.from(values).sort((a, b) => a.localeCompare(b, undefined, {sensitivity: 'base'})).forEach(value => {
                     const label = document.createElement('label');
                     label.className = 'highlight-checkbox';
                     const input = document.createElement('input');
@@ -365,7 +367,7 @@
         })
         .catch(err => {
             document.getElementById('network').innerHTML =
-                '<p class="muted">Could not load graph data: ' + err + '</p>';
+                '<p class="muted">' + i18n('graph.loadFailed', err) + '</p>';
         });
     /*]]>*/
 </script>

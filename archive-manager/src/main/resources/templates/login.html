@@ -1,25 +1,25 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Log in')}"></head>
+<head th:replace="~{fragments :: head(#{nav.login})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container container-narrow">
-    <h1>Log in to edit</h1>
-    <p class="muted">
+    <h1 th:text="#{login.title}">Log in to edit</h1>
+    <p class="muted" th:text="#{login.intro}">
         Browsing is always open. A password is only needed to create, edit, or delete entities.
     </p>
 
     <div class="callout" th:if="${error}">
-        <strong>Wrong password.</strong> Try again.
+        <strong th:text="#{login.wrong}">Wrong password.</strong> <span th:text="#{login.tryAgain}">Try again.</span>
     </div>
 
     <form th:action="@{/login}" method="post" class="form">
         <input type="hidden" name="redirect" th:value="${redirect}"/>
         <label>
-            Password
+            <span th:text="#{login.password}">Password</span>
             <input type="password" name="password" autofocus="autofocus" required/>
         </label>
-        <button type="submit">Log in</button>
+        <button type="submit" th:text="#{nav.login}">Log in</button>
     </form>
 </main>
 <div th:replace="~{fragments :: footer}"></div>

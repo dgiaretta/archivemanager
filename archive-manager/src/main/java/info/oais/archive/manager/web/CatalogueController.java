@@ -28,7 +28,10 @@ public class CatalogueController {
     private final ArchiveService archive;
     private final CatalogueImportService importService;
 
-    public CatalogueController(ArchiveService archive, CatalogueImportService importService) {
+    private final info.oais.archive.manager.i18n.Messages messages;
+
+    public CatalogueController(ArchiveService archive, CatalogueImportService importService, info.oais.archive.manager.i18n.Messages messages) {
+        this.messages = messages;
         this.archive = archive;
         this.importService = importService;
     }
@@ -104,7 +107,7 @@ public class CatalogueController {
                           @RequestParam(required = false) String accessionDate,
                           Model model) {
         if (file == null || file.isEmpty()) {
-            model.addAttribute("error", "Choose a file first.");
+            model.addAttribute("error", messages.get("error.chooseFile"));
             return "catalogue/upload";
         }
         String filename = file.getOriginalFilename();
@@ -129,10 +132,10 @@ public class CatalogueController {
             model.addAttribute("result", result);
             return "catalogue/upload-result";
         } catch (IOException e) {
-            model.addAttribute("error", "Could not read that file: " + e.getMessage());
+            model.addAttribute("error", messages.get("error.couldNotRead", e.getMessage()));
             return "catalogue/upload";
         } catch (RuntimeException e) {
-            model.addAttribute("error", "Import failed: " + e.getMessage());
+            model.addAttribute("error", messages.get("error.importFailed", e.getMessage()));
             return "catalogue/upload";
         }
     }

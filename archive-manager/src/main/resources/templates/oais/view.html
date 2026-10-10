@@ -5,11 +5,11 @@
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
     <p class="breadcrumb"><a th:href="@{/records/{id}(id=${id})}">&larr; <span th:text="${title}">Record</span></a></p>
-    <h1>OAIS mapping for <span th:text="${title}">Record</span></h1>
+    <h1 th:text="#{oais.heading(${title})}">OAIS mapping for Record</h1>
     <code th:text="${iri}">iri</code>
-    <p><a class="button button-secondary" th:href="@{/graph/{id}(id=${id})}">View in graph &rarr;</a></p>
+    <p><a class="button button-secondary" th:href="@{/graph/{id}(id=${id})}" th:utext="#{action.viewInGraph} + ' &rarr;'">View in graph &rarr;</a></p>
 
-    <h2>Class-level correspondences (from the bridging ontology)</h2>
+    <h2 th:text="#{oais.classLevel}">Class-level correspondences (from the bridging ontology)</h2>
     <div th:each="entry : ${mappingsByType}">
         <h3>rico:<span th:text="${entry.key}">Record</span></h3>
         <table th:if="${!entry.value.isEmpty()}" class="attrs">
@@ -19,35 +19,35 @@
                 <td class="rationale" th:text="${m.rationale}">rationale</td>
             </tr>
         </table>
-        <p th:if="${entry.value.isEmpty()}" class="muted">No bridge mapping declared for this class.</p>
+        <p th:if="${entry.value.isEmpty()}" class="muted" th:text="#{oais.noMapping}">No bridge mapping declared for this class.</p>
     </div>
 
     <div class="callout" th:if="${representationInfoGap}">
-        <strong>Note &mdash; a deliberate gap:</strong>
+        <strong th:text="#{oais.gap}">Note &mdash; a deliberate gap:</strong>
         <span th:text="${representationInfoGap}">gap note</span>
     </div>
 
-    <h2>Linked OAIS structural description</h2>
+    <h2 th:text="#{oais.linked}">Linked OAIS structural description</h2>
     <div th:if="${oaisRows != null}">
         <div th:each="row : ${oaisRows}" class="oais-node" th:style="${row.indentStyle}">
             <div class="oais-node-head">
                 <span class="prop" th:if="${row.connectingProperty != null and !row.incoming}"
                       th:text="'im:' + ${row.connectingProperty} + ' →'">im:hasBit &rarr;</span>
                 <span class="prop oais-incoming" th:if="${row.connectingProperty != null and row.incoming}"
-                      th:text="'← im:' + ${row.connectingProperty} + ' (referenced by)'">&larr; im:hasContentInformation (referenced by)</span>
+                      th:text="'← im:' + ${row.connectingProperty} + ' (' + #{oais.referencedBy} + ')'">&larr; im:hasContentInformation (referenced by)</span>
                 <span class="pill pill-oais" th:text="${row.typeLabel}">Type</span>
                 <code th:text="${row.iri}">iri</code>
             </div>
             <p class="oais-comment" th:if="${row.comment}" th:text="${row.comment}">comment</p>
             <div class="oais-ric-links" th:if="${!row.ricDescriptionIris.isEmpty()}">
-                <em>RiC-O description(s):</em>
+                <em th:text="#{oais.ricDescriptions}">RiC-O description(s):</em>
                 <ul>
                     <li th:each="r : ${row.ricDescriptionIris}"><code th:text="${r}">iri</code></li>
                 </ul>
             </div>
         </div>
     </div>
-    <p th:if="${oaisRows == null}" class="muted">
+    <p th:if="${oaisRows == null}" class="muted" th:utext="#{oais.noCounterpart}">
         This resource has no <code>bridge:hasOAISCounterpart</code> individual linked in the data graph, so
         there is no OAIS-side structure to walk &mdash; only the class-level mapping above applies.
     </p>

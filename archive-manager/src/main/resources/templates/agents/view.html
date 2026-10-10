@@ -4,7 +4,7 @@
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <p class="breadcrumb"><a th:href="@{/agents}">&larr; Agents</a></p>
+    <p class="breadcrumb"><a th:href="@{/agents}" th:utext="'&larr; ' + #{nav.agents}">&larr; Agents</a></p>
     <h1 th:text="${title}">Name</h1>
     <p class="types">
         <span class="pill" th:each="t : ${types}" th:text="${t}">Type</span>
@@ -12,20 +12,20 @@
     </p>
 
     <p>
-        <a class="button button-secondary" th:href="@{/graph/{id}(id=${id})}">View in graph &rarr;</a>
-        <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}">Edit &rarr;</a>
+        <a class="button button-secondary" th:href="@{/graph/{id}(id=${id})}" th:utext="#{action.viewInGraph} + ' &rarr;'">View in graph &rarr;</a>
+        <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}" th:utext="#{action.edit} + ' &rarr;'">Edit &rarr;</a>
     </p>
 
     <div class="grid">
         <section th:if="${!attributes.isEmpty()}">
-            <h3>Properties</h3>
+            <h3 th:text="#{section.properties}">Properties</h3>
             <table class="attrs">
                 <tr th:each="a : ${attributes}">
                     <td class="prop" th:text="${a.propertyLocalName}">prop</td>
                     <td>
                         <a th:if="${a.value != null and (a.value.startsWith('http://') or a.value.startsWith('https://'))}"
                            th:href="${a.value}" th:text="${a.value}"
-                           target="_blank" rel="noopener noreferrer" title="Opens in a new tab">value &#8599;</a>
+                           target="_blank" rel="noopener noreferrer" th:title="#{link.newTab}">value &#8599;</a>
                         <span th:unless="${a.value != null and (a.value.startsWith('http://') or a.value.startsWith('https://'))}" th:text="${a.value}">value</span>
                     </td>
                 </tr>
@@ -33,12 +33,12 @@
         </section>
 
         <section th:if="${!recordsCreated.isEmpty()}">
-            <h3>Creator of</h3>
+            <h3 th:text="#{agents.creatorOf}">Creator of</h3>
             <ul><li th:each="r : ${recordsCreated}"><a th:href="@{/records/{id}(id=${r.id})}" th:text="${r.title}">Record</a></li></ul>
         </section>
 
         <section th:if="${!activities.isEmpty()}">
-            <h3>Participant in</h3>
+            <h3 th:text="#{agents.participantIn}">Participant in</h3>
             <ul><li th:each="a : ${activities}"><a th:href="@{/activities/{id}(id=${a.id})}" th:text="${a.title}">Activity</a></li></ul>
         </section>
     </div>

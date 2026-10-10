@@ -75,7 +75,7 @@ public class OntologyService {
         }
         out.sort((a, b) -> {
             int c = a.source().compareTo(b.source());
-            return c != 0 ? c : a.label().compareToIgnoreCase(b.label());
+            return c != 0 ? c : info.oais.archive.manager.model.Alphabetical.TEXT.compare(a.label(), b.label());
         });
         return out;
     }
@@ -89,7 +89,7 @@ public class OntologyService {
         out.add(new PropertyOption(Ns.RDFS + "seeAlso", "seeAlso", "See also", "rdfs"));
         out.sort((a, b) -> {
             int c = a.source().compareTo(b.source());
-            return c != 0 ? c : a.label().compareToIgnoreCase(b.label());
+            return c != 0 ? c : info.oais.archive.manager.model.Alphabetical.TEXT.compare(a.label(), b.label());
         });
         return out;
     }
@@ -133,7 +133,7 @@ public class OntologyService {
         }
         out.sort((a, b) -> {
             int c = a.source().compareTo(b.source());
-            return c != 0 ? c : a.label().compareToIgnoreCase(b.label());
+            return c != 0 ? c : info.oais.archive.manager.model.Alphabetical.TEXT.compare(a.label(), b.label());
         });
         return out;
     }

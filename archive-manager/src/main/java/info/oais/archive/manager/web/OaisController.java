@@ -17,7 +17,10 @@ public class OaisController {
 
     private final ArchiveService archive;
 
-    public OaisController(ArchiveService archive) {
+    private final info.oais.archive.manager.i18n.Messages messages;
+
+    public OaisController(ArchiveService archive, info.oais.archive.manager.i18n.Messages messages) {
+        this.messages = messages;
         this.archive = archive;
     }
 
@@ -28,7 +31,7 @@ public class OaisController {
         model.addAttribute("iri", iri);
         String recordTitle = archive.label(iri);
         model.addAttribute("title", recordTitle);
-        model.addAttribute("pageTitle", "OAIS mapping: " + recordTitle);
+        model.addAttribute("pageTitle", messages.get("title.oais", recordTitle));
 
         // Class-level correspondences declared in the bridge, one lookup per
         // rdf:type the resource carries (usually just one: Record, RecordPart

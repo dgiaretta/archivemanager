@@ -101,10 +101,10 @@
 
     function send(options) {
         var say = options.say || function () {};
-        var app = options.label || options.client || "the application";
+        var app = options.label || options.client || i18n("samp.theApplication");
         var url = new URL(options.url, window.location.href).href;
         var key = null;
-        say("Contacting " + app + " (allow this page if it asks)...");
+        say(i18n("samp.contacting", app));
         return call("samp.webhub.register", [{"samp.name": "OAIS archive"}])
             .then(function (reg) {
                 key = reg["samp.private-key"];
@@ -120,23 +120,20 @@
                     return call("samp.webhub.notify", [key, target, msg]);
                 }
                 if (options.client) {
-                    throw new Error(app + " isn't running, or isn't connected to the SAMP hub");
+                    throw new Error(i18n("samp.notConnected", app));
                 }
                 return call("samp.webhub.notifyAll", [key, msg]);
             })
             .then(function () {
-                say("Sent to " + app + ".");
+                say(i18n("samp.sent", app));
                 return call("samp.webhub.unregister", [key]);
             })
             .catch(function (e) {
                 if (!key && e instanceof TypeError) {
                     // fetch itself failed: nothing is listening at the hub's address.
-                    say("Couldn't send it: no SAMP hub is running on this computer. Start one -- TOPCAT and "
-                        + "Aladin start their own; in SPLAT, start its internal hub from the Interop menu -- and "
-                        + "try again. You can also open the data link in " + app + " yourself.");
+                    say(i18n("samp.noHub", app));
                 } else {
-                    say("Couldn't send it: " + e.message + ". Is " + app + " running on this computer? You can "
-                        + "also open the data link in it yourself.");
+                    say(i18n("samp.failed", e.message, app));
                 }
                 if (key) {
                     call("samp.webhub.unregister", [key]).catch(function () {});

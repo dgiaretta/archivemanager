@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Help')}"></head>
+<head th:replace="~{fragments :: head(#{nav.help})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
+    <!-- In English; help_pt.html is the same in Brazilian Portuguese (see HelpController). Change both. -->
     <h1>Help</h1>
 
     <section class="editor-section" id="about">
@@ -442,8 +443,9 @@
         </p>
         <ul>
             <li><strong>Table</strong> &mdash; the rows are the <em>first</em> record directly in the root that
-                repeats (a stated number of times or to the end of the file), e.g. one <code>reading</code> or
-                <code>star</code> per row; with no such record, the whole file is one row. The columns are that
+                repeats (a stated number of times or to the end of the file) and has fields to show as columns,
+                e.g. one <code>reading</code> or <code>star</code> per row (an image's rows of pixels are passed
+                over); with no repeated record at all, the whole file is one row. The columns are that
                 record's fields that occur once and hold a number or text, each with its units and meaning. A
                 table is offered to <strong>TOPCAT</strong>, and served as VOTable.</li>
             <li><strong>Spectrum</strong> &mdash; a table whose view has at least two columns, all numbers
@@ -475,12 +477,12 @@
         <ul>
             <li><a th:href="@{/help/engines/dfdl}">DFDL</a> &mdash; the Open Grid Forum's Data
                 Format Description Language, run by Apache Daffodil.</li>
-            <li><a th:href="@{/help/engines/kaitai}">Kaitai Struct</a> &mdash; <code>.ksy</code>
-                descriptions compiled ahead of time into parser code.</li>
             <li><a th:href="@{/help/engines/drb}">DRB</a> &mdash; GAEL's Java Data Request Broker
                 and its SDF schemas.</li>
             <li><a th:href="@{/help/engines/east}">EAST</a> &mdash; the CCSDS data description language,
                 read into the element tree, written from it, and interpreted directly.</li>
+            <li><a th:href="@{/help/engines/kaitai}">Kaitai Struct</a> &mdash; <code>.ksy</code>
+                descriptions compiled ahead of time into parser code.</li>
         </ul>
     </section>
 

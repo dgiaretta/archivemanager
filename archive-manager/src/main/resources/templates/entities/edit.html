@@ -4,38 +4,38 @@
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <p class="breadcrumb"><a th:href="@{/entities}">&larr; Entities</a></p>
+    <p class="breadcrumb"><a th:href="@{/entities}" th:utext="'&larr; ' + #{nav.entities}">&larr; Entities</a></p>
     <div class="edit-header">
         <div>
             <h1 th:text="${title}">Title</h1>
             <code th:text="${iri}">iri</code>
         </div>
         <div class="edit-header-actions">
-            <a class="button button-secondary" th:href="@{/resource/{id}(id=${id})}">View &rarr;</a>
-            <a class="button button-secondary" th:href="@{/graph/{id}(id=${id})}">Graph &rarr;</a>
+            <a class="button button-secondary" th:href="@{/resource/{id}(id=${id})}" th:utext="#{entity.view} + ' &rarr;'">View &rarr;</a>
+            <a class="button button-secondary" th:href="@{/graph/{id}(id=${id})}" th:utext="#{nav.graph} + ' &rarr;'">Graph &rarr;</a>
             <form th:action="@{/entities/{id}/delete(id=${id})}" method="post"
-                  onsubmit="return confirm('Delete this entity and every triple that mentions it? This cannot be undone.');">
-                <button type="submit" class="button-danger">Delete entity</button>
+                  th:data-confirm="#{entity.deleteConfirm}" onsubmit="return confirm(this.dataset.confirm);">
+                <button type="submit" class="button-danger" th:text="#{entity.delete}">Delete entity</button>
             </form>
         </div>
     </div>
 
     <!-- Types -->
     <section class="editor-section">
-        <h2>Types</h2>
+        <h2 th:text="#{entity.types}">Types</h2>
         <div class="pill-row">
             <span class="pill-with-delete" th:each="t : ${types}">
                 <span class="pill" th:text="(${t.source} == 'rico' ? 'rico:' : 'im:') + ${t.localName}">rico:Record</span>
                 <form th:action="@{/entities/{id}/types/delete(id=${id})}" method="post" class="inline-form">
                     <input type="hidden" name="typeIri" th:value="${t.iri}"/>
-                    <button type="submit" class="delete-btn" title="Remove type">&times;</button>
+                    <button type="submit" class="delete-btn" th:title="#{entity.removeType}">&times;</button>
                 </form>
             </span>
         </div>
         <form th:action="@{/entities/{id}/types(id=${id})}" method="post" class="inline-add-form">
-            <input type="text" class="select-filter" data-target="typeIri-select" placeholder="Type to filter..."/>
+            <input type="text" class="select-filter" data-target="typeIri-select" th:placeholder="#{entity.filter}"/>
             <select name="typeIri" id="typeIri-select">
-                <option value="">-- add a type --</option>
+                <option value="" th:text="#{entity.addTypeOption}">-- add a type --</option>
                 <optgroup label="OAIS">
                     <option th:each="c : ${allClasses}" th:if="${c.source == 'oais'}"
                             th:value="${c.iri}" th:text="'im:' + ${c.localName}">im:InformationObject</option>
@@ -45,15 +45,15 @@
                             th:value="${c.iri}" th:text="'rico:' + ${c.localName}">rico:Record</option>
                 </optgroup>
             </select>
-            <input type="text" name="customType" placeholder="or custom (e.g. rico:MySubclass)"/>
-            <button type="submit">Add type</button>
+            <input type="text" name="customType" th:placeholder="#{entity.customType}"/>
+            <button type="submit" th:text="#{entity.addType}">Add type</button>
         </form>
     </section>
 
     <!-- Literal properties -->
     <section class="editor-section">
-        <h2>Properties (literal values)</h2>
-        <p class="muted">
+        <h2 th:text="#{entity.literals}">Properties (literal values)</h2>
+        <p class="muted" th:utext="#{entity.literalsNote}">
             The OAIS Information Model, as modelled here, has no plain-text properties of its
             own &mdash; every OAIS property links one class to another (e.g. Access Rights
             Information, Data Object), so none appear in the dropdown below. Use
@@ -61,7 +61,7 @@
             description to an OAIS entity instead (that's what the bundled sample data does),
             or add a genuine OAIS relationship under <strong>Relationships</strong> below.
         </p>
-        <p class="muted">
+        <p class="muted" th:utext="#{entity.bridgeNote}">
             Some properties have a documented correspondence to the other ontology (e.g.
             <code>rico:technicalCharacteristics</code> &rarr; OAIS Other Representation
             Information) &mdash; hover an option in the picker below to see it, and it'll show
@@ -83,17 +83,22 @@
                     <form th:action="@{/entities/{id}/properties/delete(id=${id})}" method="post" class="inline-form">
                         <input type="hidden" name="propertyIri" th:value="${p.propertyIri}"/>
                         <input type="hidden" name="value" th:value="${p.value}"/>
-                        <button type="submit" class="delete-btn" title="Remove">&times;</button>
+                        <button type="submit" class="delete-btn" th:title="#{action.remove}">&times;</button>
                     </form>
                 </td>
             </tr>
         </table>
-        <p th:if="${properties.isEmpty()}" class="muted">No literal properties yet.</p>
+        <p th:if="${properties.isEmpty()}" class="muted" th:text="#{entity.noLiterals}">No literal properties yet.</p>
 
         <form th:action="@{/entities/{id}/properties(id=${id})}" method="post" class="inline-add-form">
-            <input type="text" class="select-filter" data-target="literalProperty-select" placeholder="Type to filter..."/>
+            <input type="text" class="select-filter" data-target="literalProperty-select" th:placeholder="#{entity.filter}"/>
             <select name="property" id="literalProperty-select">
                 <option value="">-- choose a property --</option>
+                <optgroup th:label="#{entity.common}" label="Common (RDFS)">
+                    <option th:each="p : ${datatypeProperties}" th:if="${p.source == 'rdfs'}"
+                            th:value="${p.iri}" th:text="'rdfs:' + ${p.localName} + ' (' + ${p.label} + ')'"
+                            th:title="${propertyBridgeTooltips[p.iri]}">rdfs:comment</option>
+                </optgroup>
                 <optgroup label="OAIS">
                     <option th:each="p : ${datatypeProperties}" th:if="${p.source == 'oais'}"
                             th:value="${p.iri}" th:text="'im:' + ${p.localName}"
@@ -104,22 +109,17 @@
                             th:value="${p.iri}" th:text="'rico:' + ${p.localName}"
                             th:title="${propertyBridgeTooltips[p.iri]}">rico:title</option>
                 </optgroup>
-                <optgroup label="Common (RDFS)">
-                    <option th:each="p : ${datatypeProperties}" th:if="${p.source == 'rdfs'}"
-                            th:value="${p.iri}" th:text="'rdfs:' + ${p.localName} + ' (' + ${p.label} + ')'"
-                            th:title="${propertyBridgeTooltips[p.iri]}">rdfs:comment</option>
-                </optgroup>
             </select>
-            <input type="text" name="customProperty" placeholder="or custom (e.g. rico:myProp)"/>
-            <input type="text" name="value" placeholder="value" required/>
-            <button type="submit">Add property</button>
+            <input type="text" name="customProperty" th:placeholder="#{entity.customProperty}"/>
+            <input type="text" name="value" th:placeholder="#{entity.value}" required/>
+            <button type="submit" th:text="#{entity.addProperty}">Add property</button>
         </form>
     </section>
 
     <!-- Outgoing relationships -->
     <section class="editor-section">
-        <h2>Relationships (outgoing)</h2>
-        <p class="muted">All OAIS properties live here (see note above) &mdash; look in the OAIS optgroup below.</p>
+        <h2 th:text="#{entity.outgoing}">Relationships (outgoing)</h2>
+        <p class="muted" th:text="#{entity.outgoingNote}">All OAIS properties live here (see note above) &mdash; look in the OAIS optgroup below.</p>
         <table class="attrs" th:if="${!outgoing.isEmpty()}">
             <tr th:each="l : ${outgoing}">
                 <td class="prop" th:text="${l.propertyLocalName}">prop</td>
@@ -137,17 +137,27 @@
                         <input type="hidden" name="propertyIri" th:value="${l.propertyIri}"/>
                         <input type="hidden" name="otherIri" th:value="${l.target.iri}"/>
                         <input type="hidden" name="direction" value="outgoing"/>
-                        <button type="submit" class="delete-btn" title="Remove">&times;</button>
+                        <button type="submit" class="delete-btn" th:title="#{action.remove}">&times;</button>
                     </form>
                 </td>
             </tr>
         </table>
-        <p th:if="${outgoing.isEmpty()}" class="muted">No outgoing relationships yet.</p>
+        <p th:if="${outgoing.isEmpty()}" class="muted" th:text="#{entity.noOutgoing}">No outgoing relationships yet.</p>
 
         <form th:action="@{/entities/{id}/relationships(id=${id})}" method="post" class="inline-add-form">
-            <input type="text" class="select-filter" data-target="relProperty-select" placeholder="Type to filter properties..."/>
+            <input type="text" class="select-filter" data-target="relProperty-select" th:placeholder="#{entity.filterProperties}"/>
             <select name="property" id="relProperty-select">
                 <option value="">-- choose a property --</option>
+                <optgroup th:label="#{entity.bridge}" label="Bridge">
+                    <option th:each="p : ${objectProperties}" th:if="${p.source == 'bridge'}"
+                            th:value="${p.iri}" th:text="'bridge:' + ${p.localName} + ' (' + ${p.label} + ')'"
+                            th:title="${propertyBridgeTooltips[p.iri]}">bridge:hasOAISCounterpart</option>
+                </optgroup>
+                <optgroup th:label="#{entity.common}" label="Common (RDFS)">
+                    <option th:each="p : ${objectProperties}" th:if="${p.source == 'rdfs'}"
+                            th:value="${p.iri}" th:text="'rdfs:' + ${p.localName} + ' (' + ${p.label} + ')'"
+                            th:title="${propertyBridgeTooltips[p.iri]}">rdfs:seeAlso</option>
+                </optgroup>
                 <optgroup label="OAIS">
                     <option th:each="p : ${objectProperties}" th:if="${p.source == 'oais'}"
                             th:value="${p.iri}" th:text="'im:' + ${p.localName}"
@@ -158,32 +168,22 @@
                             th:value="${p.iri}" th:text="'rico:' + ${p.localName}"
                             th:title="${propertyBridgeTooltips[p.iri]}">rico:hasCreator</option>
                 </optgroup>
-                <optgroup label="Bridge">
-                    <option th:each="p : ${objectProperties}" th:if="${p.source == 'bridge'}"
-                            th:value="${p.iri}" th:text="'bridge:' + ${p.localName} + ' (' + ${p.label} + ')'"
-                            th:title="${propertyBridgeTooltips[p.iri]}">bridge:hasOAISCounterpart</option>
-                </optgroup>
-                <optgroup label="Common (RDFS)">
-                    <option th:each="p : ${objectProperties}" th:if="${p.source == 'rdfs'}"
-                            th:value="${p.iri}" th:text="'rdfs:' + ${p.localName} + ' (' + ${p.label} + ')'"
-                            th:title="${propertyBridgeTooltips[p.iri]}">rdfs:seeAlso</option>
-                </optgroup>
             </select>
-            <input type="text" name="customProperty" placeholder="or custom (e.g. rico:myRelation)"/>
-            <input type="text" class="select-filter" data-target="relTarget-select" placeholder="Type to filter entities..."/>
+            <input type="text" name="customProperty" th:placeholder="#{entity.customRelation}"/>
+            <input type="text" class="select-filter" data-target="relTarget-select" th:placeholder="#{preview.filterEntities}"/>
             <select name="targetId" id="relTarget-select">
-                <option value="">-- choose a target entity (first 200) --</option>
+                <option value="" th:text="#{entity.chooseTarget}">-- choose a target entity (first 200) --</option>
                 <option th:each="e : ${allEntities}" th:value="${e.id}" th:text="${e.title} + ' (' + ${e.typeLocalName} + ')'"
                         th:attr="data-types=${e.typeLocalName}">target</option>
             </select>
-            <input type="text" name="customTarget" placeholder="or paste a target IRI (needed beyond the first 200)"/>
+            <input type="text" name="customTarget" th:placeholder="#{entity.customTarget}"/>
             <div id="createNewEntityBox" class="create-new-box" hidden>
-                <strong id="createNewEntityHint">Creating a new entity</strong> &mdash; clicking
-                "Add relationship" below will create it and link it here.
+                <strong id="createNewEntityHint" th:text="#{entity.creating}">Creating a new entity</strong> &mdash;
+                <span th:text="#{entity.creatingNote}">clicking "Add relationship" below will create it and link it here.</span>
                 <input type="text" name="newEntityLabel" id="newEntityLabel-input"
-                       placeholder="Label for the new entity (optional, sets rdfs:label)"/>
+                       th:placeholder="#{entity.newLabel}"/>
             </div>
-            <button type="submit">Add relationship</button>
+            <button type="submit" th:text="#{entity.addRelationship}">Add relationship</button>
         </form>
 
         <script th:inline="javascript">
@@ -220,16 +220,16 @@
                     const allowedTypes = propertyRangeTypes[propertySelect.value];
                     const rangeClasses = propertyRangeClasses[propertySelect.value];
                     targetSelect.innerHTML = '';
-                    targetSelect.appendChild(new Option('-- choose a target entity (first 200) --', ''));
+                    targetSelect.appendChild(new Option(i18n('entity.chooseTarget'), ''));
 
                     if (rangeClasses && rangeClasses.length > 0) {
                         const createGroup = document.createElement('optgroup');
-                        createGroup.label = 'Create new';
+                        createGroup.label = i18n('entity.createNew');
                         rangeClasses.forEach(function (c) {
                             const prefix = c.source === 'rico' ? 'rico:' : (c.source === 'oais' ? 'im:' : '');
                             const value = NEW_TARGET_PREFIX + c.iri;
                             classLabelsByCreateValue[value] = prefix + c.localName;
-                            createGroup.appendChild(new Option('+ Create new ' + prefix + c.localName, value));
+                            createGroup.appendChild(new Option('+ ' + i18n('entity.createNewOf', prefix + c.localName), value));
                         });
                         targetSelect.appendChild(createGroup);
                     }
@@ -249,13 +249,13 @@
 
                     if (matching.length > 0) {
                         const matchGroup = document.createElement('optgroup');
-                        matchGroup.label = 'Matches this property\'s range';
+                        matchGroup.label = i18n('entity.matchesRange');
                         matching.forEach(function (o) { matchGroup.appendChild(o.cloneNode(true)); });
                         targetSelect.appendChild(matchGroup);
                     }
                     if (other.length > 0) {
                         const otherGroup = document.createElement('optgroup');
-                        otherGroup.label = matching.length > 0 ? 'Other entities' : 'All entities (no matching type found in the first 200)';
+                        otherGroup.label = matching.length > 0 ? i18n('entity.otherEntities') : i18n('entity.allEntities');
                         other.forEach(function (o) { otherGroup.appendChild(o.cloneNode(true)); });
                         targetSelect.appendChild(otherGroup);
                     }
@@ -273,8 +273,8 @@
                     const creating = targetSelect.value.startsWith(NEW_TARGET_PREFIX);
                     createNewEntityBox.hidden = !creating;
                     if (creating) {
-                        createNewEntityHint.textContent =
-                            'Creating a new ' + (classLabelsByCreateValue[targetSelect.value] || 'entity');
+                        createNewEntityHint.textContent = classLabelsByCreateValue[targetSelect.value]
+                            ? i18n('entity.creatingOf', classLabelsByCreateValue[targetSelect.value]) : i18n('entity.creating');
                     }
                 }
 
@@ -287,8 +287,8 @@
 
     <!-- Incoming relationships -->
     <section class="editor-section">
-        <h2>Relationships (incoming)</h2>
-        <p class="muted">
+        <h2 th:text="#{entity.incoming}">Relationships (incoming)</h2>
+        <p class="muted" th:text="#{entity.incomingNote}">
             To add an incoming relationship, edit the other resource and add it as an outgoing
             relationship there instead.
         </p>
@@ -301,17 +301,17 @@
                         <input type="hidden" name="propertyIri" th:value="${l.propertyIri}"/>
                         <input type="hidden" name="otherIri" th:value="${l.target.iri}"/>
                         <input type="hidden" name="direction" value="incoming"/>
-                        <button type="submit" class="delete-btn" title="Remove">&times;</button>
+                        <button type="submit" class="delete-btn" th:title="#{action.remove}">&times;</button>
                     </form>
                 </td>
             </tr>
         </table>
-        <p th:if="${incoming.isEmpty()}" class="muted">No incoming relationships.</p>
+        <p th:if="${incoming.isEmpty()}" class="muted" th:text="#{entity.noIncoming}">No incoming relationships.</p>
     </section>
 </main>
 <div th:replace="~{fragments :: footer}"></div>
 
-<script src="/js/select-filter.js"></script>
+<script th:src="@{/js/select-filter.js}"></script>
 <script>
     // Every "Add ..." button already saves immediately -- there's no batched
     // state and so no overall "Save" button on this page. But if you type

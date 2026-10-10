@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Preview format description')}"></head>
+<head th:replace="~{fragments :: head(#{preview.title})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <p class="breadcrumb"><a th:href="@{/repinfo-tools/edit}">&larr; Back to editor</a></p>
+    <p class="breadcrumb"><a th:href="@{/repinfo-tools/edit}" th:utext="'&larr; ' + #{repinfo.backToEditor}">&larr; Back to editor</a></p>
     <h1 th:text="${def.name}">Format description</h1>
 
     <section class="editor-section" th:if="${!notGenerated.isEmpty()}">
-        <h2>Languages not generated</h2>
+        <h2 th:text="#{preview.notGenerated}">Languages not generated</h2>
         <ul>
             <li th:each="n : ${notGenerated}" th:text="${n.value}">Not generated</li>
         </ul>
@@ -18,97 +18,89 @@
         <h2>Kaitai Struct (.ksy)</h2>
         <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
             <p class="notice" th:if="${byHand.containsKey('kaitai')}">
-                Written by hand &mdash; used instead of the generated Kaitai Struct description.
-                <a th:href="@{/repinfo-tools/hand/kaitai}">Edit it</a>.
-                <th:block th:if="${outOfDate.get('kaitai')}">The element tree has changed since it was written.</th:block>
+                <span th:text="#{preview.byHand('Kaitai Struct')}">Written by hand &mdash; used instead of the generated Kaitai Struct description.</span>
+                <a th:href="@{/repinfo-tools/hand/kaitai}" th:text="#{preview.editIt}">Edit it</a>.
+                <th:block th:if="${outOfDate.get('kaitai')}"><span th:text="#{preview.outOfDate}">The element tree has changed since it was written.</span></th:block>
             </p>
             <p class="muted" th:unless="${byHand.containsKey('kaitai')}">
-                <a th:href="@{/repinfo-tools/hand/kaitai}">Write or extend it by hand</a> &mdash; for checksums,
-                encryption, other compression, records over several lines, and more.
+                <a th:href="@{/repinfo-tools/hand/kaitai}" th:text="#{preview.writeByHand}">Write or extend it by hand</a> &mdash;
+                <span th:text="#{preview.writeByHandFor}">for checksums, encryption, other compression, records over several lines, and more.</span>
             </p>
         </th:block>
-        <a class="button-link" th:href="@{/repinfo-tools/download/kaitai}">Download .ksy &rarr;</a>
+        <a class="button-link" th:href="@{/repinfo-tools/download/kaitai}" th:utext="#{preview.download('.ksy')} + ' &rarr;'">Download .ksy &rarr;</a>
         <pre class="sparql" th:text="${kaitai}">...</pre>
 
-        <h3 id="kaitai-test">Test against a sample file</h3>
-        <p class="muted">
-            Compiles the description above with the Kaitai Struct compiler (bundled with this
-            application and run as a separate program), then decodes the sample with the result,
-            via the <code>oais-structure-kaitai</code> adapter. It takes a few seconds. The file is
-            only used for this one request; nothing is stored.
+        <h3 id="kaitai-test" th:text="#{known.test}">Test against a sample file</h3>
+        <p class="muted" th:utext="#{preview.kaitai.test}">
+            Compiles the description above with the Kaitai Struct compiler, then decodes the sample with the result.
         </p>
         <form th:action="@{/repinfo-tools/test-kaitai} + '#kaitai-test'" method="post" enctype="multipart/form-data" class="form">
             <input type="file" name="sample" required/>
-            <button type="submit">Decode sample</button>
+            <button type="submit" th:text="#{preview.decodeSample}">Decode sample</button>
         </form>
 
         <th:block th:if="${kaitaiTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${kaitaiTest})}"></div></th:block>
-        <div th:replace="~{repinfo-tools/write-back :: writeBack('kaitai', 'For this the description is compiled again, in the read-write mode of Kaitai Struct, which takes a few seconds.')}"></div>
+        <div th:replace="~{repinfo-tools/write-back :: writeBack('kaitai', #{preview.kaitai.writeBack})}"></div>
     </section>
 
     <section class="editor-section" th:if="${dfdl != null}" id="dfdl-section">
         <h2>DFDL (.dfdl.xsd)</h2>
         <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
             <p class="notice" th:if="${byHand.containsKey('dfdl')}">
-                Written by hand &mdash; used instead of the generated DFDL description.
-                <a th:href="@{/repinfo-tools/hand/dfdl}">Edit it</a>.
-                <th:block th:if="${outOfDate.get('dfdl')}">The element tree has changed since it was written.</th:block>
+                <span th:text="#{preview.byHand('DFDL')}">Written by hand &mdash; used instead of the generated DFDL description.</span>
+                <a th:href="@{/repinfo-tools/hand/dfdl}" th:text="#{preview.editIt}">Edit it</a>.
+                <th:block th:if="${outOfDate.get('dfdl')}"><span th:text="#{preview.outOfDate}">The element tree has changed since it was written.</span></th:block>
             </p>
             <p class="muted" th:unless="${byHand.containsKey('dfdl')}">
-                <a th:href="@{/repinfo-tools/hand/dfdl}">Write or extend it by hand</a> &mdash; for checksums,
-                encryption, other compression, records over several lines, and more.
+                <a th:href="@{/repinfo-tools/hand/dfdl}" th:text="#{preview.writeByHand}">Write or extend it by hand</a> &mdash;
+                <span th:text="#{preview.writeByHandFor}">for checksums, encryption, other compression, records over several lines, and more.</span>
             </p>
         </th:block>
-        <a class="button-link" th:href="@{/repinfo-tools/download/dfdl}">Download .dfdl.xsd &rarr;</a>
+        <a class="button-link" th:href="@{/repinfo-tools/download/dfdl}" th:utext="#{preview.download('.dfdl.xsd')} + ' &rarr;'">Download .dfdl.xsd &rarr;</a>
         <pre class="sparql" th:text="${dfdl}">...</pre>
 
-        <h3 id="dfdl-test">Test against a sample file</h3>
-        <p class="muted">
-            Runs the schema above through Apache Daffodil, via the
-            <code>oais-structure-dfdl</code> adapter, and shows the decoded structure &mdash; a
-            quick check that the description really matches your data before you save it. The
-            file is only used for this one request; nothing is stored.
+        <h3 id="dfdl-test" th:text="#{known.test}">Test against a sample file</h3>
+        <p class="muted" th:utext="#{preview.dfdl.test}">
+            Runs the schema above through Apache Daffodil and shows the decoded structure.
         </p>
         <form th:action="@{/repinfo-tools/test-dfdl} + '#dfdl-test'" method="post" enctype="multipart/form-data" class="form">
             <input type="file" name="sample" required/>
-            <button type="submit">Decode sample</button>
+            <button type="submit" th:text="#{preview.decodeSample}">Decode sample</button>
         </form>
 
         <th:block th:if="${dfdlTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${dfdlTest})}"></div></th:block>
-        <div th:replace="~{repinfo-tools/write-back :: writeBack('dfdl', 'Daffodil re-encodes the whole description (its unparser).')}"></div>
+        <div th:replace="~{repinfo-tools/write-back :: writeBack('dfdl', #{preview.dfdl.writeBack})}"></div>
     </section>
 
     <section class="editor-section" th:if="${east != null}" id="east-section">
         <h2>EAST (.east)</h2>
         <p class="notice" th:if="${byHand.containsKey('east')}">
-            Written by hand, or read in as it was written &mdash; used instead of the EAST description
-            generated from the element tree. <a th:href="@{/repinfo-tools/hand/east}">Edit it</a>.
-            <th:block th:if="${outOfDate.get('east')}">The element tree has changed since.</th:block>
+            <span th:text="#{preview.east.byHand}">Written by hand, or read in as it was written &mdash; used instead of the EAST description
+            generated from the element tree.</span> <a th:href="@{/repinfo-tools/hand/east}" th:text="#{preview.editIt}">Edit it</a>.
+            <th:block th:if="${outOfDate.get('east')}"><span th:text="#{preview.east.outOfDate}">The element tree has changed since.</span></th:block>
         </p>
         <p class="muted" th:unless="${byHand.containsKey('east')}">
-            The CCSDS data description language (CCSDS 644.0-B-3), generated from the element tree, with each
-            element's meaning as comments. <a th:href="@{/repinfo-tools/hand/east}">Write or extend it by hand</a>
-            &mdash; for markers, reals in other conventions (VAX, MIL-STD-1750A, IBM...), integers in pieces, and
-            more.
+            <span th:text="#{preview.east.generated}">The CCSDS data description language (CCSDS 644.0-B-3), generated from the element tree, with each
+            element's meaning as comments.</span> <a th:href="@{/repinfo-tools/hand/east}" th:text="#{preview.writeByHand}">Write or extend it by hand</a>
+            &mdash; <span th:text="#{preview.east.byHandFor}">for markers, reals in other conventions (VAX, MIL-STD-1750A, IBM...), integers in pieces, and
+            more.</span>
         </p>
-        <a class="button-link" th:href="@{/repinfo-tools/download/east}">Download .east &rarr;</a>
+        <a class="button-link" th:href="@{/repinfo-tools/download/east}" th:utext="#{preview.download('.east')} + ' &rarr;'">Download .east &rarr;</a>
         <pre class="sparql" th:text="${east}">...</pre>
 
-        <h3 id="east-test">Test against a sample file</h3>
-        <p class="muted">
-            Reads the sample with the EAST interpreter (the <code>oais-structure-east</code> module) exactly as the
-            description above says, and shows what it reads: EAST's own records, arrays and values, each
-            enumeration's literal as its meaning. The file is only used for this one request; nothing is stored.
+        <h3 id="east-test" th:text="#{known.test}">Test against a sample file</h3>
+        <p class="muted" th:utext="#{preview.east.test}">
+            Reads the sample with the EAST interpreter exactly as the description above says.
         </p>
         <form th:action="@{/repinfo-tools/test-east} + '#east-test'" method="post" enctype="multipart/form-data" class="form">
             <input type="file" name="sample" required/>
-            <button type="submit">Decode sample</button>
+            <button type="submit" th:text="#{preview.decodeSample}">Decode sample</button>
         </form>
         <th:block th:if="${eastTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${eastTest})}"></div></th:block>
     </section>
 
     <section class="editor-section" th:if="${kaitai == null and dfdl == null and def.kind.name() != 'BYTE_LAYOUT'}">
-        <p class="muted">
+        <p class="muted" th:text="#{preview.logical}">
             Kaitai and DFDL describe a sequential byte layout, which this HDF5-style logical
             schema isn't -- see the DRB output below, or add a separate byte-layout description
             for one dataset's own raw array if you need one.
@@ -119,61 +111,46 @@
         <h2>DRB &mdash; Python (drb-python)</h2>
         <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
             <p class="muted">
-                A complete <a href="https://gitlab.com/drb-python" target="_blank" rel="noopener noreferrer">drb-python</a>
-                driver for this layout: the download is an installable package
-                &mdash; install it with <code th:text="'pip install ' + ${drbPythonPackage} + '.zip'">pip install drb-driver-am-format.zip</code>
-                &mdash; whose topic signature lets drb pick it automatically for
-                <span th:if="${def.fileExtensions.isEmpty()}">files you open with it explicitly (no file
-                    extensions are set in the details above)</span><span th:unless="${def.fileExtensions.isEmpty()}">files
-                    ending in <code th:text="${#strings.listJoin(def.fileExtensions, ', ')}">fits</code></span>.
-                Each field becomes a child node carrying its byte offset/length and its semantic
-                name, definition and units. The driver module is shown below.
+                <span th:utext="#{preview.drbPython.driver(${drbPythonPackage})}">A complete drb-python driver for this layout.</span>
+                <span th:if="${def.fileExtensions.isEmpty()}" th:text="#{preview.drbPython.explicit}">files you open with it explicitly (no file
+                    extensions are set in the details above)</span><span th:unless="${def.fileExtensions.isEmpty()}" th:utext="#{preview.drbPython.ending(${#strings.listJoin(def.fileExtensions, ', ')})}">files
+                    ending in <code>fits</code></span>.
+                <span th:text="#{preview.drbPython.nodes}">Each field becomes a child node carrying its byte offset/length and its semantic
+                name, definition and units. The driver module is shown below.</span>
             </p>
-            <p class="muted">
-                The package also registers four drb-python add-ons, giving a decoded file's meaning as
-                a whole and writing it back: <code th:text="${drbPythonAddOns[0]}">am_format_semantics</code> (every value with
-                its meaning), <code th:text="${drbPythonAddOns[1]}">am_format_metadata</code> (semantic name
-                &rarr; value), <code th:text="${drbPythonAddOns[2]}">am_format_checks</code> (values outside
-                their valid range or code list, and bytes not covered) and
-                <code th:text="${drbPythonAddOns[3]}">am_format_write</code> (the file written back, with any
-                changes), e.g.
-                <code th:text="'node.get_impl(dict, &quot;' + ${drbPythonAddOns[1]} + '&quot;)'">node.get_impl(dict, "am_format_metadata")</code>.
+            <p class="muted" th:utext="#{preview.drbPython.addOns(${drbPythonAddOns[0]}, ${drbPythonAddOns[1]}, ${drbPythonAddOns[2]}, ${drbPythonAddOns[3]})}">
+                The package also registers four drb-python add-ons.
             </p>
             <p class="notice" th:if="${drbPythonAddIn != null}">
-                With an add-in written by hand, as <code>addin.py</code> in the package.
-                <a th:href="@{/repinfo-tools/hand/drb-python}">Edit it</a>.
+                <span th:utext="#{preview.drbPython.withAddIn}">With an add-in written by hand, as <code>addin.py</code> in the package.</span>
+                <a th:href="@{/repinfo-tools/hand/drb-python}" th:text="#{preview.editIt}">Edit it</a>.
             </p>
             <p class="muted" th:if="${drbPythonAddIn == null}">
-                <a th:href="@{/repinfo-tools/hand/drb-python}">Write an add-in in Python</a> &mdash; code the
-                driver calls to decrypt or decompress a file before reading it, or to check checksums
-                and CRCs after.
+                <a th:href="@{/repinfo-tools/hand/drb-python}" th:text="#{preview.drbPython.writeAddIn}">Write an add-in in Python</a> &mdash;
+                <span th:text="#{preview.drbPython.addInFor}">code the driver calls to decrypt or decompress a file before reading it, or to check checksums
+                and CRCs after.</span>
             </p>
-            <a class="button-link" th:href="@{/repinfo-tools/download/drb-python}">Download driver package (.zip) &rarr;</a>
+            <a class="button-link" th:href="@{/repinfo-tools/download/drb-python}" th:utext="#{preview.drbPython.download} + ' &rarr;'">Download driver package (.zip) &rarr;</a>
         </th:block>
         <th:block th:unless="${def.kind.name() == 'BYTE_LAYOUT'}">
-            <p class="muted">
-                A documented schema for reference, not a driver &mdash; no HDF5 driver for
-                <a href="https://gitlab.com/drb-python" target="_blank" rel="noopener noreferrer">drb-python</a>
-                is published on PyPI.
+            <p class="muted" th:utext="#{preview.drbPython.reference}">
+                A documented schema for reference, not a driver.
             </p>
-            <a class="button-link" th:href="@{/repinfo-tools/download/drb-python}">Download .py &rarr;</a>
+            <a class="button-link" th:href="@{/repinfo-tools/download/drb-python}" th:utext="#{preview.download('.py')} + ' &rarr;'">Download .py &rarr;</a>
         </th:block>
         <pre class="sparql" th:text="${drbPython}">...</pre>
         <th:block th:if="${drbPythonAddIn != null}">
-            <h3>addin.py, written by hand</h3>
+            <h3 th:text="#{preview.drbPython.addInTitle}">addin.py, written by hand</h3>
             <pre class="sparql" th:text="${drbPythonAddIn}">...</pre>
         </th:block>
 
         <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
-            <h3 id="drb-python-test">Test against a sample file</h3>
-            <p class="muted" th:if="${drbPythonVersion != null}">
-                Runs the driver above with drb-python <span th:text="${drbPythonVersion}">2.11</span>
-                on this server and shows the decoded node tree, then what its metadata and checks
-                add-ons return. The file is only used for this one request; nothing is stored.
+            <h3 id="drb-python-test" th:text="#{known.test}">Test against a sample file</h3>
+            <p class="muted" th:if="${drbPythonVersion != null}" th:text="#{preview.drbPython.test(${drbPythonVersion})}">
+                Runs the driver above with drb-python 2.11 on this server and shows the decoded node tree.
             </p>
-            <p class="notice" th:if="${drbPythonVersion != null and drbPythonAddIn != null and !drbPythonRunsAddIns}">
-                This server doesn't run hand-written add-ins, so the test can't run while there is one
-                (see <code>archive.drb-python.run-hand-written-add-ins</code>).
+            <p class="notice" th:if="${drbPythonVersion != null and drbPythonAddIn != null and !drbPythonRunsAddIns}" th:utext="#{preview.drbPython.noAddIns}">
+                This server doesn't run hand-written add-ins, so the test can't run while there is one.
             </p>
             <p class="muted" th:if="${drbPythonVersion == null}" th:text="${drbPythonUnavailable}">
                 drb-python is not installed on this server.
@@ -181,25 +158,25 @@
             <form th:if="${drbPythonVersion != null}" th:action="@{/repinfo-tools/test-drb-python} + '#drb-python-test'"
                   method="post" enctype="multipart/form-data" class="form">
                 <input type="file" name="sample" required/>
-                <button type="submit">Decode sample</button>
+                <button type="submit" th:text="#{preview.decodeSample}">Decode sample</button>
             </form>
             <th:block th:if="${drbPythonTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${drbPythonTest})}"></div></th:block>
             <th:block th:if="${drbPythonAddOnResults != null}">
-                <h4>What the add-ons return</h4>
+                <h4 th:text="#{preview.drbPython.addOnResults}">What the add-ons return</h4>
                 <p class="notice error" th:if="${drbPythonAddOnResults.error() != null}"
-                   th:text="${'The add-ons failed: ' + drbPythonAddOnResults.error()}">error</p>
+                   th:text="#{preview.drbPython.addOnsFailed(${drbPythonAddOnResults.error()})}">error</p>
                 <th:block th:if="${drbPythonAddOnResults.error() == null}">
                     <p class="muted" th:if="${drbPythonAddOnResults.checks().isEmpty()}">
-                        <code th:text="${drbPythonAddOns[2]}">checks</code>: no problems found.</p>
+                        <code th:text="${drbPythonAddOns[2]}">checks</code><span th:text="': ' + #{preview.drbPython.noProblems}">: no problems found.</span></p>
                     <th:block th:unless="${drbPythonAddOnResults.checks().isEmpty()}">
-                        <p><code th:text="${drbPythonAddOns[2]}">checks</code> found:</p>
+                        <p><code th:text="${drbPythonAddOns[2]}">checks</code> <span th:text="#{preview.drbPython.found}">found:</span></p>
                         <ul class="notice error">
                             <li th:each="c : ${drbPythonAddOnResults.checks()}" th:text="${c}">problem</li>
                         </ul>
                     </th:block>
                     <p><code th:text="${drbPythonAddOns[1]}">metadata</code>:</p>
                     <table class="listing">
-                        <thead><tr><th>Name</th><th>Value</th></tr></thead>
+                        <thead><tr><th th:text="#{col.name}">Name</th><th th:text="#{sample.col.value}">Value</th></tr></thead>
                         <tbody>
                         <tr th:each="m : ${drbPythonAddOnResults.metadata()}">
                             <td><code th:text="${m.key}">name</code></td><td th:text="${m.value}">value</td>
@@ -208,7 +185,7 @@
                     </table>
                 </th:block>
             </th:block>
-            <th:block th:if="${drbPythonVersion != null}"><div th:replace="~{repinfo-tools/write-back :: writeBack('drb-python', 'This uses the write add-on of the driver.')}"></div></th:block>
+            <th:block th:if="${drbPythonVersion != null}"><div th:replace="~{repinfo-tools/write-back :: writeBack('drb-python', #{preview.drbPython.writeBack})}"></div></th:block>
         </th:block>
     </section>
 
@@ -216,36 +193,32 @@
         <h2>DRB &mdash; Java (fr.gael.drb)</h2>
         <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
             <p class="notice" th:if="${byHand.containsKey('drbJava')}">
-                Written by hand &mdash; used instead of the generated DRB SDF description.
-                <a th:href="@{/repinfo-tools/hand/drb}">Edit it</a>.
-                <th:block th:if="${outOfDate.get('drbJava')}">The element tree has changed since it was written.</th:block>
+                <span th:text="#{preview.byHand('DRB SDF')}">Written by hand &mdash; used instead of the generated DRB SDF description.</span>
+                <a th:href="@{/repinfo-tools/hand/drb}" th:text="#{preview.editIt}">Edit it</a>.
+                <th:block th:if="${outOfDate.get('drbJava')}"><span th:text="#{preview.outOfDate}">The element tree has changed since it was written.</span></th:block>
             </p>
             <p class="muted" th:unless="${byHand.containsKey('drbJava')}">
-                <a th:href="@{/repinfo-tools/hand/drb}">Write or extend it by hand</a> &mdash; for checksums,
-                encryption, other compression, records over several lines, and more.
+                <a th:href="@{/repinfo-tools/hand/drb}" th:text="#{preview.writeByHand}">Write or extend it by hand</a> &mdash;
+                <span th:text="#{preview.writeByHandFor}">for checksums, encryption, other compression, records over several lines, and more.</span>
             </p>
         </th:block>
         <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
-            <p class="muted">
-                A DRB SDF schema: an XML Schema whose <code>sdf:block</code> annotations give each
-                field's length, byte order and encoding &mdash; DRB's own declarative description
-                language, applied by GAEL's Java DRB (LGPL v3). Each field's definition becomes its
-                <code>xs:documentation</code>.
+            <p class="muted" th:utext="#{preview.drbJava.sdf}">
+                A DRB SDF schema: an XML Schema whose <code>sdf:block</code> annotations give each field's layout.
             </p>
-            <a class="button-link" th:href="@{/repinfo-tools/download/drb-java}">Download .drb.xsd &rarr;</a>
+            <a class="button-link" th:href="@{/repinfo-tools/download/drb-java}" th:utext="#{preview.download('.drb.xsd')} + ' &rarr;'">Download .drb.xsd &rarr;</a>
         </th:block>
         <th:block th:unless="${def.kind.name() == 'BYTE_LAYOUT'}">
-            <p class="muted">
-                A documented schema for reference, not something DRB reads &mdash; DRB's SDF schemas
-                describe sequential byte layouts, and DRB has no HDF5 implementation.
+            <p class="muted" th:text="#{preview.drbJava.reference}">
+                A documented schema for reference, not something DRB reads.
             </p>
-            <a class="button-link" th:href="@{/repinfo-tools/download/drb-java}">Download .java &rarr;</a>
+            <a class="button-link" th:href="@{/repinfo-tools/download/drb-java}" th:utext="#{preview.download('.java')} + ' &rarr;'">Download .java &rarr;</a>
         </th:block>
         <pre class="sparql" th:text="${drbJava}">...</pre>
 
         <th:block th:if="${def.kind.name() == 'BYTE_LAYOUT'}">
-            <h3 id="drb-java-test">Test against a sample file</h3>
-            <p class="muted">
+            <h3 id="drb-java-test" th:text="#{known.test}">Test against a sample file</h3>
+            <p class="muted" th:text="#{preview.drbJava.test}">
                 Applies the schema above with Java DRB, inside this application, and shows the
                 decoded node tree with each field's byte position. The file is only used for this
                 one request; nothing is stored.
@@ -253,83 +226,67 @@
             <form th:action="@{/repinfo-tools/test-drb-java} + '#drb-java-test'" method="post"
                   enctype="multipart/form-data" class="form">
                 <input type="file" name="sample" required/>
-                <button type="submit">Decode sample</button>
+                <button type="submit" th:text="#{preview.decodeSample}">Decode sample</button>
             </form>
             <th:block th:if="${drbJavaTest != null}"><div th:replace="~{repinfo-tools/sample-result :: sampleResult(${drbJavaTest})}"></div></th:block>
-            <div th:replace="~{repinfo-tools/write-back :: writeBack('drb-java', 'DRB writes each value where it was read from: a delimited value can change length, one of fixed length cannot.')}"></div>
+            <div th:replace="~{repinfo-tools/write-back :: writeBack('drb-java', #{preview.drbJava.writeBack})}"></div>
         </th:block>
     </section>
 
     <section class="editor-section" th:if="${def.kind.name() == 'BYTE_LAYOUT' and (dfdl != null or drbJava != null)}"
              id="viewers">
-        <h2>Open in TOPCAT, SPLAT or an image viewer</h2>
-        <p class="muted">
-            A zip with everything TOPCAT (with the <code>oais-structure-topcat</code> reader) or SPLAT
-            (with <code>oais-structure-splat</code>) needs to open your data: a Representation
-            Information manifest (Turtle) naming the data file, the DFDL and DRB SDF descriptions
-            &mdash; either will do &mdash; a table view generated from the element tree (the first
-            repeated record as rows, its fields as columns, with their units and meanings), and what
-            each element means. Every file is named in the manifest, so they can be renamed or moved
-            by editing it. Put your data file next to the manifest, under the name you give here.
+        <h2 th:text="#{preview.viewers}">Open in TOPCAT, SPLAT or an image viewer</h2>
+        <p class="muted" th:utext="#{preview.viewers.zip}">
+            A zip with everything TOPCAT or SPLAT needs to open your data.
         </p>
-        <p class="muted">
-            An image &mdash; a repeated record (a row) holding a repeated number field (its pixels)
-            &mdash; also gets an image view: <code>oais-structure-image</code> writes it as FITS for
-            Fiji/ImageJ, SAOImage DS9 or Aladin, and once it's saved to the archive with a storage
-            location, the archive serves that FITS itself.
+        <p class="muted" th:utext="#{preview.viewers.image}">
+            An image also gets an image view.
         </p>
         <form th:action="@{/repinfo-tools/download/viewers}" method="get" class="form form-row">
             <label>
-                Data file name
+                <span th:text="#{preview.viewers.dataFile}">Data file name</span>
                 <input type="text" name="dataFile"
                        th:placeholder="${#strings.toLowerCase(#strings.replace(def.name, ' ', '-'))} + '.' + (${def.fileExtensions.isEmpty()} ? 'dat' : ${def.fileExtensions[0]})"/>
             </label>
-            <button type="submit">Download for viewers (.zip)</button>
+            <button type="submit" th:text="#{preview.viewers.download}">Download for viewers (.zip)</button>
         </form>
     </section>
 
     <section class="editor-section">
-        <h2>Save to archive</h2>
-        <p class="muted">
-            Creates Structure/Semantic Representation Information linked to a Data Object, the
-            same way the rest of the archive models any format's Representation Information.
-            Pick which of the generated descriptions above to keep as Structure Representation
-            Information &mdash; the field semantics are saved either way, as one Semantic
-            Representation Information individual per field/row (semantic name as its
-            <code>rdfs:label</code>, definition as its <code>skos:definition</code>, units linked
-            via <code>im:hasUnitOfMeasurement</code>), gathered under one overall Semantic
-            Representation Information for the description as a whole.
+        <h2 th:text="#{repinfo.saveToArchive}">Save to archive</h2>
+        <p class="muted" th:utext="#{preview.save.note}">
+            Creates Structure/Semantic Representation Information linked to a Data Object.
         </p>
         <form th:action="@{/repinfo-tools/save}" method="post" class="form">
             <label>
-                Data Object this describes
-                <input type="text" class="select-filter" data-target="dataObject-select" placeholder="Type to filter entities..."/>
+                <span th:text="#{repinfo.dataObject}">Data Object this describes</span>
+                <input type="text" class="select-filter" data-target="dataObject-select" th:placeholder="#{preview.filterEntities}"/>
                 <select name="dataObjectId" id="dataObject-select">
-                    <option value="">-- create a new Data Object --</option>
+                    <option value="" th:text="#{repinfo.newDataObject}">-- create a new Data Object --</option>
                     <option th:each="e : ${allEntities}" th:value="${e.id}" th:selected="${e.id == def.forDataObject}" th:text="${e.title} + ' (' + ${e.typeLocalName} + ')'">target</option>
                 </select>
             </label>
-            <label th:if="${kaitai != null}">
-                <input type="checkbox" name="formats" value="kaitai"/> Save Kaitai Struct description
-            </label>
             <label th:if="${dfdl != null}">
-                <input type="checkbox" name="formats" value="dfdl"/> Save DFDL description
-            </label>
-            <label th:if="${drbPython != null}">
-                <input type="checkbox" name="formats" value="drb-python"/> Save DRB (Python) description
-            </label>
-            <label th:if="${east != null}">
-                <input type="checkbox" name="formats" value="east"/> Save EAST description
+                <input type="checkbox" name="formats" value="dfdl"/> <span th:text="#{preview.save.description('DFDL')}">Save DFDL description</span>
             </label>
             <label th:if="${drbJava != null}">
-                <input type="checkbox" name="formats" value="drb-java"/> Save DRB (Java) description<span th:if="${def.kind.name() == 'BYTE_LAYOUT'}"> (SDF schema)</span>
+                <input type="checkbox" name="formats" value="drb-java"/> <span th:text="#{preview.save.description('DRB (Java)')}">Save DRB (Java) description</span><span th:if="${def.kind.name() == 'BYTE_LAYOUT'}" th:text="' (' + #{preview.save.sdf} + ')'"> (SDF schema)</span>
             </label>
-            <button type="submit">Save to archive</button>
+            <label th:if="${drbPython != null}">
+                <input type="checkbox" name="formats" value="drb-python"/> <span th:text="#{preview.save.description('DRB (Python)')}">Save DRB (Python) description</span>
+            </label>
+            <label th:if="${east != null}">
+                <input type="checkbox" name="formats" value="east"/> <span th:text="#{preview.save.description('EAST')}">Save EAST description</span>
+            </label>
+            <label th:if="${kaitai != null}">
+                <input type="checkbox" name="formats" value="kaitai"/> <span th:text="#{preview.save.description('Kaitai Struct')}">Save Kaitai Struct description</span>
+            </label>
+            <button type="submit" th:text="#{repinfo.saveToArchive}">Save to archive</button>
         </form>
     </section>
 </main>
 <div th:replace="~{fragments :: footer}"></div>
 
-<script src="/js/select-filter.js"></script>
+<script th:src="@{/js/select-filter.js}"></script>
 </body>
 </html>

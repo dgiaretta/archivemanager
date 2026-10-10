@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Provenance events')}"></head>
+<head th:replace="~{fragments :: head(#{nav.activities})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <h1>Provenance events / activities</h1>
-    <p>rico:Event / rico:Activity individuals are what the bridge maps to OAIS Provenance Information &mdash; open a record's "OAIS mapping" view to see it applied.</p>
+    <h1 th:text="#{activities.title}">Provenance events / activities</h1>
+    <p th:text="#{activities.intro}">rico:Event / rico:Activity individuals are what the bridge maps to OAIS Provenance Information &mdash; open a record's "OAIS mapping" view to see it applied.</p>
     <p><span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span></p>
     <table class="listing">
-        <thead><tr><th>Type</th><th>Description</th></tr></thead>
+        <thead><tr><th th:text="#{col.type}">Type</th><th th:text="#{col.description}">Description</th></tr></thead>
         <tbody>
         <tr th:each="a : ${resultPage.items}">
             <td><span class="pill" th:text="${a.typeLocalName}">Type</span></td>

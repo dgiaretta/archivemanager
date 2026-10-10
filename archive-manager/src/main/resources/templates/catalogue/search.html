@@ -1,26 +1,27 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Catalogue')}"></head>
+<head th:replace="~{fragments :: head(#{nav.catalogue})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <h1>Catalogue</h1>
-    <p class="muted">
+    <h1 th:text="#{nav.catalogue}">Catalogue</h1>
+    <p class="muted" th:text="#{catalogue.intro}">
         Search the National Archives of Maldives catalogue. Open to everyone; no login needed to browse.
     </p>
 
-    <p><a th:href="@{/catalogue/explore}">Ask a more specific question &rarr;</a> (filter by creator, type, language, date range, and more &mdash; no SPARQL needed)</p>
+    <p><a th:href="@{/catalogue/explore}" th:utext="#{catalogue.explore} + ' &rarr;'">Ask a more specific question &rarr;</a>
+        <span th:text="#{catalogue.exploreHint}">(filter by creator, type, language, date range, and more &mdash; no SPARQL needed)</span></p>
 
     <form th:action="@{/catalogue}" method="get" class="inline-add-form">
-        <input type="text" name="q" th:value="${query}" placeholder="Search title, description, subject, type, record no., identifier..."/>
-        <button type="submit">Search</button>
-        <a th:if="${query != null and !query.isEmpty()}" th:href="@{/catalogue}" class="page-link">Clear search</a>
+        <input type="text" name="q" th:value="${query}" th:placeholder="#{catalogue.searchPlaceholder}"/>
+        <button type="submit" th:text="#{action.search}">Search</button>
+        <a th:if="${query != null and !query.isEmpty()}" th:href="@{/catalogue}" class="page-link" th:text="#{catalogue.clear}">Clear search</a>
     </form>
 
     <p><span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span></p>
     <table class="listing">
         <thead>
-        <tr><th>Type</th><th>Title</th></tr>
+        <tr><th th:text="#{col.type}">Type</th><th th:text="#{col.title}">Title</th></tr>
         </thead>
         <tbody>
         <tr th:each="r : ${resultPage.items}">
@@ -29,17 +30,14 @@
         </tr>
         </tbody>
     </table>
-    <p th:if="${resultPage.items.isEmpty()}" class="muted">No results.</p>
+    <p th:if="${resultPage.items.isEmpty()}" class="muted" th:text="#{catalogue.noResults}">No results.</p>
 
     <div class="pagination" th:if="${resultPage.totalPages() > 1}">
-        <a th:if="${resultPage.hasPrevious()}" th:href="@{/catalogue(q=${query}, page=${resultPage.previousPage()})}" class="page-link">&larr; Previous</a>
-        <span th:unless="${resultPage.hasPrevious()}" class="page-link disabled">&larr; Previous</span>
-        <span class="page-info">
-            Page <span th:text="${resultPage.page}">1</span> of <span th:text="${resultPage.totalPages()}">1</span>
-            (<span th:text="${resultPage.totalCount}">0</span> total)
-        </span>
-        <a th:if="${resultPage.hasNext()}" th:href="@{/catalogue(q=${query}, page=${resultPage.nextPage()})}" class="page-link">Next &rarr;</a>
-        <span th:unless="${resultPage.hasNext()}" class="page-link disabled">Next &rarr;</span>
+        <a th:if="${resultPage.hasPrevious()}" th:href="@{/catalogue(q=${query}, page=${resultPage.previousPage()})}" class="page-link" th:utext="'&larr; ' + #{page.previous}">&larr; Previous</a>
+        <span th:unless="${resultPage.hasPrevious()}" class="page-link disabled" th:utext="'&larr; ' + #{page.previous}">&larr; Previous</span>
+        <span class="page-info" th:text="#{page.info(${resultPage.page}, ${resultPage.totalPages()}, ${resultPage.totalCount})}">Page 1 of 1 (0 total)</span>
+        <a th:if="${resultPage.hasNext()}" th:href="@{/catalogue(q=${query}, page=${resultPage.nextPage()})}" class="page-link" th:utext="#{page.next} + ' &rarr;'">Next &rarr;</a>
+        <span th:unless="${resultPage.hasNext()}" class="page-link disabled" th:utext="#{page.next} + ' &rarr;'">Next &rarr;</span>
     </div>
 </main>
 <div th:replace="~{fragments :: footer}"></div>

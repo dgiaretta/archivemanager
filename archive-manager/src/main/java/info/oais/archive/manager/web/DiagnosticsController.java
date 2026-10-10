@@ -53,7 +53,10 @@ public class DiagnosticsController {
     private final RdfStore store;
     private final QueryRunner q;
 
-    public DiagnosticsController(RdfStore store, QueryRunner q) {
+    private final info.oais.archive.manager.i18n.Messages messages;
+
+    public DiagnosticsController(RdfStore store, QueryRunner q, info.oais.archive.manager.i18n.Messages messages) {
+        this.messages = messages;
         this.store = store;
         this.q = q;
     }
@@ -168,7 +171,7 @@ public class DiagnosticsController {
     @PostMapping("/diagnostics/xlsx-test")
     public String xlsxTest(@RequestParam("file") MultipartFile file, Model model) {
         if (file == null || file.isEmpty()) {
-            model.addAttribute("error", "Choose an .xlsx file first.");
+            model.addAttribute("error", messages.get("error.chooseXlsx"));
             return "diagnostics/xlsx-test";
         }
         List<List<String>> rows = new ArrayList<>();
@@ -189,7 +192,7 @@ public class DiagnosticsController {
                 rows.add(cells);
             }
         } catch (IOException e) {
-            model.addAttribute("error", "Could not read that file: " + e.getMessage());
+            model.addAttribute("error", messages.get("error.couldNotRead", e.getMessage()));
             return "diagnostics/xlsx-test";
         }
         model.addAttribute("rows", rows);

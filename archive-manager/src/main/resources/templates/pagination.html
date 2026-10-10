@@ -2,14 +2,13 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
 <nav th:fragment="pagination(resultPage, baseUrl)" class="pagination" th:if="${resultPage != null and resultPage.totalPages() > 1}">
-    <a th:if="${resultPage.hasPrevious()}" th:href="@{${baseUrl}(page=${resultPage.previousPage()})}" class="page-link">&larr; Previous</a>
-    <span th:unless="${resultPage.hasPrevious()}" class="page-link disabled">&larr; Previous</span>
+    <a th:if="${resultPage.hasPrevious()}" th:href="@{${baseUrl}(page=${resultPage.previousPage()})}" class="page-link" th:utext="'&larr; ' + #{page.previous}">&larr; Previous</a>
+    <span th:unless="${resultPage.hasPrevious()}" class="page-link disabled" th:utext="'&larr; ' + #{page.previous}">&larr; Previous</span>
     <span class="page-info">
-        Page <span th:text="${resultPage.page}">1</span> of <span th:text="${resultPage.totalPages()}">1</span>
-        (<span th:text="${resultPage.totalCount}">0</span> total)
+        <span th:text="#{page.info(${resultPage.page}, ${resultPage.totalPages()}, ${resultPage.totalCount})}">Page 1 of 1 (0 total)</span>
     </span>
-    <a th:if="${resultPage.hasNext()}" th:href="@{${baseUrl}(page=${resultPage.nextPage()})}" class="page-link">Next &rarr;</a>
-    <span th:unless="${resultPage.hasNext()}" class="page-link disabled">Next &rarr;</span>
+    <a th:if="${resultPage.hasNext()}" th:href="@{${baseUrl}(page=${resultPage.nextPage()})}" class="page-link" th:utext="#{page.next} + ' &rarr;'">Next &rarr;</a>
+    <span th:unless="${resultPage.hasNext()}" class="page-link disabled" th:utext="#{page.next} + ' &rarr;'">Next &rarr;</span>
 </nav>
 </body>
 </html>

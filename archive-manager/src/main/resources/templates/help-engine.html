@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head(${title} + ' notes')}"></head>
+<head th:replace="~{fragments :: head(#{help.engineNotes(${title})})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <p class="breadcrumb"><a th:href="@{/help#data-descriptions}">&larr; Help</a></p>
+    <p class="breadcrumb"><a th:href="@{/help#data-descriptions}" th:utext="'&larr; ' + #{nav.help}">&larr; Help</a></p>
     <!-- A structure adapter's README, rendered from Markdown bundled into this app (see HelpController). -->
     <article class="readme" th:utext="${html}">README</article>
 </main>

@@ -4,7 +4,7 @@
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <p class="breadcrumb"><a th:href="@{/records}">&larr; Records</a></p>
+    <p class="breadcrumb"><a th:href="@{/records}" th:utext="'&larr; ' + #{nav.records}">&larr; Records</a></p>
     <h1 th:text="${title}">Title</h1>
     <p class="types">
         <span class="pill" th:each="t : ${types}" th:text="${t}">Type</span>
@@ -12,31 +12,31 @@
     </p>
 
     <p>
-        <a class="button" th:href="@{/oais/{id}(id=${id})}">View OAIS mapping &rarr;</a>
-        <a class="button button-secondary" th:href="@{/graph/{id}(id=${id})}">View in graph &rarr;</a>
-        <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}">Edit &rarr;</a>
+        <a class="button" th:href="@{/oais/{id}(id=${id})}" th:utext="#{records.viewOais} + ' &rarr;'">View OAIS mapping &rarr;</a>
+        <a class="button button-secondary" th:href="@{/graph/{id}(id=${id})}" th:utext="#{action.viewInGraph} + ' &rarr;'">View in graph &rarr;</a>
+        <a class="button button-secondary" th:href="@{/entities/{id}/edit(id=${id})}" th:utext="#{action.edit} + ' &rarr;'">Edit &rarr;</a>
     </p>
 
     <p th:if="${description}" th:text="${description}">Description</p>
 
     <div class="grid">
         <section th:if="${!creators.isEmpty()}">
-            <h3>Creator(s)</h3>
+            <h3 th:text="#{records.creators}">Creator(s)</h3>
             <ul><li th:each="c : ${creators}"><a th:href="@{/agents/{id}(id=${c.id})}" th:text="${c.title}">Agent</a></li></ul>
         </section>
 
         <section th:if="${parent != null}">
-            <h3>Part of</h3>
+            <h3 th:text="#{records.partOf}">Part of</h3>
             <a th:href="@{/records/{id}(id=${parent.id})}" th:text="${parent.title}">Parent</a>
         </section>
 
         <section th:if="${!constituents.isEmpty()}">
-            <h3>Constituents</h3>
+            <h3 th:text="#{records.constituents}">Constituents</h3>
             <ul><li th:each="c : ${constituents}"><a th:href="@{/records/{id}(id=${c.id})}" th:text="${c.title}">Part</a></li></ul>
         </section>
 
         <section th:if="${!instantiations.isEmpty()}">
-            <h3>Instantiation(s)</h3>
+            <h3 th:text="#{records.instantiations}">Instantiation(s)</h3>
             <ul>
                 <li th:each="i : ${instantiations}">
                     <span th:text="${i.title}">Instantiation</span>
@@ -46,24 +46,24 @@
         </section>
 
         <section th:if="${!mandates.isEmpty()}">
-            <h3>Regulated by</h3>
+            <h3 th:text="#{records.regulatedBy}">Regulated by</h3>
             <ul><li th:each="m : ${mandates}"><a th:href="@{/mandates/{id}(id=${m.id})}" th:text="${m.title}">Mandate</a></li></ul>
         </section>
 
         <section th:if="${!provenanceActivities.isEmpty()}">
-            <h3>Provenance</h3>
+            <h3 th:text="#{records.provenance}">Provenance</h3>
             <ul><li th:each="a : ${provenanceActivities}"><a th:href="@{/activities/{id}(id=${a.id})}" th:text="${a.title}">Activity</a></li></ul>
         </section>
 
         <section th:if="${!attributes.isEmpty()}">
-            <h3>Other properties</h3>
+            <h3 th:text="#{records.otherProperties}">Other properties</h3>
             <table class="attrs">
                 <tr th:each="a : ${attributes}">
                     <td class="prop" th:text="${a.propertyLocalName}">prop</td>
                     <td>
                         <a th:if="${a.value != null and (a.value.startsWith('http://') or a.value.startsWith('https://'))}"
                            th:href="${a.value}" th:text="${a.value}"
-                           target="_blank" rel="noopener noreferrer" title="Opens in a new tab">value &#8599;</a>
+                           target="_blank" rel="noopener noreferrer" th:title="#{link.newTab}">value &#8599;</a>
                         <span th:unless="${a.value != null and (a.value.startsWith('http://') or a.value.startsWith('https://'))}" th:text="${a.value}">value</span>
                     </td>
                 </tr>

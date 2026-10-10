@@ -1,6 +1,12 @@
 package info.oais.archive.manager.security;
 
+import info.oais.archive.manager.i18n.LanguagePreference;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpSession;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.servlet.LocaleResolver;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -13,6 +19,29 @@ public class WebConfig implements WebMvcConfigurer {
     public WebConfig(TransactionInterceptor transactionInterceptor, EditAuthInterceptor editAuthInterceptor) {
         this.transactionInterceptor = transactionInterceptor;
         this.editAuthInterceptor = editAuthInterceptor;
+    }
+
+    /**
+     * The interface's language is the session's preferred language (see
+     * {@link LanguagePreference}), the one the switcher in the top bar sets --
+     * for its text (the message bundles) as for the ontology's labels.
+     */
+    @Bean
+    public LocaleResolver localeResolver() {
+        return new LocaleResolver() {
+            @Override
+            public java.util.Locale resolveLocale(HttpServletRequest request) {
+                HttpSession session = request.getSession(false);
+                Object language = session == null ? null : session.getAttribute(LanguagePreference.SESSION_KEY);
+                return LanguagePreference.localeOf(language instanceof String s ? s : LanguagePreference.DEFAULT);
+            }
+
+            @Override
+            public void setLocale(HttpServletRequest request, HttpServletResponse response, java.util.Locale locale) {
+                request.getSession(true).setAttribute(LanguagePreference.SESSION_KEY,
+                        locale == null ? LanguagePreference.DEFAULT : locale.getLanguage());
+            }
+        };
     }
 
     @Override

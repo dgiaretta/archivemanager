@@ -1,17 +1,17 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Records')}"></head>
+<head th:replace="~{fragments :: head(#{nav.records})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <h1>Records, Record Parts &amp; Record Sets</h1>
+    <h1 th:text="#{records.title}">Records, Record Parts &amp; Record Sets</h1>
     <p>
-        <a class="button" th:href="@{/records/new}">+ New record</a>
+        <a class="button" th:href="@{/records/new}" th:text="'+ ' + #{records.new}">+ New record</a>
         <span th:replace="~{graph-button :: viewAsGraph(${resultPage.items.![id]})}"></span>
     </p>
     <table class="listing">
         <thead>
-        <tr><th>Type</th><th>Title</th></tr>
+        <tr><th th:text="#{col.type}">Type</th><th th:text="#{col.title}">Title</th></tr>
         </thead>
         <tbody>
         <tr th:each="r : ${resultPage.items}">

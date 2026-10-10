@@ -1,24 +1,24 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
-<head th:replace="~{fragments :: head('Upload result')}"></head>
+<head th:replace="~{fragments :: head(#{upload.result.title})}"></head>
 <body>
 <div th:replace="~{fragments :: nav}"></div>
 <main class="container">
-    <h1>Upload complete</h1>
+    <h1 th:text="#{upload.result.complete}">Upload complete</h1>
 
     <div class="callout" style="border-color:#8a4b2f;">
-        <strong><span th:text="${result.recordCount}">0</span> record(s) imported.</strong>
-        <span th:if="${!result.warnings.isEmpty()}" th:text="${result.warnings.size()} + ' row(s) were skipped -- see below.'">warnings</span>
+        <strong th:text="#{upload.result.imported(${result.recordCount})}">0 record(s) imported.</strong>
+        <span th:if="${!result.warnings.isEmpty()}" th:text="#{upload.result.skipped(${result.warnings.size()})}">warnings</span>
     </div>
 
     <p>
-        <a class="button" th:href="@{/catalogue}">View in Catalogue &rarr;</a>
-        <a class="button button-secondary" th:href="@{/accession-register}">View in Accession Register &rarr;</a>
-        <a class="button button-secondary" th:href="@{/catalogue/upload}">Upload another file &rarr;</a>
+        <a class="button" th:href="@{/catalogue}" th:utext="#{upload.result.viewCatalogue} + ' &rarr;'">View in Catalogue &rarr;</a>
+        <a class="button button-secondary" th:href="@{/accession-register}" th:utext="#{upload.result.viewRegister} + ' &rarr;'">View in Accession Register &rarr;</a>
+        <a class="button button-secondary" th:href="@{/catalogue/upload}" th:utext="#{upload.result.another} + ' &rarr;'">Upload another file &rarr;</a>
     </p>
 
     <div th:if="${!result.warnings.isEmpty()}" class="editor-section">
-        <h2>Skipped rows</h2>
+        <h2 th:text="#{upload.result.skippedRows}">Skipped rows</h2>
         <ul>
             <li th:each="w : ${result.warnings}" th:text="${w}">warning</li>
         </ul>
